@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "team-task-sync",
+  "regions": ["bom1"],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

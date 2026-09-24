@@ -1,0 +1,12 @@
+{
+  "name": "team-task-sync",
+  "version": "1.0.0",
+  "description": "Live Google Sheets & Jira Task Sync Dashboard",
+  "main": "sync_server.js",
+  "scripts": {
+    "start": "node sync_server.js"
+  },
+  "keywords": ["jira", "google-sheets", "composio", "task-sync"],
+  "author": "Enveu Engineering",
+  "license": "ISC"
+}
