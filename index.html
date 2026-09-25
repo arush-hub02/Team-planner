@@ -243,6 +243,123 @@
       color: #6ee7b7;
     }
 
+    /* 🔔 Teams Notify Button */
+    .btn-notify-teams {
+      background: linear-gradient(135deg, rgba(79,70,229,0.18), rgba(109,40,217,0.18));
+      border: 1px solid rgba(99,102,241,0.45);
+      color: #a5b4fc;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-notify-teams:hover {
+      background: linear-gradient(135deg, rgba(79,70,229,0.32), rgba(109,40,217,0.28));
+      border-color: rgba(99,102,241,0.7);
+      color: #c7d2fe;
+      box-shadow: 0 4px 18px rgba(99,102,241,0.3);
+    }
+    .btn-notify-teams::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(167,139,250,0.08), transparent);
+      animation: shimmer-notify 2.5s ease-in-out infinite;
+    }
+    @keyframes shimmer-notify {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    @keyframes slideUpBar {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* Templates grid buttons */
+    .notify-template-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      background: rgba(15,23,42,0.6);
+      border: 1px solid rgba(99,102,241,0.22);
+      border-radius: 9px;
+      color: #cbd5e1;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.18s ease;
+      font-family: inherit;
+    }
+    .notify-template-btn:hover {
+      background: rgba(99,102,241,0.12);
+      border-color: rgba(99,102,241,0.45);
+      color: #e0e7ff;
+      transform: translateY(-1px);
+    }
+    .notify-template-btn.active {
+      background: rgba(99,102,241,0.2);
+      border-color: rgba(99,102,241,0.6);
+      color: #c7d2fe;
+    }
+
+    /* Teams Notify Buttons & Actions */
+    .btn-teams-primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(165, 180, 252, 0.45) !important;
+      box-shadow: 0 2px 14px rgba(79, 70, 229, 0.45) !important;
+      font-weight: 700 !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 8px !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .btn-teams-primary:hover {
+      background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #6d28d9 100%) !important;
+      border-color: rgba(199, 210, 254, 0.65) !important;
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.6) !important;
+      color: #ffffff !important;
+      transform: translateY(-1px);
+    }
+    .btn-teams-primary:active {
+      transform: translateY(1px);
+    }
+    .btn-teams-primary.btn-teams-success {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+      border-color: #34d399 !important;
+      box-shadow: 0 2px 14px rgba(16, 185, 129, 0.5) !important;
+      color: #ffffff !important;
+    }
+    .btn-teams-copy {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.22) !important;
+      color: #f8fafc !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 8px !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .btn-teams-copy:hover {
+      background: rgba(255, 255, 255, 0.14) !important;
+      border-color: rgba(255, 255, 255, 0.35) !important;
+      color: #ffffff !important;
+      transform: translateY(-1px);
+    }
+    .btn-teams-copy:active {
+      transform: translateY(1px);
+    }
+    .btn-teams-copy.btn-teams-copied {
+      background: rgba(16, 185, 129, 0.2) !important;
+      border-color: rgba(16, 185, 129, 0.55) !important;
+      color: #34d399 !important;
+    }
+
     /* Quick Add Sync Form */
     .form-card {
       background: var(--card-bg);
@@ -1702,7 +1819,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 2000;
+      z-index: 10000;
       padding: 20px;
     }
     .modal-card {
@@ -2829,6 +2946,10 @@
         <button onclick="fetchLiveSheets(true)" class="btn btn-secondary" title="Force re-fetch from Google Sheets">
           🔄 Refresh from Sheet
         </button>
+        <!-- Admin-only Teams Notify Button -->
+        <button id="btnTeamsNotify" onclick="openTeamsNotifyModal()" class="btn btn-notify-teams" title="Send a Teams notification to the team (Admin only)" style="display: none;">
+          🔔 Notify Team
+        </button>
         <button onclick="openShareModal()" class="btn btn-purple" title="View private Google Sheets for each team member">
           👥 Person-Specific Sheets
         </button>
@@ -3155,6 +3276,81 @@
   </div>
 
   <div id="toast" class="toast-msg"></div>
+
+  <!-- 🔔 Teams Notify Modal (Multi-ticket Composer) -->
+  <div id="teamsNotifyModal" class="modal-overlay" onclick="if(event.target===this)closeTeamsNotifyModal()" style="display:none; z-index:10000;">
+    <div class="modal-card" style="width: 780px; max-width: 96vw; max-height: 92vh; padding: 20px 24px; display:flex; flex-direction:column; border: 1px solid rgba(99,102,241,0.45); box-shadow: 0 25px 60px rgba(0,0,0,0.7); overflow: hidden;">
+      <div class="modal-header" style="padding-bottom: 12px; border-bottom: 1px solid rgba(99,102,241,0.25); flex-shrink:0;">
+        <div class="modal-title" style="color: #a5b4fc; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔔</span>
+          <div>
+            <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Notify Team via Microsoft Teams</div>
+            <div style="font-size: 11.5px; color: #94a3b8; font-weight: 400; margin-top: 2px;">Direct Teams Chat • Clickable Jira Hyperlinks via Clipboard Paste • Zero Bot Setup</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeTeamsNotifyModal()" title="Close">✕</button>
+      </div>
+
+      <!-- Quick How-It-Works Banner -->
+      <div style="flex-shrink:0; margin: 10px 0 8px; padding: 9px 13px; border-radius: 9px; font-size: 11.5px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.28); display: flex; align-items: flex-start; gap: 10px;">
+        <span style="font-size: 17px; line-height: 1;">💡</span>
+        <div style="color: #cbd5e1; line-height: 1.45;">
+          <strong style="color: #a5b4fc;">Active Hyperlinks in Teams:</strong> Teams only renders live clickable links when pasted into the chat box. Clicking <strong style="color: #38bdf8;">"💬 Open in Teams"</strong> or <strong style="color: #38bdf8;">"📋 Copy with Link"</strong> automatically places rich formatting with live clickable Jira links onto your clipboard. In Teams, simply press <kbd style="background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); font-family: monospace; color: #38bdf8; font-weight: 700;">Ctrl+V</kbd> to paste & send!
+        </div>
+      </div>
+
+      <!-- Template Picker -->
+      <div style="flex-shrink:0; margin-top: 4px; margin-bottom: 8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">📋 Templates</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:11px; color:#64748b;">Apply to:</span>
+            <select id="templateApplyScope" style="font-size:11.5px; background:#0f172a; border:1px solid rgba(99,102,241,0.3); color:#a5b4fc; border-radius:6px; padding:2px 8px; cursor:pointer;">
+              <option value="current">Focused card</option>
+              <option value="all">All tickets</option>
+            </select>
+          </div>
+        </div>
+        <div id="notifyTemplatesGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+          <button type="button" class="notify-template-btn" onclick="dispatchTemplate('due_date_missing')">
+            <span>📅</span><span>Due Date Missing</span>
+          </button>
+          <button type="button" class="notify-template-btn" onclick="dispatchTemplate('status_update')">
+            <span>🔄</span><span>Status Update</span>
+          </button>
+          <button type="button" class="notify-template-btn" onclick="dispatchTemplate('ticket_blocked')">
+            <span>🚧</span><span>Ticket Blocked</span>
+          </button>
+          <button type="button" class="notify-template-btn" onclick="dispatchTemplate('sprint_review')">
+            <span>📊</span><span>Sprint Review</span>
+          </button>
+          <button type="button" class="notify-template-btn" onclick="dispatchTemplate('general_reminder')">
+            <span>⏰</span><span>General Reminder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Ticket Cards: Preview & Edit Area (scrollable) -->
+      <div id="notifyTicketsContainer" style="flex:1; overflow-y:auto; padding-right:6px; min-height:200px; box-sizing:border-box;">
+        <!-- Ticket cards with preview & edit area rendered by JS -->
+      </div>
+
+      <!-- Footer Actions (Clean, Non-Overlapping Layout) -->
+      <div style="flex-shrink:0; display:flex; justify-content:space-between; align-items:center; padding-top:12px; border-top:1px solid rgba(99,102,241,0.2); margin-top:8px; gap:12px; flex-wrap:wrap;">
+        <button type="button" onclick="closeTeamsNotifyModal()" class="btn btn-secondary" style="font-size:12.5px; padding:0 16px; height:38px;">
+          ← Back to Selection
+        </button>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" id="btnCopyAllNotify" onclick="copyAllSelectedMessages(this)" class="btn btn-teams-copy" style="font-size:12.5px; padding:0 16px; height:38px; gap:6px; white-space:nowrap;">
+            <span>📋</span> <span>Copy All (with Links)</span>
+          </button>
+          <button type="button" id="btnOpenAllTeams" onclick="openAllInTeams(this)" class="btn btn-teams-primary" style="font-size:12.5px; padding:0 18px; height:38px; gap:6px; white-space:nowrap;">
+            <span>💬</span> <span id="btnOpenAllTeamsText">Open in Teams (Ctrl+V)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // 🔐 Role-Based Access Control & User Session Management
@@ -3580,7 +3776,7 @@
           // Also update settings connection cards if open
           updateMcpConnectionCards(data);
 
-          // Are ALL connected?
+          // Are core systems connected? (Google Sheets + Jira are required)
           if (sheetsActive && jiraActive) {
             stopReadinessPolling();
             if (banner) {
@@ -3623,12 +3819,18 @@
     }
 
     async function connectReadinessMcp(toolkit) {
-      const btn = toolkit === 'googlesheets' 
-        ? document.getElementById('btnReadinessConnectSheets')
-        : document.getElementById('btnReadinessConnectJira');
-      const badge = toolkit === 'googlesheets'
-        ? document.getElementById('readinessSheetsBadge')
-        : document.getElementById('readinessJiraBadge');
+      let btn, badge, defaultText, label;
+      if (toolkit === 'googlesheets') {
+        btn = document.getElementById('btnReadinessConnectSheets');
+        badge = document.getElementById('readinessSheetsBadge');
+        defaultText = '🔗 Connect Google Sheets ↗';
+        label = 'Google Sheets';
+      } else {
+        btn = document.getElementById('btnReadinessConnectJira');
+        badge = document.getElementById('readinessJiraBadge');
+        defaultText = '🔗 Connect Jira Cloud ↗';
+        label = 'Jira Cloud';
+      }
 
       if (btn) {
         btn.disabled = true;
@@ -3653,13 +3855,13 @@
           showToast('❌ Failed to get connection link: ' + (data.error || 'Unknown error'));
           if (btn) {
             btn.disabled = false;
-            btn.innerText = toolkit === 'googlesheets' ? '🔗 Connect Google Sheets ↗' : '🔗 Connect Jira Cloud ↗';
+            btn.innerText = defaultText;
           }
           return;
         }
 
         window.open(data.redirectUrl, '_blank', 'noopener,noreferrer');
-        showToast(`🔗 Opened ${toolkit === 'googlesheets' ? 'Google Sheets' : 'Jira'} auth tab. Authorize and return here!`);
+        showToast(`🔗 Opened ${label} auth tab. Authorize and return here!`);
         startReadinessPolling();
       } catch (err) {
         showToast('❌ Connection error: ' + err.message);
@@ -3667,9 +3869,9 @@
         setTimeout(() => {
           if (btn) {
             btn.disabled = false;
-            btn.innerText = toolkit === 'googlesheets' ? '🔗 Connect Google Sheets ↗' : '🔗 Connect Jira Cloud ↗';
+            btn.innerText = defaultText;
           }
-        }, 3000);
+        }, 4000);
       }
     }
 
@@ -3858,8 +4060,8 @@
           jiraBtn.innerText = '✅ Jira Connected';
           jiraBtn.style.opacity = '0.65';
         }
-        if (jiraInfo && conn.jira.siteUrl) {
-          jiraInfo.innerText = 'Site: ' + conn.jira.siteUrl;
+        if (jiraInfo && conn.jira.connectedAccount?.siteUrl) {
+          jiraInfo.innerText = 'Site: ' + conn.jira.connectedAccount.siteUrl;
         }
       } else {
         if (jiraBadge) {
@@ -3878,6 +4080,914 @@
         continueBtn.style.display = conn.allActive ? 'block' : 'none';
       }
     }
+
+    // ─── TEAMS NOTIFY FEATURE (Multi-ticket, assignee-specific) ───────────────
+    const DEFAULT_TEAMS_EMAILS = {
+      'ARUSH': 'arushdeep.gupta@enveu.com',
+      'CHETNA': 'chetna.sharma@enveu.com',
+      'KRISHNA': 'krishna.sharma@enveu.com',
+      'MANISH': 'manish@enveu.com',
+      'RAHUL': 'rahul.joshi@enveu.com',
+      'SONU': 'sonu.kumar@enveu.com'
+    };
+
+    function cleanTeamsEmailString(str) {
+      if (!str) return '';
+      return str
+        .replace(/\bchetna@enveu\.com\b/gi, 'chetna.sharma@enveu.com')
+        .replace(/\bkrishna@enveu\.com\b/gi, 'krishna.sharma@enveu.com')
+        .replace(/\brahul@enveu\.com\b/gi, 'rahul.joshi@enveu.com')
+        .replace(/\bsonu@enveu\.com\b/gi, 'sonu.kumar@enveu.com');
+    }
+
+    function getAssigneeTeamsEmail(assignee) {
+      if (!assignee) return '';
+      // Support multi-assignees separated by '&', '+', or ','
+      if (assignee.includes('&') || assignee.includes('+') || assignee.includes(',')) {
+        const parts = assignee.split(/[&+,]/).map(p => p.replace(/\(.*?\)/g, '').trim()).filter(Boolean);
+        const resolved = parts.map(p => getAssigneeTeamsEmail(p)).filter(Boolean);
+        return cleanTeamsEmailString([...new Set(resolved)].join(', '));
+      }
+      const upper = assignee.replace(/\(.*?\)/g, '').trim().toUpperCase();
+      const stored = localStorage.getItem('teams_email_' + upper);
+      if (stored) {
+        // Upgrade legacy default emails if previously cached in browser
+        return cleanTeamsEmailString(stored);
+      }
+      if (DEFAULT_TEAMS_EMAILS[upper]) return DEFAULT_TEAMS_EMAILS[upper];
+      return cleanTeamsEmailString(`${upper.toLowerCase()}@enveu.com`);
+    }
+
+    function formatAssigneeMention(assignee) {
+      if (!assignee) return '@team';
+      if (assignee.includes('&')) {
+        return assignee.split('&').map(a => `@${a.trim()}`).join(' & ');
+      }
+      if (assignee.includes('+')) {
+        return assignee.split('+').map(a => `@${a.trim()}`).join(' & ');
+      }
+      if (assignee.includes(',')) {
+        return assignee.split(',').map(a => `@${a.trim()}`).join(', ');
+      }
+      return `@${assignee.trim()}`;
+    }
+
+    function saveAssigneeEmail(assignee, email) {
+      if (!assignee) return;
+      const upper = assignee.trim().toUpperCase();
+      if (email && email.trim()) {
+        localStorage.setItem('teams_email_' + upper, email.trim());
+        showToast(`💾 Saved Teams email for ${assignee}: ${email.trim()}`);
+      }
+    }
+
+    const NOTIFY_TEMPLATES = {
+      due_date_missing: (ctx) => {
+        const ticket = ctx?.ticket || '[TICKET]';
+        const title = ctx?.title || '[Ticket Title]';
+        const assignee = ctx?.assignee || '[Assignee]';
+        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const greeting = formatAssigneeMention(assignee);
+        return `📅 *Action Required: Due Date Missing*
+
+${greeting} — Hi!
+
+Your ticket is missing a due date and needs to be updated in Jira:
+
+• *Ticket:* ${ticket}
+• *Title:* ${title}
+• *Assignee:* ${assignee}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+
+Please update the due date in Jira at your earliest so we can track sprint commitments accurately.
+
+Thanks! 🙏`;
+      },
+      status_update: (ctx) => {
+        const ticket = ctx?.ticket || '[TICKET]';
+        const title = ctx?.title || '[Ticket Title]';
+        const assignee = ctx?.assignee || '[Assignee]';
+        const status = ctx?.status || '[Current Status]';
+        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const greeting = formatAssigneeMention(assignee);
+        return `🔄 *Status Update Request*
+
+${greeting} — Hi!
+
+Could you please provide an update on the following ticket?
+
+• *Ticket:* ${ticket}
+• *Title:* ${title}
+• *Current Status:* ${status}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+
+Please update the internal status in the Team Task Sheet so everyone is aligned.
+
+Thanks! 🚀`;
+      },
+      ticket_blocked: (ctx) => {
+        const ticket = ctx?.ticket || '[TICKET]';
+        const title = ctx?.title || '[Ticket Title]';
+        const assignee = ctx?.assignee || '[Assignee]';
+        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const greeting = formatAssigneeMention(assignee);
+        return `🚧 *Ticket Blocked — Action Needed*
+
+${greeting} — Hi!
+
+Your ticket appears to be blocked or stalled and needs attention:
+
+• *Ticket:* ${ticket}
+• *Title:* ${title}
+• *Assignee:* ${assignee}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+
+Please review and either unblock it, escalate, or update the status accordingly.
+
+Let me know if you need any help! 🙌`;
+      },
+      sprint_review: (ctx) => {
+        const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        return `📊 *Sprint Review Reminder*
+
+Hi team,
+
+Friendly reminder that our sprint review is approaching. Please ensure:
+
+✅ All completed tickets are marked as *Done* in Jira
+✅ Internal statuses are updated in the Team Task Sheet
+✅ Any carry-over tickets are flagged with a note
+✅ Due dates are set for next sprint commitments
+
+Date: ${today}
+
+Let's wrap this sprint strong! 💪`;
+      },
+      general_reminder: (ctx) => {
+        const assignee = ctx?.assignee || 'team';
+        const greeting = formatAssigneeMention(assignee);
+        return `⏰ *Team Reminder*
+
+${greeting} — Hi!
+
+This is a quick reminder to keep your task board up to date:
+
+• Update internal statuses for your tickets
+• Add due dates to any tickets missing them
+• Flag any blockers or dependencies
+• Close tickets that are done in Jira
+
+A clean board helps the whole team stay in sync! 🎯
+
+Thanks!`;
+      }
+    };
+
+    let teamsSelectMode = false;
+    let teamsSelectedTickets = new Map(); // key: ticket_owner, value: { ticket, title, assignee, dueDate, status, message }
+    let teamsActiveCardKey = null; // currently focused ticket card in modal
+    let notifyTicketRegistry = new Map(); // registry of rendered tickets
+
+    // ── Select Mode & Gateway ────────────────────────────────────────────────
+
+    function updateTeamsNotifyButton() {
+      const btn = document.getElementById('btnTeamsNotify');
+      if (!btn) return;
+      const isAdmin = currentUser && currentUser.role === 'ADMIN';
+      btn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
+    function openTeamsNotifyModal() {
+      if (!currentUser || currentUser.role !== 'ADMIN') {
+        showToast('⛔ Teams notifications are available to admins only.');
+        return;
+      }
+
+      // If already in select mode and tickets selected, open composer; else toggle
+      if (teamsSelectMode) {
+        if (teamsSelectedTickets.size > 0) {
+          openNotifyComposer();
+        } else {
+          exitTeamsSelectMode();
+        }
+        return;
+      }
+
+      // Enter select mode directly — zero admin setup required for Teams Chat & Copy!
+      enterTeamsSelectMode();
+    }
+
+    // ── Ticket Selection Flow ────────────────────────────────────────────────
+
+    function enterTeamsSelectMode() {
+      teamsSelectMode = true;
+      teamsSelectedTickets.clear();
+      notifyTicketRegistry.clear();
+      renderDynamicTabsAndPanes();
+      showSelectionBar();
+      showToast('🔔 Select tickets to notify. Click "Compose & Send" when ready.');
+      const btn = document.getElementById('btnTeamsNotify');
+      if (btn) {
+        btn.innerHTML = '🔔 <span id="notifySelectCount">0 selected</span>';
+        btn.style.background = 'linear-gradient(135deg, rgba(99,102,241,0.4), rgba(109,40,217,0.4))';
+        btn.style.borderColor = 'rgba(99,102,241,0.8)';
+      }
+    }
+
+    function exitTeamsSelectMode() {
+      teamsSelectMode = false;
+      teamsSelectedTickets.clear();
+      notifyTicketRegistry.clear();
+      hideSelectionBar();
+      renderDynamicTabsAndPanes();
+      const btn = document.getElementById('btnTeamsNotify');
+      if (btn) {
+        btn.innerHTML = '🔔 Notify Team';
+        btn.style.background = '';
+        btn.style.borderColor = '';
+      }
+    }
+
+    // Determines if a ticket can be notified via Teams (excludes UPCOMING queue, CLOSED archive, and completed/closed tickets)
+    function isNotifiableTicket(item) {
+      if (!item) return false;
+      const owner = (item.owner || item.assignee || '').trim().toUpperCase();
+      if (!owner || owner === 'UPCOMING' || owner === 'CLOSED') return false;
+      if (typeof isStatusSheet === 'function' && isStatusSheet(owner)) return false;
+      if (typeof isProjectSheet === 'function' && isProjectSheet(owner)) return false;
+
+      const js = (item.jiraStatus || '').trim().toUpperCase();
+      const is = (item.internalStatus || item.status || '').trim().toUpperCase();
+      if (js === 'CLOSED' || js === 'DONE' || is === 'CLOSED' || is === 'DONE') return false;
+
+      return true;
+    }
+
+    function handleTicketSelectCheckbox(key, isChecked) {
+      if (isChecked) {
+        const item = { ...(notifyTicketRegistry.get(key) || {}) };
+        if (!isNotifiableTicket(item)) return;
+        const tmplFn = (!item.dueDate || item.dueDate === 'Not set')
+          ? NOTIFY_TEMPLATES.due_date_missing
+          : NOTIFY_TEMPLATES.status_update;
+        item.message = tmplFn(item);
+        teamsSelectedTickets.set(key, item);
+      } else {
+        teamsSelectedTickets.delete(key);
+      }
+      updateSelectionBar();
+    }
+
+    function toggleSelectAllVisible(isChecked) {
+      // Find the currently active tab container so select-all only affects visible tickets
+      const activePane = document.querySelector('.tab-pane.active');
+      const checkboxes = activePane ? activePane.querySelectorAll('.notify-select-cb') : document.querySelectorAll('.notify-select-cb');
+
+      checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+      });
+
+      if (isChecked) {
+        checkboxes.forEach(cb => {
+          const match = cb.getAttribute('onchange')?.match(/handleTicketSelectCheckbox\('([^']+)'/);
+          if (match && match[1]) {
+            const key = match[1];
+            const item = notifyTicketRegistry.get(key);
+            if (item && isNotifiableTicket(item)) {
+              const copy = { ...item };
+              const tmplFn = (!copy.dueDate || copy.dueDate === 'Not set')
+                ? NOTIFY_TEMPLATES.due_date_missing
+                : NOTIFY_TEMPLATES.status_update;
+              copy.message = tmplFn(copy);
+              teamsSelectedTickets.set(key, copy);
+            }
+          }
+        });
+      } else {
+        if (currentActiveTab === 'all') {
+          teamsSelectedTickets.clear();
+        } else {
+          checkboxes.forEach(cb => {
+            const match = cb.getAttribute('onchange')?.match(/handleTicketSelectCheckbox\('([^']+)'/);
+            if (match && match[1]) {
+              teamsSelectedTickets.delete(match[1]);
+            }
+          });
+        }
+      }
+      updateSelectionBar();
+    }
+
+    function showSelectionBar() {
+      let bar = document.getElementById('teamsSelectionBar');
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'teamsSelectionBar';
+        bar.style.cssText = `
+          position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+          background: linear-gradient(135deg, #1e1b4b, #0f172a);
+          border: 1px solid rgba(99,102,241,0.6); border-radius: 16px;
+          padding: 10px 18px; display: flex; align-items: center; gap: 14px;
+          box-shadow: 0 8px 36px rgba(0,0,0,0.5), 0 0 20px rgba(99,102,241,0.3); z-index: 9990;
+          font-size: 13.5px; font-weight: 600; color: #e0e7ff;
+          backdrop-filter: blur(20px); min-width: 340px; justify-content: space-between;
+          animation: slideUpBar 0.3s cubic-bezier(0.16,1,0.3,1);
+        `;
+        bar.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">🔔</span>
+            <span id="selBarCount" style="color:#a5b4fc;">0 tickets selected</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="exitTeamsSelectMode()" style="padding:6px 14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit;">✕ Cancel</button>
+            <button id="selBarComposeBtn" onclick="openNotifyComposer()" class="btn btn-teams-primary" style="padding:6px 16px;font-size:12px;height:32px;opacity:0.45;pointer-events:none;">Compose & Send (0)</button>
+          </div>
+        `;
+        document.body.appendChild(bar);
+      }
+      bar.style.display = 'flex';
+    }
+
+    function hideSelectionBar() {
+      const bar = document.getElementById('teamsSelectionBar');
+      if (bar) bar.style.display = 'none';
+    }
+
+    function updateSelectionBar() {
+      const count = teamsSelectedTickets.size;
+      const countEl = document.getElementById('selBarCount');
+      const composeBtn = document.getElementById('selBarComposeBtn');
+      const notifyCount = document.getElementById('notifySelectCount');
+
+      if (countEl) countEl.innerText = `${count} ticket${count !== 1 ? 's' : ''} selected`;
+      if (composeBtn) {
+        composeBtn.innerText = `Compose & Send (${count})`;
+        composeBtn.style.opacity = count > 0 ? '1' : '0.45';
+        composeBtn.style.pointerEvents = count > 0 ? 'auto' : 'none';
+      }
+      if (notifyCount) notifyCount.innerText = `${count} selected`;
+    }
+
+    // Build the notify checkbox cell (injected into each ticket row)
+    function buildNotifyCheckboxCell(item) {
+      if (!teamsSelectMode || !currentUser || currentUser.role !== 'ADMIN') return '';
+      if (!isNotifiableTicket(item)) {
+        return `<td style="width:38px;text-align:center;padding:4px 0;">
+          <span style="font-size:12px;opacity:0.25;user-select:none;cursor:not-allowed;" title="Upcoming and closed tickets cannot be notified via Teams">—</span>
+        </td>`;
+      }
+      const key = `${item.ticket}_${item.owner}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const parsed = (typeof parseTicketAssignees === 'function')
+        ? parseTicketAssignees(item.ticket, item.owner, item.notes)
+        : { isShared: false, assignees: [{ name: item.owner }] };
+      const isShared = parsed.isShared && parsed.assignees && parsed.assignees.length > 1;
+      const assigneeNames = isShared
+        ? parsed.assignees.map(a => `${a.name}${a.role ? ` (${a.role})` : ''}`).join(' & ')
+        : (item.owner || '');
+      const emails = isShared
+        ? parsed.assignees.map(a => getAssigneeTeamsEmail(a.name)).filter(Boolean).join(', ')
+        : (getAssigneeTeamsEmail(item.owner) || '');
+
+      notifyTicketRegistry.set(key, {
+        ticket: item.ticket,
+        title: item.title || '',
+        assignee: assigneeNames,
+        isShared: isShared,
+        sharedAssignees: isShared ? parsed.assignees : null,
+        assigneeEmail: emails,
+        dueDate: item.dueDate || 'Not set',
+        status: item.internalStatus || item.jiraStatus || ''
+      });
+      const checked = teamsSelectedTickets.has(key) ? 'checked' : '';
+      return `<td style="width:38px;text-align:center;padding:4px 0;">
+        <input type="checkbox" class="notify-select-cb" ${checked}
+          style="width:16px;height:16px;accent-color:#6366f1;cursor:pointer;"
+          onchange="handleTicketSelectCheckbox('${key}', this.checked)">
+      </td>`;
+    }
+
+    // ── Composer Modal ─────────────────────────────────────────────────────────
+
+    // ── Composer Modal ─────────────────────────────────────────────────────────
+
+    // ── HTML Hyperlink & Rich Clipboard Engine ───────────────────────────────
+
+    function convertMessageToHtml(rawText) {
+      if (!rawText) return '';
+      // Escape HTML special characters
+      let html = rawText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Convert *bold* or **bold** to <strong>
+      html = html.replace(/\*\*([^\*\n]+)\*\*/g, '<strong style="font-weight:700;">$1</strong>');
+      html = html.replace(/\*([^\*\n]+)\*/g, '<strong style="font-weight:700;">$1</strong>');
+
+      // Convert URLs (including Jira URLs like https://enveu.atlassian.net/browse/SES-873)
+      // into real, active, clickable <a> hyperlinks for Microsoft Teams & Outlook!
+      html = html.replace(
+        /(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;font-weight:600;">$1</a>'
+      );
+
+      // Convert bullet points (• or -) into clean styled bullets
+      html = html.replace(/^[•\-\*]\s+(.+)$/gm, '<li style="margin-bottom:3px;">$1</li>');
+      html = html.replace(/((?:<li[^>]*>.*?<\/li>\s*)+)/gs, '<ul style="margin:6px 0 10px 18px;padding:0;">$1</ul>');
+
+      // Convert remaining newlines into <br> (outside <ul>)
+      html = html.replace(/\n/g, '<br>');
+
+      return `<div style="font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#242424;">${html}</div>`;
+    }
+
+    async function copyFormattedToClipboard(rawText) {
+      if (!rawText) return false;
+      const htmlStr = convertMessageToHtml(rawText);
+
+      // 1. Try modern rich HTML ClipboardItem (pastes with genuine clickable hyperlinks in Teams!)
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const textBlob = new Blob([rawText], { type: 'text/plain' });
+          const htmlBlob = new Blob([htmlStr], { type: 'text/html' });
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/plain': textBlob,
+              'text/html': htmlBlob
+            })
+          ]);
+          return true;
+        } catch (e) {
+          console.warn('[ClipboardItem] Falling back to text/plain:', e);
+        }
+      }
+
+      // 2. Fallback to standard writeText
+      try {
+        await navigator.clipboard.writeText(rawText);
+        return true;
+      } catch (err) {}
+
+      // 3. Fallback to textarea copy
+      try {
+        const dummy = document.createElement('textarea');
+        dummy.value = rawText;
+        dummy.style.position = 'fixed';
+        dummy.style.left = '-9999px';
+        document.body.appendChild(dummy);
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // ── Composer Modal & Ticket Cards ──────────────────────────────────────────
+
+    function openNotifyComposer() {
+      if (teamsSelectedTickets.size === 0) {
+        showToast('⚠️ Please select at least one ticket first.');
+        return;
+      }
+      hideSelectionBar(); // Hide floating selection pill while modal is open
+      const modal = document.getElementById('teamsNotifyModal');
+      if (modal) modal.style.display = 'flex';
+      renderNotifyTicketCards();
+    }
+
+    function renderNotifyTicketCards() {
+      const container = document.getElementById('notifyTicketsContainer');
+      if (!container) return;
+
+      const entries = [...teamsSelectedTickets.entries()];
+      let html = '';
+
+      // Update footer button label depending on count
+      const openBtnText = document.getElementById('btnOpenAllTeamsText');
+      if (openBtnText) {
+        openBtnText.innerText = entries.length === 1 ? 'Open in Teams (Ctrl+V)' : `Open All in Teams (${entries.length})`;
+      }
+
+      entries.forEach(([key, item], idx) => {
+        const isNotSet = !item.dueDate || item.dueDate === 'Not set';
+        const dueBadge = isNotSet
+          ? `<span style="font-size:11px;padding:2px 7px;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:5px;white-space:nowrap;flex-shrink:0;">📅 No Due Date</span>`
+          : `<span style="font-size:11px;padding:2px 7px;background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:5px;white-space:nowrap;flex-shrink:0;">📅 ${item.dueDate}</span>`;
+        const assigneeEmail = cleanTeamsEmailString(item.assigneeEmail || getAssigneeTeamsEmail(item.assignee));
+        const jiraUrl = (item.ticket && !item.ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${item.ticket}` : '';
+
+        html += `
+          <div class="notify-ticket-card notify-card-active" id="ntcard-${key}"
+               style="margin-bottom:12px;border-radius:12px;overflow:hidden;
+               border:1px solid rgba(99,102,241,0.35);
+               background:rgba(15,23,42,0.7);transition:all 0.18s;box-sizing:border-box;">
+            
+            <!-- Card Header (Non-wrapping, cleanly aligned) -->
+            <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;background:rgba(99,102,241,0.08);border-bottom:1px solid rgba(99,102,241,0.2);">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;overflow:hidden;">
+                <span style="font-size:14px;font-weight:700;color:#38bdf8;font-family:monospace;white-space:nowrap;flex-shrink:0;">${item.ticket}</span>
+                <span style="font-size:12.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${escapeHtml(item.title || '')}">${escapeHtml(item.title || 'No Title')}</span>
+                ${dueBadge}
+                ${jiraUrl ? `<a href="${jiraUrl}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px;color:#818cf8;text-decoration:underline;display:inline-flex;align-items:center;gap:3px;font-weight:600;white-space:nowrap;flex-shrink:0;" title="Open in Jira">🔗 Jira ↗</a>` : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                ${item.isShared
+                  ? `<span style="font-size:11.5px;font-weight:700;padding:2px 9px;background:rgba(168,85,247,0.18);color:#d8b4fe;border:1px solid rgba(168,85,247,0.4);border-radius:5px;white-space:nowrap;">🤝 Shared: ${escapeHtml(item.assignee)}</span>`
+                  : `<span style="font-size:11.5px;font-weight:700;padding:2px 9px;background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3);border-radius:5px;white-space:nowrap;">👤 ${escapeHtml(item.assignee)}</span>`
+                }
+                <button type="button" onclick="removeFromNotifySelection(event,'${key}')" title="Remove ticket from selection" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);color:#f87171;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+              </div>
+            </div>
+
+            <!-- Card Body: Preview & Edit Area -->
+            <div id="ntbody-${key}" style="padding:12px 14px;display:block;">
+              <!-- Recipient Row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:6px 12px;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.2);border-radius:8px;">
+                <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:#94a3b8;flex:1;min-width:220px;flex-wrap:wrap;">
+                  <span style="white-space:nowrap;font-weight:600;">💬 Teams Recipient${item.isShared ? 's' : ''}:</span>
+                  <input type="text" id="ntemail-${key}" value="${escapeHtml(assigneeEmail)}"
+                    placeholder="email1@enveu.com, email2@enveu.com"
+                    onchange="saveAssigneeEmail('${item.assignee}', this.value)"
+                    style="background:#0f172a;border:1px solid rgba(99,102,241,0.4);border-radius:6px;color:#38bdf8;padding:4px 8px;font-size:12px;flex:1;max-width:320px;min-width:180px;font-family:inherit;box-sizing:border-box;">
+                </div>
+                <span style="font-size:11px;color:#34d399;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                  <span>⚡</span> <span>${item.isShared ? '1-Click Group Chat' : '1-Click Direct Chat'}</span>
+                </span>
+              </div>
+
+              <!-- Message Editor Header -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <label style="font-size:11.5px;font-weight:700;color:#cbd5e1;letter-spacing:0.3px;display:flex;align-items:center;gap:6px;">
+                  <span>✏️ Message Preview & Editor</span>
+                  <span style="font-size:10.5px;font-weight:400;color:#94a3b8;">(Clickable link preserved on copy/paste)</span>
+                </label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button type="button" onclick="toggleCardPreview('${key}')" id="ntprevbtn-${key}"
+                    style="font-size:11px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:5px;padding:3px 9px;cursor:pointer;font-family:inherit;">
+                    👁️ View Live Link
+                  </button>
+                  <button type="button" onclick="resetCardTemplate('${key}')"
+                    style="font-size:11px;background:none;border:none;color:#818cf8;cursor:pointer;text-decoration:underline;">
+                    ↺ Reset
+                  </button>
+                </div>
+              </div>
+
+              <!-- Editable Textarea (Proportional rows=5 to fit cleanly in viewport) -->
+              <textarea id="ntmsg-${key}" rows="5"
+                style="width:100%;box-sizing:border-box;background:rgba(15,23,42,0.85);border:1px solid rgba(99,102,241,0.35);
+                border-radius:8px;color:#f8fafc;font-size:13px;padding:9px 12px;min-height:105px;height:115px;resize:vertical;
+                font-family:inherit;line-height:1.5;outline:none;"
+                oninput="updateCardCharCount('${key}'); updateLiveCardPreview('${key}')">${escapeHtml(item.message || '')}</textarea>
+
+              <!-- Live Formatted Preview Box (shows genuine clickable hyperlink) -->
+              <div id="ntlivepreview-${key}" style="display:none;margin-top:8px;padding:10px 12px;background:rgba(248,250,252,0.95);border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:#1e293b;box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size:10.5px;color:#64748b;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;padding-bottom:3px;">
+                  👁️ Live Microsoft Teams Preview (With Active Clickable Hyperlink):
+                </div>
+                <div id="ntlivepreviewcontent-${key}"></div>
+              </div>
+
+              <!-- Card Action Bar -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                  <span id="ntcount-${key}" style="font-size:11px;color:#475569;">0 / 4000</span>
+                  <span style="font-size:11px;color:#34d399;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                    <span>🔗</span> <span>Clickable hyperlink ready</span>
+                  </span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <button type="button" onclick="copyTicketMessage('${key}', this)" class="btn btn-teams-copy" style="height:34px;padding:0 14px;font-size:12px;gap:6px;">
+                    <span>📋</span> <span>Copy with Link</span>
+                  </button>
+                  <button type="button" onclick="openTeamsDirectChat('${key}', this)" class="btn btn-teams-primary" style="height:34px;padding:0 16px;font-size:12px;gap:6px;">
+                    <span>💬</span> <span>Open in Teams (Ctrl+V)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      container.innerHTML = html || '<div style="color:#64748b;font-size:13px;text-align:center;padding:30px 0;">No tickets selected. Select tickets from the table first.</div>';
+      container.scrollTop = 0;
+
+      // Init char counts after render
+      entries.forEach(([key, item]) => {
+        updateCardCharCount(key);
+        updateLiveCardPreview(key);
+      });
+
+      if (entries.length > 0) teamsActiveCardKey = entries[0][0];
+    }
+
+    function toggleCardPreview(key) {
+      const prevBox = document.getElementById('ntlivepreview-' + key);
+      const prevBtn = document.getElementById('ntprevbtn-' + key);
+      if (!prevBox) return;
+      const isHidden = prevBox.style.display === 'none';
+      prevBox.style.display = isHidden ? 'block' : 'none';
+      if (prevBtn) {
+        prevBtn.innerText = isHidden ? '✕ Hide Live Link' : '👁️ View Live Link';
+      }
+      if (isHidden) {
+        updateLiveCardPreview(key);
+      }
+    }
+
+    function updateLiveCardPreview(key) {
+      const contentEl = document.getElementById('ntlivepreviewcontent-' + key);
+      const ta = document.getElementById('ntmsg-' + key);
+      if (!contentEl || !ta) return;
+      contentEl.innerHTML = convertMessageToHtml(ta.value);
+    }
+
+    function updateCardCharCount(key) {
+      const ta = document.getElementById('ntmsg-' + key);
+      const counter = document.getElementById('ntcount-' + key);
+      if (!ta || !counter) return;
+      const len = ta.value.length;
+      counter.innerText = `${len} / 4000`;
+      counter.style.color = len > 3800 ? '#f87171' : len > 3000 ? '#fbbf24' : '#475569';
+      const item = teamsSelectedTickets.get(key);
+      if (item) {
+        item.message = ta.value;
+        teamsSelectedTickets.set(key, item);
+      }
+    }
+
+    function resetCardTemplate(key) {
+      const item = teamsSelectedTickets.get(key);
+      if (!item) return;
+      const tmplFn = (!item.dueDate || item.dueDate === 'Not set')
+        ? NOTIFY_TEMPLATES.due_date_missing
+        : NOTIFY_TEMPLATES.status_update;
+      const msg = tmplFn(item);
+      item.message = msg;
+      teamsSelectedTickets.set(key, item);
+      const ta = document.getElementById('ntmsg-' + key);
+      if (ta) {
+        ta.value = msg;
+        updateCardCharCount(key);
+        updateLiveCardPreview(key);
+      }
+    }
+
+    // 1-Click Teams Direct Chat Deep Link (Direct navigation to existing chat thread & conversation history)
+    async function openTeamsDirectChat(key, btnEl) {
+      syncMessagesFromUI();
+      const item = teamsSelectedTickets.get(key);
+      if (!item) return;
+
+      const emailInput = document.getElementById('ntemail-' + key);
+      let email = (emailInput?.value || item.assigneeEmail || getAssigneeTeamsEmail(item.assignee) || '').trim();
+      email = cleanTeamsEmailString(email);
+      if (emailInput && emailInput.value !== email) emailInput.value = email;
+      const text = item.message || '';
+
+      if (!email) {
+        showToast('⚠️ Please specify a valid email for ' + item.assignee);
+        return;
+      }
+
+      // Step 1: Copy rich HTML format to user clipboard (guarantees clickable hyperlinks in Teams via Ctrl+V!)
+      await copyFormattedToClipboard(text);
+
+      // Step 2: Open Microsoft Teams native chat deep link directly to the existing chat thread
+      // For multi-recipient chats, Teams automatically includes the caller; omit the caller's email so Teams finds the matching group!
+      const userList = email.split(',').map(e => e.trim()).filter(Boolean);
+      const myEmail = (currentUser?.username ? getAssigneeTeamsEmail(currentUser.username) : '').toLowerCase();
+      let targetUsers = userList;
+      if (userList.length > 1 && myEmail) {
+        const withoutMe = userList.filter(e => e.toLowerCase() !== myEmail);
+        if (withoutMe.length > 0) targetUsers = withoutMe;
+      }
+      const userParam = targetUsers.join(',');
+
+      // Deep link with users & pre-filled message (Teams resolves the user in Azure AD & pre-fills the message)
+      const deepLink = `https://teams.microsoft.com/l/chat/0/0?users=${userParam}&message=${encodeURIComponent(text)}`;
+      window.open(deepLink, '_blank', 'noopener,noreferrer');
+
+      // Step 3: Visual button feedback & Toast notification
+      if (btnEl) {
+        const origHtml = btnEl.innerHTML;
+        btnEl.classList.add('btn-teams-success');
+        btnEl.innerHTML = '<span>✅</span> <span>Opened in Teams! (Ctrl+V)</span>';
+        setTimeout(() => {
+          btnEl.innerHTML = origHtml;
+          btnEl.classList.remove('btn-teams-success');
+        }, 3500);
+      }
+
+      showToast(`💬 Opening Teams chat with @${item.assignee}! Press Ctrl+V to paste message with clickable link.`);
+    }
+
+    // 1-Click Copy Formatted Message to Clipboard
+    async function copyTicketMessage(key, btnEl) {
+      syncMessagesFromUI();
+      const item = teamsSelectedTickets.get(key);
+      if (!item) return;
+
+      const text = item.message || '';
+      await copyFormattedToClipboard(text);
+
+      if (btnEl) {
+        const origHtml = btnEl.innerHTML;
+        btnEl.classList.add('btn-teams-copied');
+        btnEl.innerHTML = '<span>✅</span> <span>Copied with Link!</span>';
+        setTimeout(() => {
+          btnEl.innerHTML = origHtml;
+          btnEl.classList.remove('btn-teams-copied');
+        }, 2200);
+      }
+      showToast(`📋 Copied message for @${item.assignee} with clickable Jira link! Paste into Teams (Ctrl+V).`);
+    }
+
+    // Copy All Selected Messages (with rich HTML clickable links)
+    async function copyAllSelectedMessages(btnEl) {
+      syncMessagesFromUI();
+      const tickets = [...teamsSelectedTickets.values()];
+      if (tickets.length === 0) {
+        showToast('⚠️ No tickets selected.');
+        return;
+      }
+
+      const combined = tickets.map((t, idx) => {
+        const email = t.assigneeEmail || getAssigneeTeamsEmail(t.assignee);
+        const sep = '═'.repeat(48);
+        return `${sep}\n[#${idx + 1}] TICKET: ${t.ticket} — Assignee: ${t.assignee} (${email})\n${sep}\n${t.message}\n`;
+      }).join('\n\n');
+
+      await copyFormattedToClipboard(combined);
+
+      if (btnEl) {
+        const orig = btnEl.innerHTML;
+        btnEl.classList.add('btn-teams-copied');
+        btnEl.innerHTML = '<span>✅</span> <span>All Copied with Links!</span>';
+        setTimeout(() => {
+          btnEl.innerHTML = orig;
+          btnEl.classList.remove('btn-teams-copied');
+        }, 2200);
+      }
+      showToast(`📋 Copied all ${tickets.length} messages with clickable Jira links!`);
+    }
+
+    // Open All in Teams (handles 1 ticket or multiple tickets seamlessly)
+    async function openAllInTeams(btnEl) {
+      syncMessagesFromUI();
+      const tickets = [...teamsSelectedTickets.values()];
+      if (tickets.length === 0) {
+        showToast('⚠️ No tickets selected.');
+        return;
+      }
+
+      // If only 1 ticket selected: copy that ticket's rich message and open that chat
+      if (tickets.length === 1) {
+        const firstKey = [...teamsSelectedTickets.keys()][0];
+        await openTeamsDirectChat(firstKey, btnEl);
+        return;
+      }
+
+      // If multiple tickets selected: copy all formatted messages as rich HTML
+      const combined = tickets.map((t, idx) => {
+        const email = t.assigneeEmail || getAssigneeTeamsEmail(t.assignee);
+        const sep = '═'.repeat(48);
+        return `${sep}\n[#${idx + 1}] TICKET: ${t.ticket} — Assignee: ${t.assignee} (${email})\n${sep}\n${t.message}\n`;
+      }).join('\n\n');
+
+      await copyFormattedToClipboard(combined);
+
+      if (btnEl) {
+        const orig = btnEl.innerHTML;
+        btnEl.classList.add('btn-teams-success');
+        btnEl.innerHTML = '<span>✅</span> <span>Opening Respective Chats...</span>';
+        setTimeout(() => {
+          btnEl.innerHTML = orig;
+          btnEl.classList.remove('btn-teams-success');
+        }, 3500);
+      }
+
+      // Group tickets by unique chat participants so we open each respective chat ONCE
+      const myEmail = (currentUser?.username ? getAssigneeTeamsEmail(currentUser.username) : '').toLowerCase();
+      const uniqueChats = new Map(); // key: userParam, value: { userParam, message }
+
+      tickets.forEach(t => {
+        let email = (t.assigneeEmail || getAssigneeTeamsEmail(t.assignee) || '').trim();
+        email = cleanTeamsEmailString(email);
+        const userList = email.split(',').map(e => e.trim()).filter(Boolean);
+        let targetUsers = userList;
+        if (userList.length > 1 && myEmail) {
+          const withoutMe = userList.filter(e => e.toLowerCase() !== myEmail);
+          if (withoutMe.length > 0) targetUsers = withoutMe;
+        }
+        const userParam = targetUsers.join(',');
+        if (userParam && !uniqueChats.has(userParam)) {
+          uniqueChats.set(userParam, { userParam, message: t.message || '' });
+        }
+      });
+
+      let delay = 0;
+      uniqueChats.forEach(({ userParam, message }) => {
+        setTimeout(() => {
+          const deepLink = `https://teams.microsoft.com/l/chat/0/0?users=${userParam}&message=${encodeURIComponent(message)}`;
+          window.open(deepLink, '_blank', 'noopener,noreferrer');
+        }, delay);
+        delay += 850;
+      });
+
+      showToast(`🚀 Opening ${uniqueChats.size} Teams chat${uniqueChats.size > 1 ? 's' : ''}! Messages copied to clipboard (Ctrl+V).`);
+    }
+
+    function removeFromNotifySelection(e, key) {
+      e.stopPropagation();
+      teamsSelectedTickets.delete(key);
+      updateSelectionBar();
+      // Uncheck the checkbox in table
+      document.querySelectorAll('.notify-select-cb').forEach(cb => {
+        if (cb.getAttribute('onchange')?.includes(`'${key}'`)) {
+          cb.checked = false;
+        }
+      });
+      if (teamsSelectedTickets.size === 0) {
+        document.getElementById('teamsNotifyModal').style.display = 'none';
+        hideSelectionBar();
+        showToast('No tickets selected. Add tickets from the table.');
+        return;
+      }
+      renderNotifyTicketCards();
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function closeTeamsNotifyModal() {
+      document.getElementById('teamsNotifyModal').style.display = 'none';
+      if (teamsSelectMode && teamsSelectedTickets.size > 0) {
+        showSelectionBar();
+      }
+    }
+
+    function applyNotifyTemplate(templateKey) {
+      document.querySelectorAll('.notify-template-btn').forEach(b => b.classList.remove('active'));
+      const clicked = document.querySelector(`.notify-template-btn[onclick*="'${templateKey}'"]`);
+      if (clicked) clicked.classList.add('active');
+
+      if (!teamsActiveCardKey) return;
+      const item = teamsSelectedTickets.get(teamsActiveCardKey);
+      if (!item) return;
+      const tmplFn = NOTIFY_TEMPLATES[templateKey];
+      if (!tmplFn) return;
+      const msg = tmplFn(item);
+      item.message = msg;
+      teamsSelectedTickets.set(teamsActiveCardKey, item);
+      const ta = document.getElementById('ntmsg-' + teamsActiveCardKey);
+      if (ta) {
+        ta.value = msg;
+        updateCardCharCount(teamsActiveCardKey);
+        ta.focus();
+      }
+    }
+
+    function applyTemplateToAll(templateKey) {
+      teamsSelectedTickets.forEach((item, key) => {
+        const tmplFn = NOTIFY_TEMPLATES[templateKey];
+        if (tmplFn) {
+          item.message = tmplFn(item);
+          teamsSelectedTickets.set(key, item);
+          const ta = document.getElementById('ntmsg-' + key);
+          if (ta) {
+            ta.value = item.message;
+            updateCardCharCount(key);
+          }
+        }
+      });
+      document.querySelectorAll('.notify-template-btn').forEach(b => b.classList.remove('active'));
+      const clicked = document.querySelector(`.notify-template-btn[onclick*="'${templateKey}'"]`);
+      if (clicked) clicked.classList.add('active');
+      showToast(`Template applied to all ${teamsSelectedTickets.size} tickets.`);
+    }
+
+    function dispatchTemplate(templateKey) {
+      const scope = document.getElementById('templateApplyScope')?.value || 'current';
+      if (scope === 'all') {
+        applyTemplateToAll(templateKey);
+      } else {
+        applyNotifyTemplate(templateKey);
+      }
+    }
+
+    function syncMessagesFromUI() {
+      teamsSelectedTickets.forEach((item, key) => {
+        const ta = document.getElementById('ntmsg-' + key);
+        if (ta) item.message = ta.value;
+        const em = document.getElementById('ntemail-' + key);
+        if (em) item.assigneeEmail = em.value.trim();
+        teamsSelectedTickets.set(key, item);
+      });
+    }
+    // ─── END TEAMS NOTIFY ──────────────────────────────────────────────────────
+
+
 
     function startMcpPolling() {
       if (mcpPollingInterval) clearInterval(mcpPollingInterval);
@@ -4135,6 +5245,9 @@
           keyEl.innerText = 'Not Set';
         }
       }
+
+      // Show/hide admin-only Teams Notify button
+      updateTeamsNotifyButton();
 
       // Also trigger a background update of the usage meter
       fetchComposioUsage();
@@ -4708,11 +5821,13 @@
         if (btnToggleShared) btnToggleShared.style.display = 'inline-block';
       }
 
-      // Total count across all active sheets (excluding empty rows)
+      // Total count across standard task sheets in All Overview (excluding project sheets like PULSE which have their own schema)
       let totalAll = 0;
       sheetKeys.forEach(k => {
-        const rows = sheetStore[k] || [];
-        totalAll += getValidSheetRows(rows).length;
+        if (!isProjectSheet(k)) {
+          const rows = sheetStore[k] || [];
+          totalAll += getValidSheetRows(rows).length;
+        }
       });
 
       // Render Navigation Tabs: All Overview, then CLOSED archive tab right next to it, then team members
@@ -4771,6 +5886,10 @@
             <table id="table-all">
               <thead>
                 <tr>
+                  ${(teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? `
+                  <th style="width: 38px; text-align: center;">
+                    <input type="checkbox" onchange="toggleSelectAllVisible(this.checked)" title="Select / Deselect All">
+                  </th>` : ''}
                   <th class="sortable-th" onclick="handleHeaderSort('assignee')" style="width: 140px;" title="Click to sort by Assignee">
                     Assignee <span class="th-sort-icon" data-col="assignee">↕</span>
                   </th>
@@ -4854,6 +5973,7 @@
         }
 
         const isClosed = isStatusSheet(name);
+        const isUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
         const titleText = isClosed
           ? `✅ CLOSED — Archived & Completed Tickets`
           : `👤 ${name} — Google Sheet Tab`;
@@ -4870,6 +5990,10 @@
               <table id="table-${lower}">
                 <thead>
                   <tr>
+                    ${(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isClosed && !isUpcoming) ? `
+                    <th style="width: 38px; text-align: center;">
+                      <input type="checkbox" onchange="toggleSelectAllVisible(this.checked)" title="Select / Deselect All">
+                    </th>` : ''}
                     <th style="width: 45px; text-align: center;">#</th>
                     <th class="sortable-th" onclick="handleHeaderSort('ticket')" style="width: 125px;" title="Click to sort by Ticket ID">
                       Ticket ID <span class="th-sort-icon" data-col="ticket">↕</span>
@@ -5255,8 +6379,13 @@
         const sorted = sortItemList(filtered, false);
         totalVisibleCountAllSheets += sorted.length;
 
+        const isSheetClosed = isStatusSheet(name);
+        const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
+        const hasSheetNotify = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming);
+
         if (sorted.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${name}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
+          const emptyColspan = hasSheetNotify ? 10 : 9;
+          tbody.innerHTML = `<tr><td colspan="${emptyColspan}" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${name}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
           return;
         }
 
@@ -5270,6 +6399,7 @@
 
           const tr = document.createElement('tr');
           tr.innerHTML = `
+            ${hasSheetNotify ? buildNotifyCheckboxCell(item) : ''}
             <td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>
             <td>
               <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
@@ -5318,8 +6448,9 @@
       const allTbody = document.getElementById('tbody-all');
       if (allTbody) {
         allTbody.innerHTML = '';
+        const emptyColspanAll = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 9 : 8;
         if (allRows.length === 0) {
-          allTbody.innerHTML = `<tr><td colspan="8" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
+          allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
         } else {
           const renderedTicketsInAll = new Set();
           const uniqueAllItems = [];
@@ -5348,9 +6479,11 @@
 
           // Sort All Overview items
           const sortedAll = sortItemList(filteredAll, false);
+          const badgeAllEl = document.getElementById('badge-all');
+          if (badgeAllEl) badgeAllEl.innerText = sortedAll.length;
 
           if (sortedAll.length === 0) {
-            allTbody.innerHTML = `<tr><td colspan="8" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found matching the active filters. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
+            allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found matching the active filters. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
           } else {
             sortedAll.forEach(item => {
               const tr = document.createElement('tr');
@@ -5361,6 +6494,7 @@
               const sharedPrefix = parsed.isShared ? `<span class="shared-inline-badge">🤝 Shared</span>` : '';
 
               tr.innerHTML = `
+                ${buildNotifyCheckboxCell(item)}
                 <td>${renderAssigneeCell(item.ticket, item.owner, item.notes, true)}</td>
                 <td>
                   <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">

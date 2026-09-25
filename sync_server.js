@@ -831,7 +831,19 @@ async function handleRequest(req, res) {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
-        const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']);
+        const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']) || currentRequestApiKey || COMPOSIO_KEY;
+
+        if (!apiKey) {
+          const emptyStatus = { active: false, status: 'not_connected', connectedAccount: null };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            googlesheets: emptyStatus,
+            jira: emptyStatus,
+            allActive: false
+          }));
+          return;
+        }
 
         const resConn = await manageComposioConnections(apiKey, [
           { name: 'googlesheets', action: 'list' },
@@ -850,12 +862,12 @@ async function handleRequest(req, res) {
           googlesheets: {
             active: !!sheetsActive,
             status: sheetsActive ? 'active' : (results.googlesheets?.status || 'not_connected'),
-            accountEmail: results.googlesheets?.accounts?.find(a => a.status === 'active')?.user_info?.email || null
+            connectedAccount: { email: results.googlesheets?.accounts?.find(a => a.status === 'active')?.user_info?.email || null }
           },
           jira: {
             active: !!jiraActive,
             status: jiraActive ? 'active' : (results.jira?.status || 'not_connected'),
-            siteUrl: results.jira?.accounts?.find(a => a.status === 'active')?.user_info?.sites?.[0]?.url || null
+            connectedAccount: { siteUrl: results.jira?.accounts?.find(a => a.status === 'active')?.user_info?.sites?.[0]?.url || null }
           },
           allActive: !!(sheetsActive && jiraActive)
         }));
@@ -875,7 +887,7 @@ async function handleRequest(req, res) {
       try {
         const payload = JSON.parse(body || '{}');
         const toolkit = (payload.toolkit || '').toLowerCase();
-        const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']);
+        const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']) || currentRequestApiKey || COMPOSIO_KEY;
 
         if (!['googlesheets', 'jira'].includes(toolkit)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
