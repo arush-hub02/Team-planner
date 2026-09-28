@@ -1175,6 +1175,118 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // POST /api/ticket/update-action-notes -> Edit and sync Action / Notes from dashboard to Google Sheets
+  if ((urlObj.pathname === '/api/ticket/update-action-notes' || urlObj.pathname === '/api/ticket/update-notes') && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { assignee, ticket, notes, rowNumber } = JSON.parse(body || '{}');
+        if (!assignee) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'assignee is required' }));
+          return;
+        }
+
+        const tabName = assignee.trim().toUpperCase();
+        const ticketKey = (ticket || '').trim().toUpperCase();
+        const actionNotes = typeof notes === 'string' ? notes : (notes !== undefined && notes !== null ? String(notes) : '');
+
+        // RBAC Check: Team members can only update their own assigned tasks (or PULSE if allowed)
+        const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
+        const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
+        const userConfig = USER_ACCOUNTS[clientUser];
+        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+          const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
+          if (!isAllowed) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: `Permission denied: As a team member, you can only update your own tasks (${userConfig.allowedSheets.join(', ')}).` }));
+            return;
+          }
+        }
+
+        let targetRow = parseInt(rowNumber, 10);
+
+        // If rowNumber is not supplied or invalid, find row in sheet by ticket
+        if (!targetRow || isNaN(targetRow)) {
+          const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+            spreadsheet_id: SPREADSHEET_ID,
+            range: `${tabName}!A1:H100`
+          });
+          const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
+          const foundIdx = rows.findIndex((r, idx) => {
+            if (idx === 0) return false;
+            const t1 = (r[1] || '').trim().toUpperCase();
+            const t0 = (r[0] || '').trim().toUpperCase();
+            return t1 === ticketKey || t0 === ticketKey;
+          });
+          if (foundIdx > 0) {
+            targetRow = foundIdx + 1;
+          } else {
+            targetRow = 2;
+          }
+        }
+
+        console.log(`[Update Action Notes] Tab: ${tabName}, Row: ${targetRow}, Ticket: ${ticketKey}, Notes: "${actionNotes}"`);
+
+        // 1. Update Column G (Action / Notes or Remarks in PULSE) in Master Google Sheet
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: `${tabName}!G${targetRow}`,
+            majorDimension: 'ROWS',
+            values: [[actionNotes]]
+          }]
+        });
+
+        // 2. If tab is PULSE, also sync to Chetna's PULSE sheet
+        if (tabName === 'PULSE' && INDIVIDUAL_SHEETS.CHETNA) {
+          try {
+            await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+              spreadsheet_id: INDIVIDUAL_SHEETS.CHETNA,
+              valueInputOption: 'USER_ENTERED',
+              data: [{
+                range: `PULSE!G${targetRow}`,
+                majorDimension: 'ROWS',
+                values: [[actionNotes]]
+              }]
+            });
+            console.log(`✅ [PULSE Note Synced] Chetna's PULSE sheet updated for row ${targetRow}`);
+          } catch (pErr) {
+            console.warn('Warning syncing PULSE note to Chetna sheet:', pErr.message);
+          }
+        }
+
+        // 3. Update memory cache if present
+        if (cache.data && cache.data[tabName]) {
+          const rIdx = targetRow - 1;
+          if (cache.data[tabName][rIdx]) {
+            cache.data[tabName][rIdx][6] = actionNotes;
+          }
+          if (INDIVIDUAL_SHEETS[tabName]) {
+            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          assignee: tabName,
+          ticket: ticketKey,
+          notes: actionNotes,
+          rowNumber: targetRow,
+          message: 'Action / Notes updated and synced to Google Sheets!'
+        }));
+      } catch (err) {
+        console.error('Error updating action notes:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/ticket/reassign -> Internally assign / reassign ticket from one team member to another
   if (urlObj.pathname === '/api/ticket/reassign' && req.method === 'POST') {
     let body = '';

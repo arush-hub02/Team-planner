@@ -1768,8 +1768,205 @@
     .notes-cell {
       color: var(--text-muted);
       font-size: 13px;
-      max-width: 320px;
+      max-width: 340px;
       line-height: 1.45;
+      position: relative;
+    }
+
+    .editable-notes-box {
+      width: 100%;
+      min-width: 180px;
+      max-width: 340px;
+      border-radius: 8px;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .notes-display-wrap {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      min-height: 28px;
+      transition: all 0.15s ease;
+    }
+
+    .notes-display-wrap:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .notes-text {
+      flex: 1;
+      color: #e2e8f0;
+      font-size: 12px;
+      line-height: 1.4;
+      word-break: break-word;
+      user-select: text;
+    }
+
+    .notes-text.empty-note {
+      color: var(--text-muted);
+      font-style: italic;
+      opacity: 0.65;
+    }
+
+    .notes-display-wrap:hover .notes-text.empty-note {
+      color: #38bdf8;
+      opacity: 1;
+    }
+
+    .empty-note-prompt {
+      font-size: 11.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .notes-hover-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      flex-shrink: 0;
+      margin-top: -1px;
+    }
+
+    .notes-display-wrap:hover .notes-hover-actions {
+      opacity: 1;
+    }
+
+    .btn-edit-note-trigger {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+
+    .btn-edit-note-trigger:hover {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+    }
+
+    .notes-editor-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      border-radius: 8px;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      z-index: 20;
+    }
+
+    .notes-textarea-input {
+      width: 100%;
+      min-height: 52px;
+      max-height: 160px;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 6px 8px;
+      resize: vertical;
+      outline: none;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+
+    .notes-textarea-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .notes-edit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .btn-note-save {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-note-save:hover {
+      background: #059669;
+    }
+
+    .btn-note-cancel {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      border: none;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-note-cancel:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: white;
+    }
+
+    .btn-note-modal-open {
+      background: transparent;
+      border: none;
+      color: #38bdf8;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 0.8;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn-note-modal-open:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    .quick-note-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .quick-note-chip:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
     }
 
     /* Skeleton Loading Animation */
@@ -3347,6 +3544,82 @@
           <button type="button" id="btnOpenAllTeams" onclick="openAllInTeams(this)" class="btn btn-teams-primary" style="font-size:12.5px; padding:0 18px; height:38px; gap:6px; white-space:nowrap;">
             <span>💬</span> <span id="btnOpenAllTeamsText">Open in Teams (Ctrl+V)</span>
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📝 Action Notes Edit Modal -->
+  <div id="actionNotesModal" class="modal-overlay" onclick="if(event.target===this)closeActionNotesModal()" style="display:none; z-index:10000;">
+    <div class="modal-card" style="width: 620px; max-width: 95vw; padding: 22px 24px; border: 1px solid rgba(56,189,248,0.4); box-shadow: 0 25px 60px rgba(0,0,0,0.75);">
+      <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📝</span>
+          <div>
+            <div style="font-size: 16px; font-weight: 700; color: #f8fafc;">Edit Action / Notes</div>
+            <div id="modalNoteSubtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Direct 2-Way Sync with Google Sheets (Column G)</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeActionNotesModal()" title="Close">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Ticket Meta Card -->
+        <div style="background: rgba(15,23,42,0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <a id="modalNoteTicketBadge" class="ticket-link" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-weight: 700;"></a>
+              <span id="modalNoteAssigneeBadge" class="member-pill" style="font-size: 11px;"></span>
+            </div>
+            <div id="modalNoteTaskTitle" style="font-size: 13px; color: #cbd5e1; font-weight: 500; line-height: 1.4;"></div>
+          </div>
+        </div>
+
+        <!-- Quick Insert Chips -->
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+            ⚡ Quick Insert Tags
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[BE Done]')">BE Done</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[FE In Progress]')">FE In Progress</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[In QA Review]')">In QA Review</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[Blocked on API]')">Blocked on API</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[Ready for Testing]')">Ready for Testing</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[Deployed to Staging]')">Deployed to Staging</button>
+            <button type="button" class="quick-note-chip" onclick="insertQuickNoteTag('[Waiting on Product]')">Waiting on Product</button>
+          </div>
+        </div>
+
+        <!-- Textarea input -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
+            <label for="modalNoteTextarea">Action / Notes Content</label>
+            <span id="modalNoteCharCount" style="font-size: 11px; color: var(--text-muted);">0 chars</span>
+          </div>
+          <textarea id="modalNoteTextarea" 
+                    placeholder="Enter action notes, status details, blocker description, or dependencies..."
+                    oninput="updateModalNoteCharCount()"
+                    onkeydown="if((event.ctrlKey || event.metaKey) && event.key==='Enter') submitModalNote()"
+                    style="width: 100%; min-height: 110px; background: rgba(15,23,42,0.85); border: 1px solid rgba(56,189,248,0.4); border-radius: 8px; color: #f8fafc; font-size: 13px; font-family: inherit; padding: 10px 12px; resize: vertical; outline: none; box-sizing: border-box;"></textarea>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+            <span>💡 Tip: Press</span> <kbd style="background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); font-family: monospace; font-size: 10px; color: #38bdf8;">Ctrl+Enter</kbd> <span>to quickly save and sync.</span>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52,211,153,0.6);"></span>
+            <span>Live 2-Way Sync with Google Sheets</span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeActionNotesModal()" style="font-size: 12px; padding: 6px 14px;">Cancel</button>
+            <button type="button" id="btnSaveModalNote" class="btn btn-primary" onclick="submitModalNote()" style="font-size: 12px; padding: 6px 18px; display: flex; align-items: center; gap: 6px;">
+              <span>💾</span>
+              <span id="btnSaveModalNoteText">Sync to Google Sheet</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -5640,6 +5913,10 @@ Thanks!`;
             valA = a.type || '';
             valB = b.type || '';
             return valA.localeCompare(valB) * dir;
+          } else if (colSort === 'notes' || colSort === 'remarks') {
+            valA = isPulse ? (a.remarks || '') : (a.notes || '');
+            valB = isPulse ? (b.remarks || '') : (b.notes || '');
+            return valA.localeCompare(valB) * dir;
           }
           return 0;
         });
@@ -5905,7 +6182,9 @@ Thanks!`;
                   <th class="sortable-th" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
                     Internal Status (Editable) <span class="th-sort-icon" data-col="internalStatus">↕</span>
                   </th>
-                  <th style="min-width: 220px;">Action / Notes</th>
+                  <th class="sortable-th" onclick="handleHeaderSort('notes')" style="min-width: 230px;" title="Click to sort by Action / Notes">
+                    Action / Notes (Editable) <span class="th-sort-icon" data-col="notes">↕</span>
+                  </th>
                   <th class="sortable-th" onclick="handleHeaderSort('dueDate')" style="width: 105px; text-align: center;" title="Click to sort by Due Date">
                     Due Date <span class="th-sort-icon" data-col="dueDate">↕</span>
                   </th>
@@ -5961,7 +6240,9 @@ Thanks!`;
                         Type <span class="th-sort-icon" data-col="type">↕</span>
                       </th>
                       <th style="width: 140px; text-align: center;">Link</th>
-                      <th style="min-width: 220px;">Remarks</th>
+                      <th class="sortable-th" onclick="handleHeaderSort('remarks')" style="min-width: 230px;" title="Click to sort by Remarks">
+                        Remarks (Editable) <span class="th-sort-icon" data-col="remarks">↕</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody id="tbody-${lower}"></tbody>
@@ -6010,7 +6291,9 @@ Thanks!`;
                     <th class="sortable-th" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
                       Internal Status (Editable) <span class="th-sort-icon" data-col="internalStatus">↕</span>
                     </th>
-                    <th style="min-width: 220px;">Action / Notes</th>
+                    <th class="sortable-th" onclick="handleHeaderSort('notes')" style="min-width: 230px;" title="Click to sort by Action / Notes">
+                      Action / Notes (Editable) <span class="th-sort-icon" data-col="notes">↕</span>
+                    </th>
                     <th class="sortable-th" onclick="handleHeaderSort('dueDate')" style="width: 105px; text-align: center;" title="Click to sort by Due Date">
                       Due Date <span class="th-sort-icon" data-col="dueDate">↕</span>
                     </th>
@@ -6316,7 +6599,7 @@ Thanks!`;
               </td>
               <td style="text-align: center;">${typeBadgeHtml}</td>
               <td style="text-align: center;">${linkHtml}</td>
-              <td class="notes-cell">${item.remarks || ''}</td>
+              <td class="notes-cell">${renderNotesCell('PULSE', item.ticket, item.remarks || '', item.originalIndex + 1, true, item.title)}</td>
             `;
             tbody.appendChild(tr);
           });
@@ -6417,7 +6700,7 @@ Thanks!`;
             <td style="text-align: center;">
               ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
             </td>
-            <td class="notes-cell">${item.notes || ''}</td>
+            <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
             <td style="text-align: center;"><span class="due-date-badge ${dueDateClass}">${item.dueDate || 'Not set'}</span></td>
             <td style="text-align: center;">
               <div class="action-btn-group">
@@ -6511,7 +6794,7 @@ Thanks!`;
                 <td style="text-align: center;">
                   ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
                 </td>
-                <td class="notes-cell">${item.notes || ''}</td>
+                <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
                 <td style="text-align: center;"><span class="due-date-badge ${dueDateClass}">${item.dueDate || 'Not set'}</span></td>
                 <td style="text-align: center;">
                   <div class="action-btn-group">
@@ -7041,6 +7324,394 @@ Thanks!`;
       } catch (err) {
         showToast('❌ Could not reach sync server.');
         selectElem.value = prevStatus;
+      }
+    }
+
+    // ==========================================
+    // 📝 ACTION NOTES EDITING & 2-WAY LIVE SYNC
+    // ==========================================
+    let currentModalNoteData = null;
+
+    function safeDecodeNote(val) {
+      if (!val) return '';
+      try {
+        return decodeURIComponent(val);
+      } catch (e) {
+        return val;
+      }
+    }
+
+    function renderNotesCell(assignee, ticket, notes, rowNumber, isPulse = false, title = '') {
+      const currentNotes = (notes || '').trim();
+      const safeNotes = escapeHtml(currentNotes);
+      const safeTicket = escapeHtml(ticket || '');
+      const safeAssignee = escapeHtml(assignee || '');
+      const safeTitle = escapeHtml(title || '');
+      const isEditable = canUserEditTask(assignee);
+
+      if (!isEditable) {
+        if (!currentNotes) {
+          return `<span style="color: var(--text-muted); font-size: 12px; opacity: 0.6;">-</span>`;
+        }
+        return `
+          <div class="notes-readonly-wrap" style="color: var(--text-muted); font-size: 12px; line-height: 1.45;" title="Read-only: Assigned to ${safeAssignee}">
+            <span>${safeNotes}</span>
+          </div>
+        `;
+      }
+
+      const hasNotes = currentNotes.length > 0;
+      const displayText = hasNotes ? safeNotes : `<span class="empty-note-prompt">✏️ Add note...</span>`;
+      const encNotes = encodeURIComponent(currentNotes);
+      const encTitle = encodeURIComponent(title || '');
+
+      return `
+        <div class="editable-notes-box" 
+             data-assignee="${safeAssignee}" 
+             data-ticket="${safeTicket}" 
+             data-row="${rowNumber}" 
+             data-pulse="${isPulse ? '1' : '0'}" 
+             data-notes="${encNotes}" 
+             data-title="${encTitle}">
+          <!-- View State -->
+          <div class="notes-display-wrap" onclick="startInlineEditNote(this)" title="Click to edit Action / Notes & sync to Google Sheets">
+            <span class="notes-text ${!hasNotes ? 'empty-note' : ''}" onclick="startInlineEditNote(this)">${displayText}</span>
+            <div class="notes-hover-actions" onclick="event.stopPropagation()">
+              <button type="button" class="btn-edit-note-trigger" onclick="startInlineEditNote(this)" title="Edit note inline (Enter to save)">✏️</button>
+              <button type="button" class="btn-edit-note-trigger" onclick="openActionNotesModalFromElement(this)" title="Open large note editor modal">⤢</button>
+            </div>
+          </div>
+
+          <!-- Inline Editor State -->
+          <div class="notes-editor-wrap" style="display: none;">
+            <textarea class="notes-textarea-input" 
+                      rows="2" 
+                      placeholder="Enter action note..."
+                      onkeydown="handleNoteTextareaKeydown(event, this)">${safeNotes}</textarea>
+            <div class="notes-edit-actions">
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" class="btn-note-save" onclick="saveInlineNote(this)" title="Save & Sync to Google Sheets (Enter)">
+                  <span>✓ Save</span>
+                </button>
+                <button type="button" class="btn-note-cancel" onclick="cancelInlineEditNote(this)" title="Cancel (Esc)">
+                  <span>✕</span>
+                </button>
+              </div>
+              <button type="button" class="btn-note-modal-open" onclick="openActionNotesModalFromElement(this)" title="Open in larger modal">
+                ⤢ Expand
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function startInlineEditNote(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-notes-box') : (typeof elem === 'string' ? document.getElementById(elem) : null);
+      if (!box) return;
+
+      // Close any other open inline editors
+      document.querySelectorAll('.editable-notes-box.is-editing').forEach(other => {
+        if (other !== box) {
+          cancelInlineEditNote(other);
+        }
+      });
+
+      const displayWrap = box.querySelector('.notes-display-wrap');
+      const editorWrap = box.querySelector('.notes-editor-wrap');
+      const textarea = box.querySelector('.notes-textarea-input');
+
+      if (!displayWrap || !editorWrap || !textarea) return;
+
+      box.classList.add('is-editing');
+      displayWrap.style.display = 'none';
+      editorWrap.style.display = 'flex';
+
+      // Auto focus and place cursor at end
+      textarea.focus();
+      const len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    }
+
+    function cancelInlineEditNote(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-notes-box') : (typeof elem === 'string' ? document.getElementById(elem) : null);
+      if (!box) return;
+
+      const displayWrap = box.querySelector('.notes-display-wrap');
+      const editorWrap = box.querySelector('.notes-editor-wrap');
+      const textarea = box.querySelector('.notes-textarea-input');
+      const encNotes = box.getAttribute('data-notes') || '';
+      const originalNotes = safeDecodeNote(encNotes);
+
+      if (textarea) textarea.value = originalNotes;
+      box.classList.remove('is-editing');
+      if (editorWrap) editorWrap.style.display = 'none';
+      if (displayWrap) displayWrap.style.display = 'flex';
+    }
+
+    function handleNoteTextareaKeydown(event, elem) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        saveInlineNote(elem);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelInlineEditNote(elem);
+      }
+    }
+
+    async function saveInlineNote(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-notes-box') : (typeof elem === 'string' ? document.getElementById(elem) : null);
+      if (!box) return;
+
+      const assignee = box.getAttribute('data-assignee');
+      const ticket = box.getAttribute('data-ticket');
+      const rowNumber = parseInt(box.getAttribute('data-row'), 10);
+      const isPulse = box.getAttribute('data-pulse') === '1';
+      const textarea = box.querySelector('.notes-textarea-input');
+      const saveBtn = box.querySelector('.btn-note-save');
+      const newNotes = textarea ? textarea.value.trim() : '';
+      const encNotes = box.getAttribute('data-notes') || '';
+      const originalNotes = safeDecodeNote(encNotes).trim();
+
+      // If unchanged, simply exit edit mode immediately without making API call
+      if (newNotes === originalNotes) {
+        cancelInlineEditNote(box);
+        return;
+      }
+
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span>⏳ Syncing...</span>';
+      }
+
+      const res = await saveActionNote(assignee, ticket, rowNumber, isPulse, newNotes);
+
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span>✓ Save</span>';
+      }
+
+      if (res && res.success) {
+        applyNoteUpdateToDom(ticket, assignee, res.notes, rowNumber);
+      }
+    }
+
+    // Global Click-Outside Listener to Auto-Save & Exit Inline Note Editing
+    document.addEventListener('mousedown', (event) => {
+      const activeEditing = document.querySelector('.editable-notes-box.is-editing');
+      if (!activeEditing) return;
+
+      // If click was inside the active editing box, do nothing
+      if (activeEditing.contains(event.target)) return;
+
+      // If click was inside action notes modal or another modal, do nothing
+      const noteModal = document.getElementById('actionNotesModal');
+      if (noteModal && (noteModal.contains(event.target) || noteModal.style.display === 'flex')) return;
+      if (event.target.closest && event.target.closest('.modal-overlay')) return;
+
+      // Auto-save and close
+      saveInlineNote(activeEditing);
+    });
+
+    async function saveActionNote(assignee, ticket, rowNumber, isPulse, newNotes) {
+      const tabName = (assignee || '').trim().toUpperCase();
+      const ticketKey = (ticket || '').trim().toUpperCase();
+      const cleanNotes = (newNotes || '').trim();
+
+      // Optimistic in-memory update
+      const tabRows = sheetStore[assignee] || sheetStore[tabName];
+      let originalNote = '';
+      if (tabRows && tabRows[rowNumber - 1]) {
+        originalNote = tabRows[rowNumber - 1][6] || '';
+        tabRows[rowNumber - 1][6] = cleanNotes;
+      }
+
+      // Also update in all other member tabs if ticket exists
+      Object.keys(sheetStore).forEach(t => {
+        if (t !== tabName && !isStatusSheet(t)) {
+          const rows = sheetStore[t] || [];
+          const match = rows.find((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          if (match) {
+            match[6] = cleanNotes;
+          }
+        }
+      });
+
+      showToast(`⏳ Syncing action note for ${ticketKey} to Google Sheets...`);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/update-action-notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignee: tabName,
+            ticket: ticketKey,
+            notes: cleanNotes,
+            rowNumber
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ ${ticketKey} Action Note synced to Google Sheets!`);
+          return { success: true, notes: cleanNotes };
+        } else {
+          // Revert optimistic update
+          if (tabRows && tabRows[rowNumber - 1]) {
+            tabRows[rowNumber - 1][6] = originalNote;
+          }
+          showToast(`❌ Failed to update note: ${json.error || 'Server error'}`);
+          return { success: false, error: json.error };
+        }
+      } catch (err) {
+        if (tabRows && tabRows[rowNumber - 1]) {
+          tabRows[rowNumber - 1][6] = originalNote;
+        }
+        showToast('❌ Could not reach sync server.');
+        return { success: false, error: err.message };
+      }
+    }
+
+    function applyNoteUpdateToDom(ticket, assignee, updatedNotes, rowNumber) {
+      const clean = updatedNotes || '';
+      const safeTicket = (ticket || '').toLowerCase();
+      const enc = encodeURIComponent(clean);
+
+      // Find all DOM cells for this ticket (including in All Overview and other tabs)
+      document.querySelectorAll('.editable-notes-box').forEach(box => {
+        const bTicket = (box.getAttribute('data-ticket') || '').toLowerCase();
+        if (bTicket === safeTicket) {
+          box.setAttribute('data-notes', enc);
+          const textSpan = box.querySelector('.notes-text');
+          const textarea = box.querySelector('.notes-textarea-input');
+          const displayWrap = box.querySelector('.notes-display-wrap');
+          const editorWrap = box.querySelector('.notes-editor-wrap');
+
+          if (textSpan) {
+            if (!clean) {
+              textSpan.innerHTML = '<span class="empty-note-prompt">✏️ Add note...</span>';
+              textSpan.classList.add('empty-note');
+            } else {
+              textSpan.textContent = clean;
+              textSpan.classList.remove('empty-note');
+            }
+          }
+          if (textarea) textarea.value = clean;
+          if (editorWrap) editorWrap.style.display = 'none';
+          if (displayWrap) displayWrap.style.display = 'flex';
+          box.classList.remove('is-editing');
+        }
+      });
+    }
+
+    function openActionNotesModalFromElement(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-notes-box') : null;
+      if (!box) return;
+
+      const assignee = box.getAttribute('data-assignee') || '';
+      const ticket = box.getAttribute('data-ticket') || '';
+      const rowNumber = parseInt(box.getAttribute('data-row'), 10) || 2;
+      const isPulse = box.getAttribute('data-pulse') === '1';
+      const textarea = box.querySelector('.notes-textarea-input');
+      const encNotes = box.getAttribute('data-notes') || '';
+      const encTitle = box.getAttribute('data-title') || '';
+      const currentNotes = (textarea && textarea.value !== undefined && textarea.value !== '') ? textarea.value : safeDecodeNote(encNotes);
+      const title = safeDecodeNote(encTitle);
+
+      // Revert inline editor to normal view before opening modal
+      cancelInlineEditNote(box);
+
+      openActionNotesModal(assignee, ticket, rowNumber, currentNotes, isPulse, title);
+    }
+
+    // Modal Action Notes Controller
+    function openActionNotesModal(assignee, ticket, rowNumber, currentNotes, isPulse, title) {
+      currentModalNoteData = { assignee, ticket, rowNumber, isPulse, title, originalNotes: currentNotes || '' };
+
+      const ticketBadge = document.getElementById('modalNoteTicketBadge');
+      const assigneeBadge = document.getElementById('modalNoteAssigneeBadge');
+      const titleEl = document.getElementById('modalNoteTaskTitle');
+      const textarea = document.getElementById('modalNoteTextarea');
+      const subtitle = document.getElementById('modalNoteSubtitle');
+
+      if (ticketBadge) {
+        ticketBadge.innerText = ticket;
+        ticketBadge.href = `https://enveu.atlassian.net/browse/${ticket}`;
+      }
+      if (assigneeBadge) {
+        assigneeBadge.innerText = `👤 ${assignee}`;
+      }
+      if (titleEl) {
+        titleEl.innerText = title || `Ticket ${ticket}`;
+      }
+      if (subtitle) {
+        subtitle.innerText = isPulse 
+          ? `Direct 2-Way Sync with PULSE Sheet (Column G: Remarks)` 
+          : `Direct 2-Way Sync with Google Sheets (Column G: Action / Notes)`;
+      }
+      if (textarea) {
+        textarea.value = currentNotes || '';
+        updateModalNoteCharCount();
+      }
+
+      document.getElementById('actionNotesModal').style.display = 'flex';
+      setTimeout(() => {
+        if (textarea) {
+          textarea.focus();
+          const len = textarea.value.length;
+          textarea.setSelectionRange(len, len);
+        }
+      }, 50);
+    }
+
+    function closeActionNotesModal() {
+      document.getElementById('actionNotesModal').style.display = 'none';
+      currentModalNoteData = null;
+    }
+
+    function updateModalNoteCharCount() {
+      const textarea = document.getElementById('modalNoteTextarea');
+      const countEl = document.getElementById('modalNoteCharCount');
+      if (textarea && countEl) {
+        countEl.innerText = `${textarea.value.length} chars`;
+      }
+    }
+
+    function insertQuickNoteTag(tag) {
+      const textarea = document.getElementById('modalNoteTextarea');
+      if (!textarea) return;
+      const cur = textarea.value.trim();
+      if (!cur) {
+        textarea.value = tag + ' ';
+      } else if (!cur.includes(tag)) {
+        textarea.value = tag + ' ' + cur;
+      }
+      textarea.focus();
+      updateModalNoteCharCount();
+    }
+
+    async function submitModalNote() {
+      if (!currentModalNoteData) return;
+      const { assignee, ticket, rowNumber, isPulse } = currentModalNoteData;
+      const textarea = document.getElementById('modalNoteTextarea');
+      const btn = document.getElementById('btnSaveModalNote');
+      const btnText = document.getElementById('btnSaveModalNoteText');
+      const newNotes = (textarea ? textarea.value : '').trim();
+
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.innerText = 'Syncing...';
+
+      const res = await saveActionNote(assignee, ticket, rowNumber, isPulse, newNotes);
+
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.innerText = 'Sync to Google Sheet';
+
+      if (res && res.success) {
+        applyNoteUpdateToDom(ticket, assignee, res.notes, rowNumber);
+        closeActionNotesModal();
       }
     }
 
