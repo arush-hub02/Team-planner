@@ -1740,29 +1740,455 @@
       padding: 8px;
     }
 
+    /* Enhanced Due Date Badges with Dynamic Health Indicators */
     .due-date-badge {
       display: inline-flex;
       align-items: center;
       gap: 5px;
       padding: 4px 10px;
       border-radius: 7px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
       background: rgba(148, 163, 184, 0.08);
       color: var(--text-secondary);
       border: 1px solid rgba(148, 163, 184, 0.18);
       white-space: nowrap;
+      transition: all 0.2s ease;
     }
-    .due-date-badge.urgent {
+    .due-date-badge.overdue {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.45);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+    }
+    .due-date-badge.due-today {
+      background: rgba(245, 158, 11, 0.22);
+      color: #fde047;
+      border-color: rgba(245, 158, 11, 0.6);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+    }
+    .due-date-badge.due-this-week {
       background: rgba(245, 158, 11, 0.12);
       color: #fbbf24;
-      border-color: rgba(245, 158, 11, 0.3);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+    .due-date-badge.due-next-week {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+    .due-date-badge.delivered {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+    .due-date-badge.due-future {
+      background: rgba(148, 163, 184, 0.08);
+      color: #94a3b8;
+      border-color: rgba(148, 163, 184, 0.18);
     }
     .due-date-badge.not-set {
       background: transparent;
       color: var(--text-muted);
       border-color: rgba(148, 163, 184, 0.12);
       font-style: italic;
+    }
+    .due-date-badge.urgent {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* 🚀 Weekly Delivery Horizon & Sprint Intelligence Card */
+    .delivery-horizon-card {
+      margin-bottom: 22px;
+      background: linear-gradient(135deg, rgba(21, 29, 46, 0.95), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: 14px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+    .delivery-horizon-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8, #34d399);
+      opacity: 0.85;
+    }
+    .horizon-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .horizon-title-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .horizon-badge-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+    .horizon-badge-pulse .live-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+      animation: pulse 2s infinite;
+    }
+    .horizon-window-dates {
+      font-size: 12px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .horizon-view-toggle {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .btn-horizon-view {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-horizon-view:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .btn-horizon-view.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.16);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    .horizon-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .horizon-metric-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .horizon-metric-card:hover {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+    .horizon-metric-card .metric-icon {
+      font-size: 22px;
+      width: 40px;
+      height: 40px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .metric-this-week .metric-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .metric-overdue .metric-icon { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .metric-next-week .metric-icon { background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .horizon-metric-card .metric-data {
+      flex: 1;
+    }
+    .horizon-metric-card .metric-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: #f8fafc;
+      line-height: 1.2;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .metric-this-week .metric-value { color: #fbbf24; }
+    .metric-overdue .metric-value { color: #f87171; }
+    .metric-next-week .metric-value { color: #38bdf8; }
+    .horizon-metric-card .metric-label {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+    .horizon-metric-card .metric-action-tag {
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0.6;
+      font-weight: 600;
+    }
+    .horizon-metric-card:hover .metric-action-tag {
+      opacity: 1;
+      color: #38bdf8;
+    }
+    .horizon-metric-card.metric-progress {
+      cursor: default;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 6px;
+    }
+    .horizon-metric-card.metric-progress:hover {
+      transform: none;
+      border-color: rgba(148, 163, 184, 0.12);
+    }
+    .metric-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+    }
+    .metric-progress-header .metric-pct {
+      font-weight: 700;
+      color: #34d399;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .horizon-progress-track {
+      width: 100%;
+      height: 7px;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .horizon-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #34d399);
+      border-radius: 10px;
+      transition: width 0.4s ease;
+    }
+    .metric-subtext {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Timeline / Sprint Pills Bar */
+    .delivery-pills-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+      width: 100%;
+    }
+    .delivery-filter-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-right: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .delivery-pill {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .delivery-pill:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(148, 163, 184, 0.35);
+      color: var(--text);
+    }
+    .delivery-pill.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.5);
+      color: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+    }
+    .delivery-pill.pill-this-week.active {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fbbf24;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+    }
+    .delivery-pill.pill-overdue.active {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #f87171;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+    }
+    .delivery-pill .pill-cnt {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      background: rgba(148, 163, 184, 0.15);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Sprint Group Headers inside Table */
+    .sprint-header-row td {
+      padding: 0 !important;
+      border-bottom: none !important;
+      background: transparent !important;
+    }
+    .sprint-header-content {
+      background: linear-gradient(90deg, #131d31 0%, #17233c 60%, #111a2d 100%);
+      border-top: 1px solid rgba(148, 163, 184, 0.15);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      border-left: 4px solid #38bdf8;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      margin-top: 6px;
+      transition: background 0.15s ease;
+    }
+    .sprint-cat-overdue .sprint-header-content {
+      border-left-color: #ef4444;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(26, 17, 24, 0.85) 60%, #151119 100%);
+    }
+    .sprint-cat-current .sprint-header-content {
+      border-left-color: #38bdf8;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.12) 0%, rgba(19, 29, 49, 0.85) 60%, #0f172a 100%);
+    }
+    .sprint-cat-next .sprint-header-content {
+      border-left-color: #818cf8;
+      background: linear-gradient(90deg, rgba(129, 140, 248, 0.1) 0%, rgba(21, 24, 45, 0.85) 60%, #0f172a 100%);
+    }
+    .sprint-cat-future .sprint-header-content {
+      border-left-color: #64748b;
+      background: linear-gradient(90deg, rgba(100, 116, 139, 0.1) 0%, rgba(20, 26, 38, 0.85) 60%, #0f172a 100%);
+    }
+    .sprint-cat-closed .sprint-header-content {
+      border-left-color: #10b981;
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 30, 27, 0.85) 60%, #0f172a 100%);
+    }
+    .sprint-cat-backlog .sprint-header-content {
+      border-left-color: #475569;
+      background: linear-gradient(90deg, rgba(71, 85, 105, 0.1) 0%, rgba(18, 22, 32, 0.85) 60%, #0f172a 100%);
+    }
+    .sprint-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .sprint-chevron {
+      font-size: 13px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      display: inline-block;
+      width: 14px;
+      text-align: center;
+    }
+    .sprint-chevron.collapsed {
+      transform: rotate(-90deg);
+    }
+    .sprint-icon {
+      font-size: 15px;
+    }
+    .sprint-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+    .sprint-tag-pill {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .pill-current { background: rgba(56, 189, 248, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+    .pill-overdue { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .pill-next { background: rgba(129, 140, 248, 0.18); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.35); }
+    .pill-future { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
+    .pill-closed { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .pill-backlog { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.25); }
+
+    .sprint-date-range {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .sprint-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sprint-count-badge {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sprint-mini-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sprint-mini-track {
+      width: 70px;
+      height: 6px;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .sprint-mini-fill {
+      height: 100%;
+      background: #34d399;
+      border-radius: 6px;
+    }
+    .sprint-progress-lbl {
+      font-size: 11px;
+      color: #34d399;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
     }
 
     .notes-cell {
@@ -3265,6 +3691,65 @@
       </div>
     </div>
 
+    <!-- 🚀 Weekly Delivery Horizon & Sprint Intelligence Bar -->
+    <div class="delivery-horizon-card" id="deliveryHorizonCard">
+      <div class="horizon-header">
+        <div class="horizon-title-block">
+          <div class="horizon-badge-pulse">
+            <span class="live-indicator"></span>
+            <span class="horizon-title">Sprint & Delivery Horizon</span>
+          </div>
+          <span class="horizon-window-dates" id="horizonWindowDates">📅 Current Sprint: 28 Sep – 04 Oct 2026</span>
+        </div>
+        <div class="horizon-meta-right">
+          <div class="horizon-view-toggle">
+            <button type="button" class="btn-horizon-view active" id="btnViewSprints" onclick="setSprintViewMode('sprints')" title="Collate tasks under Sprints & Due Date Horizons">
+              🏃 Sprint Horizon View
+            </button>
+            <button type="button" class="btn-horizon-view" id="btnViewTable" onclick="setSprintViewMode('table')" title="View continuous flat table">
+              📋 Flat Table
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="horizon-metrics-row">
+        <div class="horizon-metric-card metric-this-week" onclick="setDeliveryFilter('THIS_WEEK')" title="Click to filter tasks delivering this week / current sprint">
+          <div class="metric-icon">⚡</div>
+          <div class="metric-data">
+            <div class="metric-value" id="horizonCountThisWeek">0</div>
+            <div class="metric-label">Due This Week</div>
+          </div>
+          <span class="metric-action-tag">Filter ➔</span>
+        </div>
+        <div class="horizon-metric-card metric-overdue" onclick="setDeliveryFilter('OVERDUE')" title="Click to filter overdue tasks needing urgent action">
+          <div class="metric-icon">🚨</div>
+          <div class="metric-data">
+            <div class="metric-value" id="horizonCountOverdue">0</div>
+            <div class="metric-label">Overdue Tickets</div>
+          </div>
+          <span class="metric-action-tag">Escalate ➔</span>
+        </div>
+        <div class="horizon-metric-card metric-next-week" onclick="setDeliveryFilter('NEXT_WEEK')" title="Click to filter tasks scheduled for next week / sprint">
+          <div class="metric-icon">⏭️</div>
+          <div class="metric-data">
+            <div class="metric-value" id="horizonCountNextWeek">0</div>
+            <div class="metric-label">Next Sprint (05–11 Oct)</div>
+          </div>
+          <span class="metric-action-tag">Filter ➔</span>
+        </div>
+        <div class="horizon-metric-card metric-progress">
+          <div class="metric-progress-header">
+            <span class="metric-label">This Week's Delivery Target</span>
+            <span class="metric-pct" id="horizonProgressPct">0% Delivered</span>
+          </div>
+          <div class="horizon-progress-track">
+            <div class="horizon-progress-bar" id="horizonProgressBar" style="width: 0%;"></div>
+          </div>
+          <div class="metric-subtext" id="horizonProgressSubtext">0 of 0 delivered this sprint</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Search / Filter Bar -->
     <div class="filter-bar">
       <div class="tabs-nav" id="dynamicTabsNav" style="margin-bottom: 0; border-bottom: none;">
@@ -3312,6 +3797,19 @@
               <!-- Dynamically populated checkboxes -->
             </div>
           </div>
+        </div>
+
+        <!-- Delivery Horizon / Sprint Filter Pills -->
+        <div class="delivery-pills-bar" id="deliveryPillsBar">
+          <div class="delivery-filter-label">
+            <span>📅 Timeline:</span>
+          </div>
+          <button type="button" class="delivery-pill active" data-horizon="ALL" onclick="setDeliveryFilter('ALL')" title="All due dates and sprints">All Horizons</button>
+          <button type="button" class="delivery-pill pill-this-week" data-horizon="THIS_WEEK" onclick="setDeliveryFilter('THIS_WEEK')" title="Delivering in Current Sprint / This Week">⚡ This Week <span id="count-this-week" class="pill-cnt">0</span></button>
+          <button type="button" class="delivery-pill pill-overdue" data-horizon="OVERDUE" onclick="setDeliveryFilter('OVERDUE')" title="Open tickets with past due dates">🚨 Overdue <span id="count-overdue" class="pill-cnt">0</span></button>
+          <button type="button" class="delivery-pill pill-next-week" data-horizon="NEXT_WEEK" onclick="setDeliveryFilter('NEXT_WEEK')" title="Scheduled for Next Sprint">⏭️ Next Week <span id="count-next-week" class="pill-cnt">0</span></button>
+          <button type="button" class="delivery-pill pill-future" data-horizon="FUTURE" onclick="setDeliveryFilter('FUTURE')" title="Upcoming future sprints">📦 Future</button>
+          <button type="button" class="delivery-pill pill-unscheduled" data-horizon="UNSCHEDULED" onclick="setDeliveryFilter('UNSCHEDULED')" title="Tickets without a set due date">❓ No Due Date</button>
         </div>
       </div>
 
@@ -5596,8 +6094,53 @@ Thanks!`;
     // Dashboard Universal Sorting & Filtering State (Dashboard Only)
     let activeFilterBuckets = new Set(['ALL']); // 'ALL' or set of 'IN_PROGRESS', 'IN_REVIEW', 'TODO', 'DONE', 'POC', 'DISCUSS'
     let activeDetailedStatuses = new Set();      // granular status strings in lowerCase
+    let activeDeliveryHorizon = 'ALL';          // 'ALL', 'THIS_WEEK', 'OVERDUE', 'NEXT_WEEK', 'FUTURE', 'UNSCHEDULED'
+    let currentSprintViewMode = 'sprints';       // 'sprints' (default) or 'table'
+    let collapsedSprints = new Set();           // sprint keys collapsed by user
     let currentSortMode = 'done_first';          // 'done_first', 'lifecycle', 'default', 'due_date', 'ticket_asc', 'ticket_desc', 'title_asc', 'assignee_asc', 'status_asc'
     let currentColumnSort = { column: null, direction: 'asc' }; // optional column header sort override
+
+    function setDeliveryFilter(horizon) {
+      activeDeliveryHorizon = horizon;
+      updateDeliveryFilterUI();
+      populateTableData();
+    }
+
+    function setSprintViewMode(mode) {
+      currentSprintViewMode = mode;
+      const btnSprints = document.getElementById('btnViewSprints');
+      const btnTable = document.getElementById('btnViewTable');
+      if (btnSprints && btnTable) {
+        btnSprints.classList.toggle('active', mode === 'sprints');
+        btnTable.classList.toggle('active', mode === 'table');
+      }
+      populateTableData();
+    }
+
+    function toggleSprintCollapse(sprintKey) {
+      if (collapsedSprints.has(sprintKey)) {
+        collapsedSprints.delete(sprintKey);
+      } else {
+        collapsedSprints.add(sprintKey);
+      }
+      const rows = document.querySelectorAll(`tr[data-sprint-id="${sprintKey}"]`);
+      const isCollapsed = collapsedSprints.has(sprintKey);
+      rows.forEach(r => {
+        r.style.display = isCollapsed ? 'none' : '';
+      });
+      const chev = document.getElementById(`chevron-${sprintKey}`);
+      if (chev) {
+        chev.classList.toggle('collapsed', isCollapsed);
+      }
+    }
+
+    function updateDeliveryFilterUI() {
+      const pills = document.querySelectorAll('.delivery-pill');
+      pills.forEach(pill => {
+        const horizon = pill.getAttribute('data-horizon');
+        pill.classList.toggle('active', horizon === activeDeliveryHorizon);
+      });
+    }
 
     function setStatusFilter(bucket) {
       if (bucket === 'ALL') {
@@ -5704,6 +6247,7 @@ Thanks!`;
       activeFilterBuckets.clear();
       activeFilterBuckets.add('ALL');
       activeDetailedStatuses.clear();
+      activeDeliveryHorizon = 'ALL';
       currentSortMode = 'done_first';
       currentColumnSort = { column: null, direction: 'asc' };
       
@@ -5714,12 +6258,14 @@ Thanks!`;
       if (searchInput) searchInput.value = '';
       searchQuery = '';
       
+      updateDeliveryFilterUI();
       updateFilterControlsUI();
       updateHeaderSortIcons();
       populateTableData();
     }
 
     function updateFilterControlsUI() {
+      updateDeliveryFilterUI();
       const pills = document.querySelectorAll('.status-pill');
       const isAll = activeFilterBuckets.has('ALL') || (activeFilterBuckets.size === 0 && activeDetailedStatuses.size === 0);
       
@@ -5826,21 +6372,391 @@ Thanks!`;
       return 6;
     }
 
-    function parseDueDateForSort(dueDateStr) {
-      if (!dueDateStr) return 9999999999999;
-      const s = dueDateStr.trim().toLowerCase();
-      if (s === 'not set' || s === '-' || s === '') return 9999999999999;
-      const m = s.match(/(\d{1,2})\s*([a-zA-Z]+)/);
-      if (m) {
-        const day = parseInt(m[1], 10);
+    function parseTicketDueDate(dueDateStr) {
+      if (!dueDateStr) return null;
+      const s = String(dueDateStr).trim();
+      if (!s || s.toLowerCase() === 'not set' || s === '-' || s.toLowerCase() === 'none') return null;
+
+      // Match "24 Sep", "24-Sep", "24 Sep 2026"
+      const m1 = s.match(/^(\d{1,2})[\s\-\/]+([a-zA-Z]+)(?:[\s\-\/]+(\d{2,4}))?/);
+      if (m1) {
+        const day = parseInt(m1[1], 10);
+        const monthStr = m1[2].toLowerCase();
         const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-        const monthIdx = monthNames.findIndex(mn => m[2].startsWith(mn));
+        const monthIdx = monthNames.findIndex(mn => monthStr.startsWith(mn));
         if (monthIdx !== -1) {
-          const d = new Date(2026, monthIdx, day);
-          return d.getTime();
+          const year = m1[3] ? (m1[3].length === 2 ? 2000 + parseInt(m1[3], 10) : parseInt(m1[3], 10)) : 2026;
+          return new Date(year, monthIdx, day, 12, 0, 0);
         }
       }
-      return 9999999999998;
+
+      // Match "Sep 24", "September 24"
+      const m2 = s.match(/^([a-zA-Z]+)[\s\-\/]+(\d{1,2})(?:[,\s\-\/]+(\d{2,4}))?/);
+      if (m2) {
+        const monthStr = m2[1].toLowerCase();
+        const day = parseInt(m2[2], 10);
+        const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        const monthIdx = monthNames.findIndex(mn => monthStr.startsWith(mn));
+        if (monthIdx !== -1) {
+          const year = m2[3] ? (m2[3].length === 2 ? 2000 + parseInt(m2[3], 10) : parseInt(m2[3], 10)) : 2026;
+          return new Date(year, monthIdx, day, 12, 0, 0);
+        }
+      }
+
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12, 0, 0);
+      }
+
+      return null;
+    }
+
+    function isTicketDone(item) {
+      if (!item) return false;
+      if (isStatusSheet(item.owner)) return true;
+      const s1 = (item.jiraStatus || '').toLowerCase();
+      const s2 = (item.internalStatus || '').toLowerCase();
+      return s1.includes('done') || s1.includes('closed') || s2.includes('done') || s2.includes('closed');
+    }
+
+    function getWeekRange(date) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+      const day = d.getDay(); // 0 is Sun, 1 is Mon
+      const diffToMon = (day + 6) % 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - diffToMon);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { monday, sunday };
+    }
+
+    function formatShortDateRange(d1, d2) {
+      const opt = { day: 'numeric', month: 'short' };
+      return `${d1.toLocaleDateString('en-US', opt)} – ${d2.toLocaleDateString('en-US', opt)}`;
+    }
+
+    function getDeliveryHorizonInfo(item) {
+      const isDone = isTicketDone(item);
+      const dateObj = parseTicketDueDate(item.dueDate);
+
+      if (!dateObj) {
+        return {
+          horizon: 'UNSCHEDULED',
+          badgeClass: 'not-set',
+          badgeText: item.dueDate || 'Not set',
+          sprintKey: isDone ? 'closed_unscheduled' : 'backlog',
+          sprintTitle: isDone ? 'Delivered (No Due Date Specified)' : 'Backlog / Unscheduled',
+          sprintIcon: isDone ? '✅' : '📌',
+          sprintCategory: isDone ? 'CLOSED' : 'BACKLOG',
+          dateRange: 'No Date Specified',
+          sprintOrder: isDone ? 99999999 : 5000000
+        };
+      }
+
+      const today = new Date();
+      const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+      const { monday: curMon, sunday: curSun } = getWeekRange(todayZero);
+
+      const nextWeekDate = new Date(curMon);
+      nextWeekDate.setDate(curMon.getDate() + 7);
+      const { monday: nextMon, sunday: nextSun } = getWeekRange(nextWeekDate);
+
+      const itemDateZero = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 12, 0, 0);
+      const { monday: itemMon, sunday: itemSun } = getWeekRange(itemDateZero);
+      const itemWeekRangeStr = formatShortDateRange(itemMon, itemSun);
+      const isItemToday = itemDateZero.getTime() === todayZero.getTime();
+
+      if (isDone) {
+        const isCurSprint = itemMon.getTime() === curMon.getTime();
+        return {
+          horizon: 'DELIVERED',
+          badgeClass: 'delivered',
+          badgeText: `✅ ${item.dueDate} • Done`,
+          sprintKey: `closed_${itemMon.getTime()}`,
+          sprintTitle: isCurSprint ? `Delivered This Sprint (${itemWeekRangeStr})` : `Delivered Sprint (${itemWeekRangeStr})`,
+          sprintIcon: '✅',
+          sprintCategory: 'CLOSED',
+          dateRange: itemWeekRangeStr,
+          sprintOrder: 10000000 + Math.round((5000000000000 - itemMon.getTime()) / 86400000) // newer closed sprints first
+        };
+      }
+
+      // Open ticket: Overdue
+      if (itemDateZero.getTime() < todayZero.getTime()) {
+        return {
+          horizon: 'OVERDUE',
+          badgeClass: 'overdue',
+          badgeText: `🚨 ${item.dueDate} • Overdue`,
+          sprintKey: 'overdue',
+          sprintTitle: 'Overdue Tasks (Action Required)',
+          sprintIcon: '🚨',
+          sprintCategory: 'OVERDUE',
+          dateRange: 'Past Due',
+          sprintOrder: 10
+        };
+      }
+
+      // Open ticket: Due this week / Current sprint
+      if (itemDateZero.getTime() >= curMon.getTime() && itemDateZero.getTime() <= curSun.getTime()) {
+        return {
+          horizon: 'THIS_WEEK',
+          badgeClass: isItemToday ? 'due-today' : 'due-this-week',
+          badgeText: isItemToday ? `⚡ ${item.dueDate} • Today!` : `🟡 ${item.dueDate} • This Week`,
+          sprintKey: 'current_sprint',
+          sprintTitle: `Current Sprint (${formatShortDateRange(curMon, curSun)})`,
+          sprintIcon: '🏃',
+          sprintCategory: 'CURRENT',
+          dateRange: formatShortDateRange(curMon, curSun),
+          sprintOrder: 20
+        };
+      }
+
+      // Open ticket: Next sprint
+      if (itemDateZero.getTime() >= nextMon.getTime() && itemDateZero.getTime() <= nextSun.getTime()) {
+        return {
+          horizon: 'NEXT_WEEK',
+          badgeClass: 'due-next-week',
+          badgeText: `🔵 ${item.dueDate} • Next Week`,
+          sprintKey: 'next_sprint',
+          sprintTitle: `Next Sprint (${formatShortDateRange(nextMon, nextSun)})`,
+          sprintIcon: '⏭️',
+          sprintCategory: 'NEXT',
+          dateRange: formatShortDateRange(nextMon, nextSun),
+          sprintOrder: 30
+        };
+      }
+
+      // Open ticket: Future sprints
+      return {
+        horizon: 'FUTURE',
+        badgeClass: 'due-future',
+        badgeText: `📅 ${item.dueDate}`,
+        sprintKey: `sprint_${itemMon.getTime()}`,
+        sprintTitle: `Upcoming Sprint (${itemWeekRangeStr})`,
+        sprintIcon: '📅',
+        sprintCategory: 'FUTURE',
+        dateRange: itemWeekRangeStr,
+        sprintOrder: 100 + Math.round(itemMon.getTime() / 86400000)
+      };
+    }
+
+    function matchesDeliveryHorizon(item) {
+      if (activeDeliveryHorizon === 'ALL') return true;
+      const info = getDeliveryHorizonInfo(item);
+      if (activeDeliveryHorizon === 'THIS_WEEK') {
+        const today = new Date();
+        const curMonTime = getWeekRange(today).monday.getTime();
+        return info.horizon === 'THIS_WEEK' || (info.sprintCategory === 'CLOSED' && info.sprintKey === `closed_${curMonTime}`);
+      }
+      return info.horizon === activeDeliveryHorizon;
+    }
+
+    function groupItemsBySprint(items) {
+      const groups = new Map();
+
+      items.forEach(item => {
+        const info = getDeliveryHorizonInfo(item);
+        const key = info.sprintKey;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key: key,
+            title: info.sprintTitle,
+            icon: info.sprintIcon,
+            category: info.sprintCategory,
+            dateRange: info.dateRange,
+            order: info.sprintOrder,
+            items: []
+          });
+        }
+        groups.get(key).items.push(item);
+      });
+
+      const list = Array.from(groups.values());
+      list.sort((a, b) => a.order - b.order);
+
+      list.forEach(sprint => {
+        let done = 0;
+        sprint.items.forEach(it => {
+          if (isTicketDone(it)) done++;
+        });
+        sprint.doneCount = done;
+        sprint.totalCount = sprint.items.length;
+        sprint.pct = sprint.totalCount > 0 ? Math.round((done / sprint.totalCount) * 100) : 0;
+      });
+
+      return list;
+    }
+
+    function updateDeliveryHorizonStats(allRows) {
+      let overdue = 0;
+      let thisWeekTotal = 0;
+      let thisWeekDelivered = 0;
+      let nextWeek = 0;
+
+      const seenTickets = new Set();
+      const today = new Date();
+      const { monday: curMon, sunday: curSun } = getWeekRange(today);
+      const curMonTime = curMon.getTime();
+
+      allRows.forEach(item => {
+        const tKey = (item.ticket || '').toUpperCase();
+        if (tKey && seenTickets.has(tKey)) return;
+        if (tKey) seenTickets.add(tKey);
+
+        const info = getDeliveryHorizonInfo(item);
+        const isDone = isTicketDone(item);
+
+        if (info.horizon === 'OVERDUE') {
+          overdue++;
+        } else if (info.horizon === 'THIS_WEEK' || (isDone && info.sprintKey === `closed_${curMonTime}`)) {
+          thisWeekTotal++;
+          if (isDone) thisWeekDelivered++;
+        } else if (info.horizon === 'NEXT_WEEK') {
+          nextWeek++;
+        }
+      });
+
+      const pct = thisWeekTotal > 0 ? Math.round((thisWeekDelivered / thisWeekTotal) * 100) : 0;
+
+      const elOverdue = document.getElementById('horizonCountOverdue');
+      const elThisWeek = document.getElementById('horizonCountThisWeek');
+      const elNextWeek = document.getElementById('horizonCountNextWeek');
+      const elProgressPct = document.getElementById('horizonProgressPct');
+      const elProgressBar = document.getElementById('horizonProgressBar');
+      const elProgressSubtext = document.getElementById('horizonProgressSubtext');
+      const elDates = document.getElementById('horizonWindowDates');
+
+      if (elDates) {
+        elDates.innerText = `📅 Current Sprint: ${formatShortDateRange(curMon, curSun)} 2026`;
+      }
+      if (elOverdue) elOverdue.innerText = overdue;
+      if (elThisWeek) elThisWeek.innerText = thisWeekTotal;
+      if (elNextWeek) elNextWeek.innerText = nextWeek;
+      if (elProgressPct) elProgressPct.innerText = `${pct}% Delivered`;
+      if (elProgressBar) elProgressBar.style.width = `${pct}%`;
+      if (elProgressSubtext) elProgressSubtext.innerText = `${thisWeekDelivered} of ${thisWeekTotal} delivered this sprint`;
+
+      const cntThisWeek = document.getElementById('count-this-week');
+      const cntOverdue = document.getElementById('count-overdue');
+      const cntNextWeek = document.getElementById('count-next-week');
+      if (cntThisWeek) cntThisWeek.innerText = thisWeekTotal;
+      if (cntOverdue) cntOverdue.innerText = overdue;
+      if (cntNextWeek) cntNextWeek.innerText = nextWeek;
+    }
+
+    function buildStandardTableRow(item, isAllOverview, hasNotify) {
+      const tr = document.createElement('tr');
+      const horizonInfo = getDeliveryHorizonInfo(item);
+      const parsed = parseTicketAssignees(item.ticket, item.owner, item.notes);
+      const sharedPrefix = parsed.isShared ? `<span class="shared-inline-badge">🤝 Shared</span>` : '';
+      const isClosed = isStatusSheet(item.owner);
+
+      tr.innerHTML = `
+        ${hasNotify ? buildNotifyCheckboxCell(item) : ''}
+        ${!isAllOverview ? `<td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>` : ''}
+        ${isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, true)}</td>` : ''}
+        <td>
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
+            <span>${item.ticket || ''}</span>
+            <span class="ext-arrow">↗</span>
+          </a>
+        </td>
+        ${!isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, false)}</td>` : ''}
+        <td class="task-title-cell">${sharedPrefix}${item.title || ''}</td>
+        <td style="text-align: center;">
+          <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
+            <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
+        </td>
+        <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
+        <td style="text-align: center;"><span class="due-date-badge ${horizonInfo.badgeClass}" title="${horizonInfo.horizon}">${horizonInfo.badgeText}</span></td>
+        <td style="text-align: center;">
+          <div class="action-btn-group">
+            ${canUserEditTask(item.owner) ? (
+              isClosed ? `
+                <button type="button" class="btn-reopen-ticket" onclick="handleReopenTicket('${item.ticket}')" title="Reopen ${item.ticket} and assign back to a team member">
+                  🔄
+                </button>
+              ` : `
+                <button type="button" class="btn-close-ticket" onclick="handleCloseTicket('${item.ticket}', '${item.owner}')" title="Close ${item.ticket} & move to CLOSED sheet">
+                  ✅
+                </button>
+                <button type="button" class="btn-delete-ticket" onclick="handleDeleteTicket('${item.ticket}', '${item.owner}')" title="Delete ${item.ticket} from Google Sheet">
+                  🗑️
+                </button>
+              `
+            ) : `
+              <span style="font-size: 13px; opacity: 0.35;" title="Read-only: Assigned to ${item.owner}">🔒</span>
+            `}
+          </div>
+        </td>
+      `;
+      return tr;
+    }
+
+    function renderRowsWithSprintGroups(tbody, items, isAllOverview, hasNotify, emptyColspan, sheetName) {
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${emptyColspan}" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${sheetName || 'this view'}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
+        return;
+      }
+
+      if (currentSprintViewMode === 'table') {
+        items.forEach(item => {
+          tbody.appendChild(buildStandardTableRow(item, isAllOverview, hasNotify));
+        });
+        return;
+      }
+
+      // Group by Sprint
+      const sprintGroups = groupItemsBySprint(items);
+      sprintGroups.forEach(sprint => {
+        const isCollapsed = collapsedSprints.has(sprint.key);
+        const sprintTr = document.createElement('tr');
+        sprintTr.className = `sprint-header-row sprint-cat-${sprint.category.toLowerCase()}`;
+        sprintTr.innerHTML = `
+          <td colspan="${emptyColspan}">
+            <div class="sprint-header-content">
+              <div class="sprint-header-left" onclick="toggleSprintCollapse('${sprint.key}')" title="Click to collapse / expand this sprint group">
+                <span class="sprint-chevron ${isCollapsed ? 'collapsed' : ''}" id="chevron-${sprint.key}">▾</span>
+                <span class="sprint-icon">${sprint.icon}</span>
+                <span class="sprint-title">${sprint.title}</span>
+                <span class="sprint-tag-pill pill-${sprint.category.toLowerCase()}">${sprint.category}</span>
+                ${sprint.dateRange ? `<span class="sprint-date-range">(${sprint.dateRange})</span>` : ''}
+              </div>
+              <div class="sprint-header-right">
+                <span class="sprint-count-badge">${sprint.items.length} ${sprint.items.length === 1 ? 'ticket' : 'tickets'}</span>
+                ${sprint.totalCount > 0 ? `
+                  <div class="sprint-mini-progress" title="${sprint.doneCount} / ${sprint.totalCount} completed">
+                    <div class="sprint-mini-track">
+                      <div class="sprint-mini-fill" style="width: ${sprint.pct}%;"></div>
+                    </div>
+                    <span class="sprint-progress-lbl">${sprint.doneCount}/${sprint.totalCount} (${sprint.pct}%)</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(sprintTr);
+
+        sprint.items.forEach(item => {
+          const rowEl = buildStandardTableRow(item, isAllOverview, hasNotify);
+          rowEl.setAttribute('data-sprint-id', sprint.key);
+          if (isCollapsed) {
+            rowEl.style.display = 'none';
+          }
+          tbody.appendChild(rowEl);
+        });
+      });
+    }
+
+    function parseDueDateForSort(dueDateStr) {
+      const d = parseTicketDueDate(dueDateStr);
+      if (!d) return 9999999999999;
+      return d.getTime();
     }
 
     function matchesStatusFilter(jiraStatus, internalStatus) {
@@ -6652,10 +7568,12 @@ Thanks!`;
             (item.title || '').toLowerCase().includes(q) ||
             (item.jiraStatus || '').toLowerCase().includes(q) ||
             (item.internalStatus || '').toLowerCase().includes(q) ||
-            (item.notes || '').toLowerCase().includes(q);
+            (item.notes || '').toLowerCase().includes(q) ||
+            (item.dueDate || '').toLowerCase().includes(q);
 
           if (!matchQuery) return false;
-          return matchesStatusFilter(item.jiraStatus, item.internalStatus);
+          if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
+          return matchesDeliveryHorizon(item);
         });
 
         // Sort items
@@ -6665,66 +7583,9 @@ Thanks!`;
         const isSheetClosed = isStatusSheet(name);
         const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
         const hasSheetNotify = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming);
+        const emptyColspan = hasSheetNotify ? 10 : 9;
 
-        if (sorted.length === 0) {
-          const emptyColspan = hasSheetNotify ? 10 : 9;
-          tbody.innerHTML = `<tr><td colspan="${emptyColspan}" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${name}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
-          return;
-        }
-
-        sorted.forEach(item => {
-          const isUrgent = (item.dueDate || '').includes('14 Sep');
-          const isNotSet = (item.dueDate || '').toLowerCase() === 'not set' || !item.dueDate;
-          const dueDateClass = isNotSet ? 'not-set' : (isUrgent ? 'urgent' : '');
-
-          const parsed = parseTicketAssignees(item.ticket, item.owner, item.notes);
-          const sharedPrefix = parsed.isShared ? `<span class="shared-inline-badge">🤝 Shared</span>` : '';
-
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            ${hasSheetNotify ? buildNotifyCheckboxCell(item) : ''}
-            <td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>
-            <td>
-              <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
-                <span>${item.ticket || ''}</span>
-                <span class="ext-arrow">↗</span>
-              </a>
-            </td>
-            <td>${renderAssigneeCell(item.ticket, item.owner, item.notes, false)}</td>
-            <td class="task-title-cell">${sharedPrefix}${item.title || ''}</td>
-            <td style="text-align: center;">
-              <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
-                <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
-              </span>
-            </td>
-            <td style="text-align: center;">
-              ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
-            </td>
-            <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
-            <td style="text-align: center;"><span class="due-date-badge ${dueDateClass}">${item.dueDate || 'Not set'}</span></td>
-            <td style="text-align: center;">
-              <div class="action-btn-group">
-                ${canUserEditTask(item.owner) ? (
-                  isStatusSheet(item.owner) ? `
-                    <button type="button" class="btn-reopen-ticket" onclick="handleReopenTicket('${item.ticket}')" title="Reopen ${item.ticket} and assign back to a team member">
-                      🔄
-                    </button>
-                  ` : `
-                    <button type="button" class="btn-close-ticket" onclick="handleCloseTicket('${item.ticket}', '${item.owner}')" title="Close ${item.ticket} & move to CLOSED sheet">
-                      ✅
-                    </button>
-                    <button type="button" class="btn-delete-ticket" onclick="handleDeleteTicket('${item.ticket}', '${item.owner}')" title="Delete ${item.ticket} from ${item.owner}'s Google Sheet">
-                      🗑️
-                    </button>
-                  `
-                ) : `
-                  <span style="font-size: 13px; opacity: 0.35;" title="Read-only: Assigned to ${item.owner}">🔒</span>
-                `}
-              </div>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+        renderRowsWithSprintGroups(tbody, sorted, false, hasSheetNotify, emptyColspan, name);
       });
 
       // Render All Overview (Unified cards for shared tickets with sorting & filtering applied)
@@ -6754,10 +7615,12 @@ Thanks!`;
               (item.title || '').toLowerCase().includes(q) ||
               (item.jiraStatus || '').toLowerCase().includes(q) ||
               (item.internalStatus || '').toLowerCase().includes(q) ||
-              (item.notes || '').toLowerCase().includes(q);
+              (item.notes || '').toLowerCase().includes(q) ||
+              (item.dueDate || '').toLowerCase().includes(q);
 
             if (!matchQuery) return false;
-            return matchesStatusFilter(item.jiraStatus, item.internalStatus);
+            if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
+            return matchesDeliveryHorizon(item);
           });
 
           // Sort All Overview items
@@ -6765,66 +7628,12 @@ Thanks!`;
           const badgeAllEl = document.getElementById('badge-all');
           if (badgeAllEl) badgeAllEl.innerText = sortedAll.length;
 
-          if (sortedAll.length === 0) {
-            allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found matching the active filters. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
-          } else {
-            sortedAll.forEach(item => {
-              const tr = document.createElement('tr');
-              const isUrgent = (item.dueDate || '').includes('14 Sep');
-              const isNotSet = (item.dueDate || '').toLowerCase() === 'not set' || !item.dueDate;
-              const dueDateClass = isNotSet ? 'not-set' : (isUrgent ? 'urgent' : '');
-              const parsed = parseTicketAssignees(item.ticket, item.owner, item.notes);
-              const sharedPrefix = parsed.isShared ? `<span class="shared-inline-badge">🤝 Shared</span>` : '';
-
-              tr.innerHTML = `
-                ${buildNotifyCheckboxCell(item)}
-                <td>${renderAssigneeCell(item.ticket, item.owner, item.notes, true)}</td>
-                <td>
-                  <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
-                    <span>${item.ticket || ''}</span>
-                    <span class="ext-arrow">↗</span>
-                  </a>
-                </td>
-                <td class="task-title-cell">${sharedPrefix}${item.title || ''}</td>
-                <td style="text-align: center;">
-                  <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
-                    <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
-                  </span>
-                </td>
-                <td style="text-align: center;">
-                  ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
-                </td>
-                <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
-                <td style="text-align: center;"><span class="due-date-badge ${dueDateClass}">${item.dueDate || 'Not set'}</span></td>
-                <td style="text-align: center;">
-                  <div class="action-btn-group">
-                    ${canUserEditTask(item.owner) ? (
-                      isStatusSheet(item.owner) ? `
-                        <button type="button" class="btn-reopen-ticket" onclick="handleReopenTicket('${item.ticket}')" title="Reopen ${item.ticket} and assign back to a team member">
-                          🔄
-                        </button>
-                      ` : `
-                        <button type="button" class="btn-close-ticket" onclick="handleCloseTicket('${item.ticket}', '${item.owner}')" title="Close ${item.ticket} & move to CLOSED sheet">
-                          ✅
-                        </button>
-                        <button type="button" class="btn-delete-ticket" onclick="handleDeleteTicket('${item.ticket}', '${item.owner}')" title="Delete ${item.ticket} from Google Sheet">
-                          🗑️
-                        </button>
-                      `
-                    ) : `
-                      <span style="font-size: 13px; opacity: 0.35;" title="Read-only: Assigned to ${item.owner}">🔒</span>
-                    `}
-                  </div>
-                </td>
-              `;
-              allTbody.appendChild(tr);
-            });
-          }
+          renderRowsWithSprintGroups(allTbody, sortedAll, true, (teamsSelectMode && currentUser && currentUser.role === 'ADMIN'), emptyColspanAll, 'All Overview');
         }
       }
 
       // Update Filter Indicator Badge
-      const isFiltered = (!activeFilterBuckets.has('ALL') && activeFilterBuckets.size > 0) || activeDetailedStatuses.size > 0 || q;
+      const isFiltered = (!activeFilterBuckets.has('ALL') && activeFilterBuckets.size > 0) || activeDetailedStatuses.size > 0 || activeDeliveryHorizon !== 'ALL' || q;
       const indicator = document.getElementById('filterActiveIndicator');
       const summaryText = document.getElementById('filterSummaryText');
       if (indicator && summaryText) {
@@ -6838,6 +7647,11 @@ Thanks!`;
           if (activeFilterBuckets.has('POC')) filterNames.push('POC');
           if (activeFilterBuckets.has('DISCUSS')) filterNames.push('Discuss');
           if (activeDetailedStatuses.size > 0) filterNames.push(`${activeDetailedStatuses.size} custom`);
+          if (activeDeliveryHorizon === 'THIS_WEEK') filterNames.push('⚡ This Week');
+          if (activeDeliveryHorizon === 'OVERDUE') filterNames.push('🚨 Overdue');
+          if (activeDeliveryHorizon === 'NEXT_WEEK') filterNames.push('⏭️ Next Week');
+          if (activeDeliveryHorizon === 'FUTURE') filterNames.push('📦 Future');
+          if (activeDeliveryHorizon === 'UNSCHEDULED') filterNames.push('❓ No Due Date');
           if (q) filterNames.push(`"${q}"`);
           summaryText.textContent = `Showing ${totalVisibleCountAllSheets} / ${totalCountAllSheets} (${filterNames.join(', ')})`;
         } else {
@@ -6848,6 +7662,7 @@ Thanks!`;
       updateHeaderSortIcons();
       renderDetailedStatusMenu();
       updateKpis(allRows);
+      updateDeliveryHorizonStats(allRows);
     }
 
     function updateKpis(allRows) {
