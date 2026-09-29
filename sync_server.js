@@ -46,14 +46,14 @@ function unsealApiKey(sealedToken) {
 }
 
 function resolveApiKey(rawKey) {
-  if (!rawKey || typeof rawKey !== 'string') return '';
+  if (!rawKey || typeof rawKey !== 'string') return lastKnownActiveApiKey || '';
   const trimmed = rawKey.trim();
   if (trimmed.startsWith('ck_')) return trimmed;
   if (trimmed.startsWith('sealed_v1:')) {
     const unsealed = unsealApiKey(trimmed);
-    return unsealed || '';
+    return unsealed || lastKnownActiveApiKey || '';
   }
-  return '';
+  return lastKnownActiveApiKey || '';
 }
 
 // Hardcoded preset user accounts with strict role-based access
@@ -77,7 +77,7 @@ const USER_ACCOUNTS = {
     password: 'chetna@enveu2026',
     name: 'Chetna',
     role: 'MEMBER',
-    allowedSheets: ['CHETNA', 'PULSE']
+    allowedSheets: ['CHETNA', 'PULSE', 'FE Ready', 'FE READY']
   },
   'krishna': {
     username: 'krishna',
@@ -110,6 +110,7 @@ const USER_ACCOUNTS = {
 };
 
 let currentRequestApiKey = null;
+let lastKnownActiveApiKey = '';
 let currentRequestUser = 'workspace';
 
 // Monthly Composio Free Allowance Tracker (100,000 free calls / month)
@@ -213,7 +214,8 @@ const STATUS_COLORS = {
   'Escalated to L2': { bg: '#f3e8ff', text: '#6b21a8' },
   'Escalated to L3': { bg: '#fee2e2', text: '#991b1b' },
   'Discuss First': { bg: '#fee2e2', text: '#991b1b' },
-  'Backlog': { bg: '#f1f5f9', text: '#475569' }
+  'Backlog': { bg: '#f1f5f9', text: '#475569' },
+  'FE Ready': { bg: '#e0e7ff', text: '#3730a3' }
 };
 
 const INDIVIDUAL_SHEETS = {
@@ -239,7 +241,8 @@ let KNOWN_STATUSES = new Set([
   'POC',
   'Discuss First',
   'Backlog',
-  'Closed'
+  'Closed',
+  'FE Ready'
 ]);
 
 function registerCustomStatus(status) {
@@ -461,17 +464,171 @@ async function executeComposioBatch(toolsList, customApiKey) {
   return null;
 }
 
+async function ensureFeReadySheetExists(customApiKey) {
+  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+  console.log('[ensureFeReadySheetExists] Verifying if FE Ready sheet exists in Google Sheets...');
+
+  try {
+    const testRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'FE Ready!A1:H1'
+    }, activeKey);
+
+    if (testRes?.data?.values && testRes.data.values.length > 0) {
+      console.log('[ensureFeReadySheetExists] FE Ready sheet already exists with headers.');
+      return true;
+    }
+  } catch (err) {
+    console.log('[ensureFeReadySheetExists] Check returned:', err.message);
+  }
+
+  // If not found or empty, create the worksheet using GOOGLESHEETS_ADD_SHEET
+  try {
+    console.log('[ensureFeReadySheetExists] Creating FE Ready worksheet in Google Sheets via GOOGLESHEETS_ADD_SHEET...');
+    const addRes = await executeComposioTool('GOOGLESHEETS_ADD_SHEET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      title: 'FE Ready',
+      forceUnique: false
+    }, activeKey);
+    console.log('[ensureFeReadySheetExists] addRes result:', JSON.stringify(addRes));
+  } catch (cErr) {
+    console.warn('[ensureFeReadySheetExists] GOOGLESHEETS_ADD_SHEET warning:', cErr.message);
+  }
+
+  // Populate Header row in FE Ready
+  try {
+    console.log('[ensureFeReadySheetExists] Writing standard header row to FE Ready!A1:H1...');
+    const headerRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      valueInputOption: 'USER_ENTERED',
+      data: [{
+        range: 'FE Ready!A1:I1',
+        majorDimension: 'ROWS',
+        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
+      }]
+    }, activeKey);
+    console.log('[ensureFeReadySheetExists] headerRes result:', JSON.stringify(headerRes));
+  } catch (hErr) {
+    console.warn('[ensureFeReadySheetExists] Header row write warning:', hErr.message);
+  }
+
+  // Format header row (indigo theme background, white bold text, centered)
+  try {
+    await executeComposioBatch([
+      {
+        tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+        arguments: {
+          spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
+          sheet_name: 'FE Ready',
+          range: 'A1:I1',
+          background_color: '#3730a3',
+          text_color: '#ffffff',
+          bold: true,
+          horizontal_alignment: 'CENTER'
+        }
+      }
+    ], activeKey);
+  } catch (fErr) {
+    console.warn('[ensureFeReadySheetExists] Header format note:', fErr.message);
+  }
+
+  return true;
+}
+
+async function ensureTagColumnAcrossSheets(customApiKey) {
+  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+  console.log('[ensureTagColumnAcrossSheets] Ensuring Tag column and dropdown validation in Master & Individual sheets...');
+
+  const masterTabs = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready'];
+  
+  // 1. Ensure header I1 is 'Tag' and formatted across Master tabs
+  for (const tab of masterTabs) {
+    try {
+      await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        spreadsheet_id: SPREADSHEET_ID,
+        spreadsheetId: SPREADSHEET_ID,
+        valueInputOption: 'USER_ENTERED',
+        data: [{
+          range: `${tab}!I1`,
+          majorDimension: 'ROWS',
+          values: [['Tag']]
+        }]
+      }, activeKey);
+
+      await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+        spreadsheet_id: SPREADSHEET_ID,
+        spreadsheetId: SPREADSHEET_ID,
+        sheet_name: tab,
+        range: 'I1',
+        background_color: '#3730a3',
+        text_color: '#ffffff',
+        bold: true,
+        horizontal_alignment: 'CENTER'
+      }, activeKey);
+    } catch (e) {
+      console.warn(`[ensureTagColumnAcrossSheets] Note on master tab ${tab}:`, e.message);
+    }
+  }
+
+  // 2. Data validation dropdown on Column I across individual sheets & master
+  try {
+    const valTools = [];
+    for (const [name, sheetId] of Object.entries(INDIVIDUAL_SHEETS)) {
+      valTools.push({
+        tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
+        arguments: {
+          spreadsheet_id: sheetId,
+          sheet_id: 0,
+          mode: 'SET',
+          start_row_index: 1,
+          end_row_index: 100,
+          start_column_index: 8,
+          end_column_index: 9,
+          validation_type: 'ONE_OF_LIST',
+          values: ['Product', 'Support'],
+          strict: false,
+          show_custom_ui: true
+        }
+      });
+      try {
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: sheetId,
+          spreadsheetId: sheetId,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: 'Sheet1!I1',
+            majorDimension: 'ROWS',
+            values: [['Tag']]
+          }]
+        }, activeKey);
+      } catch (err) {}
+    }
+    if (valTools.length > 0) {
+      await executeComposioBatch(valTools, activeKey);
+      console.log('✅ [ensureTagColumnAcrossSheets] Data validation dropdown (Product | Support) configured for all sheets');
+    }
+  } catch (err) {
+    console.warn('[ensureTagColumnAcrossSheets] Data validation note:', err.message);
+  }
+
+  return true;
+}
+
 // Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with zero redundant calls)
 async function fetchAllSheetsFromGoogle() {
   const sheetNames = [
-    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE'
+    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready'
   ];
 
   const tools = sheetNames.map(tab => ({
     tool_slug: 'GOOGLESHEETS_VALUES_GET',
     arguments: {
       spreadsheet_id: SPREADSHEET_ID,
-      range: `${tab}!A1:H100`
+      range: `${tab}!A1:I100`
     }
   }));
 
@@ -500,6 +657,7 @@ async function updateDataValidationAcrossSheets() {
   const tools = [];
   const statusList = Array.from(KNOWN_STATUSES);
   for (const [name, sheetId] of Object.entries(INDIVIDUAL_SHEETS)) {
+    // Internal status validation (Col F: index 5)
     tools.push({
       tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
       arguments: {
@@ -507,7 +665,7 @@ async function updateDataValidationAcrossSheets() {
         sheet_id: 0,
         mode: 'SET',
         start_row_index: 1,
-        end_row_index: 50,
+        end_row_index: 100,
         start_column_index: 5,
         end_column_index: 6,
         validation_type: 'ONE_OF_LIST',
@@ -516,10 +674,27 @@ async function updateDataValidationAcrossSheets() {
         show_custom_ui: true
       }
     });
+    // Tag validation (Col I: index 8)
+    tools.push({
+      tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
+      arguments: {
+        spreadsheet_id: sheetId,
+        sheet_id: 0,
+        mode: 'SET',
+        start_row_index: 1,
+        end_row_index: 100,
+        start_column_index: 8,
+        end_column_index: 9,
+        validation_type: 'ONE_OF_LIST',
+        values: ['Product', 'Support'],
+        strict: false,
+        show_custom_ui: true
+      }
+    });
   }
   if (tools.length > 0) {
     await executeComposioBatch(tools);
-    console.log('✅ [Data Validation Updated] Dynamic dropdown rules updated across all individual sheets');
+    console.log('✅ [Data Validation Updated] Dynamic status and tag dropdown rules updated across all individual sheets');
   }
 }
 
@@ -530,13 +705,17 @@ async function pushMasterToIndividualSheet(memberName, masterRows) {
   if (!sheetId) return;
 
   try {
-    const rowsToWrite = [...masterRows];
+    const rowsToWrite = masterRows.map(r => {
+      const copy = [...r];
+      while (copy.length < 9) copy.push('');
+      return copy;
+    });
     while (rowsToWrite.length < 30) {
-      rowsToWrite.push(['', '', '', '', '', '', '', '']);
+      rowsToWrite.push(['', '', '', '', '', '', '', '', '']);
     }
     await executeComposioTool('GOOGLESHEETS_VALUES_UPDATE', {
       spreadsheet_id: sheetId,
-      range: `Sheet1!A1:H${rowsToWrite.length}`,
+      range: `Sheet1!A1:I${rowsToWrite.length}`,
       value_input_option: 'USER_ENTERED',
       values: rowsToWrite
     });
@@ -713,6 +892,7 @@ async function handleRequest(req, res) {
   const incomingKey = req.headers['x-composio-key'];
   const resolvedKey = resolveApiKey(incomingKey);
   currentRequestApiKey = resolvedKey || null;
+  if (resolvedKey) lastKnownActiveApiKey = resolvedKey;
   const incomingUser = req.headers['x-user-name'];
   currentRequestUser = incomingUser ? incomingUser.trim().toLowerCase() : 'workspace';
 
@@ -949,6 +1129,55 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // GET /api/debug/composio-tools -> List all tools available in active Composio session
+  if (urlObj.pathname === '/api/debug/composio-tools' && req.method === 'GET') {
+    try {
+      const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+      const sid = await getOrInitSession(activeKey);
+      const listRes = await sendComposioMcp('tools/list', {}, sid, activeKey);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ sid, activeKey: activeKey ? activeKey.slice(0, 8) + '...' : null, response: listRes.body }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // POST or GET /api/sheet/create-fe-ready -> Explicitly ensure FE Ready worksheet exists in Google Sheets
+  if (urlObj.pathname === '/api/sheet/create-fe-ready' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      const apiKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+      console.log('🚀 Triggering manual ensureFeReadySheetExists with key:', apiKey ? apiKey.slice(0, 8) + '...' : 'none');
+      await ensureFeReadySheetExists(apiKey);
+      cache.timestamp = 0; // Invalidate cache so next fetch gets fresh sheets
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'FE Ready worksheet creation/verification completed in Google Sheets!' }));
+    } catch (e) {
+      console.error('Error in create-fe-ready endpoint:', e);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // POST or GET /api/sheet/ensure-tags -> Ensure Tag column and validation in all sheets
+  if (urlObj.pathname === '/api/sheet/ensure-tags' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      const apiKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+      console.log('🏷️ Triggering manual ensureTagColumnAcrossSheets with key:', apiKey ? apiKey.slice(0, 8) + '...' : 'none');
+      await ensureTagColumnAcrossSheets(apiKey);
+      cache.timestamp = 0;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Tag column and dropdown validation successfully ensured across all sheets!' }));
+    } catch (e) {
+      console.error('Error in ensure-tags endpoint:', e);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   // GET /api/sheets -> Dynamically fetch all sheet names and rows with RBAC enforcement
   if (urlObj.pathname === '/api/sheets' && req.method === 'GET') {
     try {
@@ -964,6 +1193,11 @@ async function handleRequest(req, res) {
       let wasCached = true;
 
       if (!isCacheValid) {
+        const apiKey = resolveApiKey(req.headers['x-composio-key']);
+        if (apiKey) {
+          ensureFeReadySheetExists(apiKey).catch(err => console.warn('[ensureFeReadySheetExists] background note:', err.message));
+          ensureTagColumnAcrossSheets(apiKey).catch(err => console.warn('[ensureTagColumnAcrossSheets] background note:', err.message));
+        }
         const fetched = await fetchAllSheetsFromGoogle();
         sheetNames = fetched.sheetNames;
         sheetData = fetched.sheetData;
@@ -1175,6 +1409,103 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // POST /api/ticket/update-tag -> Update Column I (Tag: Product | Support) in Google Sheets
+  if (urlObj.pathname === '/api/ticket/update-tag' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { assignee, ticket, tag, rowNumber } = JSON.parse(body || '{}');
+        if (!assignee || !tag) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'assignee and tag are required' }));
+          return;
+        }
+
+        const tabName = assignee.trim().toUpperCase();
+        const validTag = (tag.trim().toLowerCase() === 'support') ? 'Support' : 'Product';
+
+        // RBAC Check: Team members can only update their own assigned tasks
+        const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
+        const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
+        const userConfig = USER_ACCOUNTS[clientUser];
+        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+          const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
+          if (!isAllowed) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: `Permission denied: As a team member, you can only update your own tasks (${userConfig.allowedSheets.join(', ')}).` }));
+            return;
+          }
+        }
+
+        let targetRow = parseInt(rowNumber, 10);
+        if (!targetRow || isNaN(targetRow)) {
+          const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+            spreadsheet_id: SPREADSHEET_ID,
+            range: `${tabName}!A1:I50`
+          });
+          const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
+          const foundIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === (ticket || '').trim().toUpperCase());
+          if (foundIdx > 0) {
+            targetRow = foundIdx + 1;
+          } else {
+            targetRow = 2;
+          }
+        }
+
+        console.log(`[Update Tag] Tab: ${tabName}, Row: ${targetRow}, Ticket: ${ticket}, Tag: ${validTag}`);
+
+        // 1. Update Column I (Tag) in Google Sheets
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: `${tabName}!I${targetRow}`,
+            majorDimension: 'ROWS',
+            values: [[validTag]]
+          }]
+        });
+
+        // 2. Format cell I with matching tag color
+        const isSupport = validTag === 'Support';
+        const tagCol = isSupport 
+          ? { bg: '#fef3c7', text: '#92400e' }
+          : { bg: '#e0e7ff', text: '#3730a3' };
+
+        await executeComposioBatch([
+          {
+            tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+            arguments: {
+              spreadsheet_id: SPREADSHEET_ID,
+              sheet_name: tabName,
+              range: `I${targetRow}`,
+              background_color: tagCol.bg,
+              text_color: tagCol.text,
+              bold: true,
+              horizontal_alignment: 'CENTER'
+            }
+          }
+        ]);
+
+        // 3. Update cache
+        if (cache.data && cache.data[tabName] && cache.data[tabName][targetRow - 1]) {
+          while (cache.data[tabName][targetRow - 1].length < 9) {
+            cache.data[tabName][targetRow - 1].push('');
+          }
+          cache.data[tabName][targetRow - 1][8] = validTag;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, ticket, tag: validTag, assignee: tabName, rowNumber: targetRow }));
+      } catch (err) {
+        console.error('Error updating tag:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/ticket/update-action-notes -> Edit and sync Action / Notes from dashboard to Google Sheets
   if ((urlObj.pathname === '/api/ticket/update-action-notes' || urlObj.pathname === '/api/ticket/update-notes') && req.method === 'POST') {
     let body = '';
@@ -1369,7 +1700,7 @@ async function handleRequest(req, res) {
         // 4. Upsert row to toTab (prevent duplicate entries if already in destination tab)
         const newToRows = [...toRows];
         if (newToRows.length === 0 || newToRows[0][0] !== '#') {
-          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date']);
+          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
         const existingToIdx = newToRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
         const movedRow = [...targetRow];
@@ -1549,7 +1880,7 @@ async function handleRequest(req, res) {
 
           let rows = sheetData[tabName] || [];
           if (rows.length === 0 || rows[0][0] !== '#') {
-            rows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date']);
+            rows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
           }
 
           const existingIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
@@ -1816,7 +2147,7 @@ async function handleRequest(req, res) {
         let closedTab = sheetNames.find(s => s.trim().toUpperCase() === 'CLOSED') || 'CLOSED';
         let closedRows = sheetData[closedTab] || [];
         if (closedRows.length === 0 || (closedRows[0][0] !== '#' && closedRows[0][0] !== 'SNo')) {
-          closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date']);
+          closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         // Determine target member tabs to remove from
@@ -1987,7 +2318,7 @@ async function handleRequest(req, res) {
         const toRows = sheetData[destTab] || [];
         const newToRows = [...toRows];
         if (newToRows.length === 0 || (newToRows[0][0] !== '#' && newToRows[0][0] !== 'SNo')) {
-          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date']);
+          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         // Set status back to 'To Pick Up' (or Jira status)
@@ -2058,6 +2389,122 @@ async function handleRequest(req, res) {
         }));
       } catch (err) {
         console.error('Error reopening ticket:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/move-to-fe-ready -> Clone ticket to FE Ready sheet with assignee CHETNA and status FE Ready
+  if (urlObj.pathname === '/api/ticket/move-to-fe-ready' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, fromAssignee } = JSON.parse(body);
+        if (!ticket) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket key is required' }));
+          return;
+        }
+
+        const ticketKey = ticket.trim().toUpperCase();
+        console.log(`[Move to FE Ready] Cloning ${ticketKey} to FE Ready sheet for CHETNA...`);
+
+        const apiKey = resolveApiKey(req.headers['x-composio-key']);
+        await ensureFeReadySheetExists(apiKey);
+
+        const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
+        let feReadyTab = sheetNames.find(s => s.trim().toUpperCase() === 'FE READY') || 'FE Ready';
+        let feReadyRows = sheetData[feReadyTab] || [];
+
+        if (feReadyRows.length === 0 || (feReadyRows[0][0] !== '#' && feReadyRows[0][0] !== 'SNo')) {
+          feReadyRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+        }
+
+        // Search for ticket in source tab or all tabs
+        let sourceRow = null;
+        const searchTabs = fromAssignee ? [fromAssignee.trim().toUpperCase()] : sheetNames;
+        for (const tab of searchTabs) {
+          if (!sheetData[tab]) continue;
+          const targetIdx = sheetData[tab].findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          if (targetIdx > 0) {
+            sourceRow = [...sheetData[tab][targetIdx]];
+            break;
+          }
+        }
+
+        if (!sourceRow) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey} not found in sheets` }));
+          return;
+        }
+
+        // Prepare cloned row
+        const clonedRow = [...sourceRow];
+        while (clonedRow.length < 9) clonedRow.push('');
+        clonedRow[5] = 'FE Ready'; // Fixed status
+        if (!clonedRow[8]) clonedRow[8] = 'Product';
+
+        // Check if already in FE Ready
+        const existingIdx = feReadyRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+        let targetRowIdx;
+        if (existingIdx > 0) {
+          clonedRow[0] = String(existingIdx);
+          feReadyRows[existingIdx] = clonedRow;
+          targetRowIdx = existingIdx + 1;
+        } else {
+          clonedRow[0] = String(feReadyRows.length);
+          feReadyRows.push(clonedRow);
+          targetRowIdx = feReadyRows.length;
+        }
+
+        sheetData[feReadyTab] = feReadyRows;
+
+        // Write to Google Sheets
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: `${feReadyTab}!A1:I${feReadyRows.length}`,
+            majorDimension: 'ROWS',
+            values: feReadyRows
+          }]
+        }, apiKey);
+
+        // Format status cell in FE Ready
+        await executeComposioBatch([
+          {
+            tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+            arguments: {
+              spreadsheet_id: SPREADSHEET_ID,
+              sheet_name: feReadyTab,
+              range: `F${targetRowIdx}`,
+              background_color: '#e0e7ff',
+              text_color: '#3730a3',
+              bold: true,
+              horizontal_alignment: 'CENTER'
+            }
+          }
+        ], apiKey);
+
+        // Update cache
+        cache = {
+          data: sheetData,
+          sheetNames,
+          timestamp: Date.now()
+        };
+
+        console.log(`✅ [Move to FE Ready Complete] ${ticketKey} cloned into ${feReadyTab} for CHETNA`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          message: `Ticket ${ticketKey} successfully cloned to ${feReadyTab} for CHETNA!`,
+          data: sheetData
+        }));
+      } catch (err) {
+        console.error('Error in move-to-fe-ready:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -2300,6 +2747,7 @@ async function handleRequest(req, res) {
         const finalInternalStatus = internalStatus || status || finalJiraStatus || 'To Pick Up';
         const finalDueDate = parseJiraDueDate(dueDate);
         const finalNotes = notes || `Added on ${formatToday()}`;
+        const finalTag = (payload.tag && payload.tag.toLowerCase().includes('support')) ? 'Support' : 'Product';
 
         // Support for Shared / Multi-Member Task Creation
         if (payload.isShared && Array.isArray(payload.sharedAssignees) && payload.sharedAssignees.length > 0) {
@@ -2314,7 +2762,7 @@ async function handleRequest(req, res) {
 
             const curRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
               spreadsheet_id: SPREADSHEET_ID,
-              range: `${memberTab}!A1:H100`
+              range: `${memberTab}!A1:I100`
             });
             const memberRows = curRes?.data?.results?.[0]?.response?.data?.values || [];
             const existingMemberIdx = memberRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
@@ -2338,14 +2786,15 @@ async function handleRequest(req, res) {
               finalJiraStatus,
               memberStatus,
               memberNotes,
-              finalDueDate
+              finalDueDate,
+              finalTag
             ];
 
             await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
               spreadsheet_id: SPREADSHEET_ID,
               valueInputOption: 'USER_ENTERED',
               data: [{
-                range: `${memberTab}!A${targetRowNum}:H${targetRowNum}`,
+                range: `${memberTab}!A${targetRowNum}:I${targetRowNum}`,
                 majorDimension: 'ROWS',
                 values: [rowData]
               }]
@@ -2353,6 +2802,9 @@ async function handleRequest(req, res) {
 
             const jCol = STATUS_COLORS[finalJiraStatus] || STATUS_COLORS['To Pick Up'];
             const iCol = STATUS_COLORS[memberStatus] || STATUS_COLORS['To Pick Up'];
+            const tagCol = finalTag === 'Support'
+              ? { bg: '#fef3c7', text: '#92400e' }
+              : { bg: '#e0e7ff', text: '#3730a3' };
 
             await executeComposioBatch([
               {
@@ -2378,6 +2830,18 @@ async function handleRequest(req, res) {
                   bold: true,
                   horizontal_alignment: 'CENTER'
                 }
+              },
+              {
+                tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+                arguments: {
+                  spreadsheet_id: SPREADSHEET_ID,
+                  sheet_name: memberTab,
+                  range: `I${targetRowNum}`,
+                  background_color: tagCol.bg,
+                  text_color: tagCol.text,
+                  bold: true,
+                  horizontal_alignment: 'CENTER'
+                }
               }
             ]);
           }
@@ -2389,6 +2853,7 @@ async function handleRequest(req, res) {
             isShared: true,
             sharedAssignees,
             ticket: ticketKey,
+            tag: finalTag,
             message: `Shared ticket ${ticketKey} synced across ${sharedAssignees.map(a => a.name).join(' & ')} tabs.`
           }));
           return;
@@ -2484,11 +2949,12 @@ async function handleRequest(req, res) {
           finalJiraStatus,
           finalInternalStatus,
           finalNotes,
-          finalDueDate
+          finalDueDate,
+          finalTag
         ];
 
         // 2. Write / update row to Google Sheets
-        const writeRange = `${tabName}!A${targetRowNum}:H${targetRowNum}`;
+        const writeRange = `${tabName}!A${targetRowNum}:I${targetRowNum}`;
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
@@ -2499,9 +2965,13 @@ async function handleRequest(req, res) {
           }]
         });
 
-        // 3. Format Jira Status (Col E) and Internal Status (Col F)
+        // 3. Format Jira Status (Col E), Internal Status (Col F), and Tag (Col I)
         const jCol = STATUS_COLORS[finalJiraStatus] || STATUS_COLORS['To Pick Up'];
         const iCol = STATUS_COLORS[finalInternalStatus] || STATUS_COLORS['To Pick Up'];
+        const tagCol = finalTag === 'Support'
+          ? { bg: '#fef3c7', text: '#92400e' }
+          : { bg: '#e0e7ff', text: '#3730a3' };
+
         await executeComposioBatch([
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
@@ -2523,6 +2993,18 @@ async function handleRequest(req, res) {
               range: `F${targetRowNum}`,
               background_color: iCol.bg,
               text_color: iCol.text,
+              bold: true,
+              horizontal_alignment: 'CENTER'
+            }
+          },
+          {
+            tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+            arguments: {
+              spreadsheet_id: SPREADSHEET_ID,
+              sheet_name: tabName,
+              range: `I${targetRowNum}`,
+              background_color: tagCol.bg,
+              text_color: tagCol.text,
               bold: true,
               horizontal_alignment: 'CENTER'
             }

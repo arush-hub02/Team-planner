@@ -365,10 +365,10 @@
       background: var(--card-bg);
       backdrop-filter: blur(20px);
       border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 22px 24px;
-      margin-bottom: 26px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 13px 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
       transition: border-color 0.3s;
     }
     .form-card:hover {
@@ -379,9 +379,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
 
     .form-title {
@@ -395,8 +395,8 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(260px, 2fr) minmax(140px, 1fr) minmax(180px, 1.2fr) minmax(120px, 0.9fr) minmax(140px, 1fr);
-      gap: 14px;
+      grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) minmax(280px, 2.6fr) minmax(130px, 0.9fr) minmax(170px, 1.2fr) minmax(140px, 1fr);
+      gap: 12px;
       align-items: flex-end;
     }
     @media (max-width: 1380px) {
@@ -465,10 +465,10 @@
       min-width: 0;
       background: #0d1322;
       border: 1px solid var(--card-border);
-      border-radius: 9px;
-      padding: 9px 12px;
+      border-radius: 8px;
+      padding: 7px 11px;
       color: var(--text);
-      font-size: 13px;
+      font-size: 12.5px;
       outline: none;
       transition: all 0.2s ease;
       font-family: inherit;
@@ -664,6 +664,58 @@
       border-color: rgba(56, 189, 248, 0.35) !important;
     }
 
+    .tab-btn-fe-ready {
+      color: #a5b4fc !important;
+      border-left: 1px solid rgba(99, 102, 241, 0.35);
+      border-right: 1px solid rgba(99, 102, 241, 0.35);
+      margin-right: 6px;
+    }
+    .tab-btn-fe-ready:hover {
+      background: rgba(99, 102, 241, 0.12) !important;
+      color: #e0e7ff !important;
+    }
+    .tab-btn-fe-ready.active {
+      color: #818cf8 !important;
+      background: rgba(99, 102, 241, 0.18) !important;
+      border-bottom-color: #818cf8 !important;
+    }
+    .tab-btn-fe-ready .badge-count {
+      background: rgba(99, 102, 241, 0.2) !important;
+      color: #c7d2fe !important;
+      border-color: rgba(99, 102, 241, 0.45) !important;
+    }
+
+    .btn-fe-ready-action {
+      background: rgba(99, 102, 241, 0.18);
+      border: 1px solid rgba(99, 102, 241, 0.45);
+      color: #c7d2fe;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn-fe-ready-action:hover {
+      background: rgba(99, 102, 241, 0.35);
+      border-color: #818cf8;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .badge-indigo { background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.45); }
+    .badge-indigo .status-dot { background: #818cf8; }
+    .status-select.badge-indigo {
+      background: #1e1b4b !important;
+      color: #c7d2fe !important;
+      border-color: rgba(99, 102, 241, 0.5) !important;
+    }
+
     .type-badge {
       display: inline-flex;
       align-items: center;
@@ -797,6 +849,15 @@
       border-color: rgba(239, 68, 68, 0.6);
       color: #f87171;
       box-shadow: 0 0 12px rgba(239, 68, 68, 0.28);
+    }
+    .status-pill .pill-cnt {
+      font-size: 10.5px;
+      font-weight: 800;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-left: 3px;
+      font-family: 'JetBrains Mono', monospace;
     }
 
     /* Detailed Dropdown Menu */
@@ -1085,15 +1146,15 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      padding: 13px 18px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--card-border);
       white-space: nowrap;
     }
 
     td {
-      padding: 13px 18px;
+      padding: 6px 12px;
       border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-      font-size: 13.5px;
+      font-size: 12px;
       vertical-align: middle;
     }
 
@@ -1112,19 +1173,19 @@
     .ticket-link {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       color: #38bdf8;
       background: rgba(56, 189, 248, 0.12);
-      padding: 5px 10px;
-      border-radius: 7px;
+      padding: 2px 7px;
+      border-radius: 6px;
       text-decoration: none;
       border: 1px solid rgba(56, 189, 248, 0.35);
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       cursor: pointer;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
       white-space: nowrap;
     }
     .ticket-link:hover {
@@ -1136,7 +1197,7 @@
       text-decoration: none;
     }
     .ext-arrow {
-      font-size: 11px;
+      font-size: 10px;
       opacity: 0.85;
       display: inline-block;
       transition: transform 0.2s;
@@ -1149,13 +1210,13 @@
     .owner-pill {
       display: inline-flex;
       align-items: center;
-      padding: 3px 10px;
-      border-radius: 6px;
+      padding: 2px 7px;
+      border-radius: 5px;
       background: rgba(56, 189, 248, 0.1);
       border: 1px solid rgba(56, 189, 248, 0.25);
       color: #38bdf8;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       letter-spacing: 0.02em;
     }
 
@@ -1165,16 +1226,16 @@
       display: inline-flex;
       align-items: center;
       width: 100%;
-      max-width: 130px;
+      max-width: 120px;
     }
     .assignee-select {
       width: 100%;
       appearance: none;
       -webkit-appearance: none;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 5px 24px 5px 10px;
-      border-radius: 8px;
+      padding: 3px 20px 3px 7px;
+      border-radius: 6px;
       cursor: pointer;
       outline: none;
       border: 1px solid rgba(56, 189, 248, 0.35);
@@ -1182,12 +1243,12 @@
       color: #38bdf8;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: inherit;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
     }
     .assignee-select-wrap::after {
       content: '▾';
       position: absolute;
-      right: 9px;
+      right: 7px;
       pointer-events: none;
       font-size: 11px;
       color: #38bdf8;
@@ -1404,72 +1465,120 @@
       align-items: center;
       justify-content: center;
       gap: 5px;
+      vertical-align: middle;
+      flex-wrap: nowrap;
     }
 
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 25px;
+      padding: 0 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+      box-sizing: border-box;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .btn-action-icon-only {
+      width: 25px;
+      height: 25px;
+      padding: 0;
+    }
+
+    .btn-action .action-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.18s ease;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-action:hover .action-icon {
+      transform: scale(1.12);
+    }
+
+    .btn-action:active {
+      transform: translateY(0);
+    }
+
+    /* FE Ready Action */
+    .btn-action-fe,
+    .btn-fe-ready-action {
+      background: rgba(99, 102, 241, 0.14) !important;
+      border: 1px solid rgba(99, 102, 241, 0.4) !important;
+      color: #c7d2fe !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    .btn-action-fe:hover,
+    .btn-fe-ready-action:hover {
+      background: rgba(99, 102, 241, 0.28) !important;
+      border-color: #818cf8 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.45) !important;
+    }
+
+    /* Close / Done Action */
+    .btn-action-close,
     .btn-close-ticket {
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #10b981;
-      padding: 4px 7px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11.5px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
+      background: rgba(16, 185, 129, 0.12) !important;
+      border: 1px solid rgba(16, 185, 129, 0.35) !important;
+      color: #34d399 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
+    .btn-action-close:hover,
     .btn-close-ticket:hover {
-      background: rgba(16, 185, 129, 0.28);
-      border-color: rgba(16, 185, 129, 0.65);
-      color: #6ee7b7;
-      transform: translateY(-1px);
-      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.28) !important;
+      border-color: #34d399 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.45) !important;
     }
 
+    /* Reopen Action */
+    .btn-action-reopen,
     .btn-reopen-ticket {
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      color: #38bdf8;
-      padding: 4px 7px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11.5px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
+      background: rgba(56, 189, 248, 0.12) !important;
+      border: 1px solid rgba(56, 189, 248, 0.35) !important;
+      color: #38bdf8 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
+    .btn-action-reopen:hover,
     .btn-reopen-ticket:hover {
-      background: rgba(56, 189, 248, 0.28);
-      border-color: rgba(56, 189, 248, 0.65);
-      color: #bae6fd;
-      transform: translateY(-1px);
-      box-shadow: 0 3px 8px rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.28) !important;
+      border-color: #38bdf8 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(56, 189, 248, 0.45) !important;
     }
 
+    /* Delete Action */
+    .btn-action-delete,
     .btn-delete-ticket {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      color: #f87171;
-      padding: 4px 7px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11.5px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
+      background: rgba(239, 68, 68, 0.1) !important;
+      border: 1px solid rgba(239, 68, 68, 0.3) !important;
+      color: #f87171 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
+    .btn-action-delete:hover,
     .btn-delete-ticket:hover {
-      background: rgba(239, 68, 68, 0.28);
-      border-color: rgba(239, 68, 68, 0.65);
-      color: #fca5a5;
-      transform: translateY(-1px);
-      box-shadow: 0 3px 8px rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.25) !important;
+      border-color: #f87171 !important;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.45) !important;
     }
 
     .btn-add-coassignee {
@@ -1618,8 +1727,8 @@
     .task-title-cell {
       font-weight: 500;
       color: #f1f5f9;
-      line-height: 1.5;
-      font-size: 13.5px;
+      line-height: 1.35;
+      font-size: 12px;
       max-width: 480px;
     }
 
@@ -1627,10 +1736,10 @@
     .status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 12px;
+      gap: 5px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 11px;
       font-weight: 600;
       border: 1px solid transparent;
       white-space: nowrap;
@@ -1638,8 +1747,8 @@
     }
 
     .status-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
     }
 
@@ -1667,29 +1776,29 @@
       display: inline-flex;
       align-items: center;
       width: 100%;
-      max-width: 175px;
+      max-width: 145px;
     }
     .status-select {
       width: 100%;
       appearance: none;
       -webkit-appearance: none;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 6px 28px 6px 12px;
-      border-radius: 20px;
+      padding: 3px 20px 3px 7px;
+      border-radius: 6px;
       cursor: pointer;
       outline: none;
       border: 1px solid transparent;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       font-family: inherit;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
     }
     .status-select-wrap::after {
       content: '▾';
       position: absolute;
-      right: 12px;
+      right: 7px;
       pointer-events: none;
-      font-size: 11px;
+      font-size: 10px;
       color: inherit;
       opacity: 0.8;
       transition: transform 0.2s;
@@ -1738,6 +1847,100 @@
       background: #0f172a;
       color: #f8fafc;
       padding: 8px;
+    }
+
+    /* Tag Chip & Select Styles (Product | Support) - Completely Visible Pill Chip */
+    .tag-select-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 130px;
+      width: 130px;
+      white-space: nowrap;
+    }
+    .tag-select {
+      display: inline-flex;
+      align-items: center;
+      min-width: 130px;
+      width: 130px;
+      height: 28px;
+      line-height: 26px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 0 24px 0 12px;
+      border-radius: 9999px;
+      cursor: pointer;
+      outline: none;
+      border: 1px solid transparent;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: inherit;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      text-align: left;
+      white-space: nowrap;
+      box-sizing: border-box;
+    }
+    .tag-select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 11px;
+      pointer-events: none;
+      font-size: 10px;
+      color: currentColor;
+      opacity: 0.85;
+      line-height: 1;
+    }
+    .tag-select:hover {
+      filter: brightness(1.25);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .tag-select.tag-product {
+      background: rgba(99, 102, 241, 0.22) !important;
+      color: #c7d2fe !important;
+      border-color: rgba(129, 140, 248, 0.55) !important;
+    }
+    .tag-select.tag-support {
+      background: rgba(245, 158, 11, 0.22) !important;
+      color: #fde047 !important;
+      border-color: rgba(245, 158, 11, 0.55) !important;
+    }
+    .tag-select option {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 130px;
+      width: 130px;
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      box-sizing: border-box;
+    }
+    .tag-badge.tag-product {
+      background: rgba(99, 102, 241, 0.22);
+      color: #c7d2fe;
+      border: 1px solid rgba(129, 140, 248, 0.55);
+    }
+    .tag-badge.tag-support {
+      background: rgba(245, 158, 11, 0.22);
+      color: #fde047;
+      border: 1px solid rgba(245, 158, 11, 0.55);
     }
 
     /* Enhanced Due Date Badges with Dynamic Health Indicators */
@@ -1799,202 +2002,241 @@
       border-color: rgba(245, 158, 11, 0.3);
     }
 
-    /* 🚀 Weekly Delivery Horizon & Sprint Intelligence Card */
-    .delivery-horizon-card {
-      margin-bottom: 22px;
+    /* 🚀 Sleek Minimal Delivery & Sprint Intelligence Strip */
+    .delivery-horizon-strip {
       background: linear-gradient(135deg, rgba(21, 29, 46, 0.95), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(56, 189, 248, 0.22);
-      border-radius: 14px;
-      padding: 16px 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      position: relative;
-      overflow: hidden;
-    }
-    .delivery-horizon-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, #38bdf8, #818cf8, #34d399);
-      opacity: 0.85;
-    }
-    .horizon-header {
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-bottom: 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 14px;
+      flex-wrap: wrap;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     }
-    .horizon-title-block {
+
+    .horizon-strip-left {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-    .horizon-badge-pulse {
+
+    .horizon-sprint-badge {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13.5px;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 700;
-      color: #f8fafc;
-      letter-spacing: -0.01em;
+      color: #38bdf8;
+      white-space: nowrap;
     }
-    .horizon-badge-pulse .live-indicator {
-      width: 8px;
-      height: 8px;
+    .horizon-sprint-badge .live-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #38bdf8;
-      box-shadow: 0 0 10px #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
       animation: pulse 2s infinite;
     }
-    .horizon-window-dates {
-      font-size: 12px;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-weight: 600;
+
+    .horizon-mini-metrics {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
+
+    .horizon-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .horizon-pill:hover {
+      transform: translateY(-1px);
+    }
+    .horizon-pill .p-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .horizon-pill.pill-this-week {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .horizon-pill.pill-this-week:hover {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+    .horizon-pill.pill-overdue {
+      background: rgba(239, 68, 68, 0.14);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    .horizon-pill.pill-overdue:hover {
+      background: rgba(239, 68, 68, 0.24);
+      border-color: rgba(239, 68, 68, 0.55);
+    }
+    .horizon-pill.pill-next-week {
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.25);
+    }
+    .horizon-pill.pill-next-week:hover {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+    .horizon-pill.pill-this-week.active {
+      background: rgba(245, 158, 11, 0.28);
+      border-color: rgba(245, 158, 11, 0.7);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+    }
+    .horizon-pill.pill-overdue.active {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.7);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
+    .horizon-pill.pill-next-week.active {
+      background: rgba(56, 189, 248, 0.28);
+      border-color: rgba(56, 189, 248, 0.7);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .horizon-progress-compact {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .progress-bar-wrap {
+      width: 60px;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: #34d399;
+      border-radius: 6px;
+      transition: width 0.4s ease;
+    }
+    .progress-pct-text {
+      color: #34d399;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .progress-sub-text {
+      font-size: 10.5px;
+      opacity: 0.75;
+    }
+
+    .horizon-strip-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .status-summary-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .status-chip:hover {
+      transform: translateY(-1px);
+      background: rgba(148, 163, 184, 0.18);
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+    .status-chip .c-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .status-chip b {
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .chip-green .c-dot { background: #34d399; box-shadow: 0 0 5px rgba(52, 211, 153, 0.4); }
+    .chip-green b { color: #34d399; }
+    .chip-yellow .c-dot { background: #fbbf24; box-shadow: 0 0 5px rgba(251, 191, 36, 0.4); }
+    .chip-yellow b { color: #fbbf24; }
+    .chip-blue .c-dot { background: #60a5fa; box-shadow: 0 0 5px rgba(96, 165, 250, 0.4); }
+    .chip-blue b { color: #60a5fa; }
+    .chip-purple .c-dot { background: #c084fc; box-shadow: 0 0 5px rgba(192, 132, 252, 0.4); }
+    .chip-purple b { color: #c084fc; }
+    .chip-red .c-dot { background: #f87171; box-shadow: 0 0 5px rgba(248, 113, 113, 0.4); }
+    .chip-red b { color: #f87171; }
+
     .horizon-view-toggle {
       display: inline-flex;
       background: rgba(15, 23, 42, 0.7);
       border: 1px solid rgba(148, 163, 184, 0.2);
       border-radius: 8px;
-      padding: 3px;
-      gap: 4px;
+      padding: 2px;
+      gap: 3px;
     }
     .btn-horizon-view {
       border: none;
       background: transparent;
       color: var(--text-muted);
-      padding: 6px 14px;
+      padding: 5px 11px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      white-space: nowrap;
     }
     .btn-horizon-view:hover {
       color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
     }
     .btn-horizon-view.active {
       color: #38bdf8;
-      background: rgba(56, 189, 248, 0.16);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    }
-    .horizon-metrics-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-    }
-    .horizon-metric-card {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.12);
-      border-radius: 10px;
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
-    }
-    .horizon-metric-card:hover {
-      background: rgba(30, 41, 59, 0.7);
-      border-color: rgba(56, 189, 248, 0.4);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-    }
-    .horizon-metric-card .metric-icon {
-      font-size: 22px;
-      width: 40px;
-      height: 40px;
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .metric-this-week .metric-icon { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
-    .metric-overdue .metric-icon { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); }
-    .metric-next-week .metric-icon { background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); }
-    .horizon-metric-card .metric-data {
-      flex: 1;
-    }
-    .horizon-metric-card .metric-value {
-      font-size: 20px;
-      font-weight: 800;
-      color: #f8fafc;
-      line-height: 1.2;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .metric-this-week .metric-value { color: #fbbf24; }
-    .metric-overdue .metric-value { color: #f87171; }
-    .metric-next-week .metric-value { color: #38bdf8; }
-    .horizon-metric-card .metric-label {
-      font-size: 11.5px;
-      color: var(--text-muted);
-      font-weight: 500;
-      margin-top: 2px;
-    }
-    .horizon-metric-card .metric-action-tag {
-      font-size: 11px;
-      color: var(--text-muted);
-      opacity: 0.6;
-      font-weight: 600;
-    }
-    .horizon-metric-card:hover .metric-action-tag {
-      opacity: 1;
-      color: #38bdf8;
-    }
-    .horizon-metric-card.metric-progress {
-      cursor: default;
-      flex-direction: column;
-      align-items: stretch;
-      justify-content: center;
-      gap: 6px;
-    }
-    .horizon-metric-card.metric-progress:hover {
-      transform: none;
-      border-color: rgba(148, 163, 184, 0.12);
-    }
-    .metric-progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11.5px;
-    }
-    .metric-progress-header .metric-pct {
-      font-weight: 700;
-      color: #34d399;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .horizon-progress-track {
-      width: 100%;
-      height: 7px;
-      background: rgba(15, 23, 42, 0.8);
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.15);
-    }
-    .horizon-progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #38bdf8, #34d399);
-      border-radius: 10px;
-      transition: width 0.4s ease;
-    }
-    .metric-subtext {
-      font-size: 11px;
-      color: var(--text-muted);
+      background: rgba(56, 189, 248, 0.18);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     }
 
     /* Timeline / Sprint Pills Bar */
@@ -2072,13 +2314,13 @@
       background: linear-gradient(90deg, #131d31 0%, #17233c 60%, #111a2d 100%);
       border-top: 1px solid rgba(148, 163, 184, 0.15);
       border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-      border-left: 4px solid #38bdf8;
-      padding: 10px 16px;
+      border-left: 3px solid #38bdf8;
+      padding: 6px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       user-select: none;
-      margin-top: 6px;
+      margin-top: 4px;
       transition: background 0.15s ease;
     }
     .sprint-cat-overdue .sprint-header-content {
@@ -2123,19 +2365,19 @@
       transform: rotate(-90deg);
     }
     .sprint-icon {
-      font-size: 15px;
+      font-size: 13px;
     }
     .sprint-title {
-      font-size: 13.5px;
+      font-size: 12px;
       font-weight: 700;
       color: #f8fafc;
       letter-spacing: -0.01em;
     }
     .sprint-tag-pill {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
-      padding: 2px 7px;
+      padding: 1px 5px;
       border-radius: 4px;
       letter-spacing: 0.04em;
     }
@@ -2193,9 +2435,9 @@
 
     .notes-cell {
       color: var(--text-muted);
-      font-size: 13px;
+      font-size: 11.5px;
       max-width: 340px;
-      line-height: 1.45;
+      line-height: 1.35;
       position: relative;
     }
 
@@ -2213,11 +2455,11 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 6px;
-      padding: 4px 6px;
+      padding: 2px 4px;
       border-radius: 6px;
       cursor: pointer;
       border: 1px solid transparent;
-      min-height: 28px;
+      min-height: 22px;
       transition: all 0.15s ease;
     }
 
@@ -3589,7 +3831,7 @@
           <span>⚡ Add Ticket & Sync to Google Sheet</span>
         </div>
         <div style="font-size: 12.5px; color: var(--text-muted);">
-          Give ticket number & assignee — automatically fetches title, Jira status & due date, writes to Google Sheet with color-formatting
+          Give ticket number & assignee — automatically fetches title, tags as Product/Support, and writes to Google Sheet with color-formatting
         </div>
       </div>
       <form id="addTicketForm" onsubmit="handleFormSubmit(event)">
@@ -3633,8 +3875,11 @@
             <input type="text" id="titleInput" class="form-input" placeholder="Title (auto-fills from Jira)">
           </div>
           <div class="form-group">
-            <label>Jira Status</label>
-            <input type="text" id="jiraStatusInput" class="form-input" placeholder="Auto from Jira" readonly style="opacity: 0.85; background: #080c16;">
+            <label>Tag</label>
+            <select id="tagInput" class="form-select" style="font-weight: 600;">
+              <option value="Product">📦 Product</option>
+              <option value="Support">🛠️ Support</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Internal Status</label>
@@ -3651,10 +3896,8 @@
               <option value="Backlog">⚪ Backlog</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Due Date</label>
-            <input type="text" id="dueDateInput" class="form-input" value="Not set" placeholder="Not set">
-          </div>
+          <input type="hidden" id="jiraStatusInput" value="To Do">
+          <input type="hidden" id="dueDateInput" value="Not set">
           <div class="form-group">
             <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center;">
               🚀 Add & Sync
@@ -3667,85 +3910,32 @@
       </form>
     </div>
 
-    <!-- Summary KPI Cards -->
-    <div class="kpi-row">
-      <div class="kpi-card kpi-green">
-        <span class="kpi-label">Active / In Progress</span>
-        <span id="kpi-in-prog" class="kpi-value" style="color: #34d399;">-</span>
-      </div>
-      <div class="kpi-card kpi-yellow">
-        <span class="kpi-label">In Review / Verify</span>
-        <span id="kpi-review" class="kpi-value" style="color: #fbbf24;">-</span>
-      </div>
-      <div class="kpi-card kpi-blue">
-        <span class="kpi-label">To Pick Up / Queued</span>
-        <span id="kpi-todo" class="kpi-value" style="color: #60a5fa;">-</span>
-      </div>
-      <div class="kpi-card kpi-purple">
-        <span class="kpi-label">POC & Analysis</span>
-        <span id="kpi-poc" class="kpi-value" style="color: #c084fc;">-</span>
-      </div>
-      <div class="kpi-card kpi-red">
-        <span class="kpi-label">Needs Discussion</span>
-        <span id="kpi-discuss" class="kpi-value" style="color: #f87171;">-</span>
-      </div>
-    </div>
+    <!-- 🚀 Sprint & Delivery Intelligence Bar -->
+    <div class="delivery-horizon-strip" id="deliveryHorizonCard">
+      <div class="horizon-strip-left">
+        <div class="horizon-sprint-badge" title="Active sprint cycle">
+          <span class="live-dot"></span>
+          <span id="horizonWindowDates">📅 Current Sprint: 28 Sep – 04 Oct 2026</span>
+        </div>
 
-    <!-- 🚀 Weekly Delivery Horizon & Sprint Intelligence Bar -->
-    <div class="delivery-horizon-card" id="deliveryHorizonCard">
-      <div class="horizon-header">
-        <div class="horizon-title-block">
-          <div class="horizon-badge-pulse">
-            <span class="live-indicator"></span>
-            <span class="horizon-title">Sprint & Delivery Horizon</span>
+        <div class="horizon-progress-compact" title="Delivery Progress for Current Sprint">
+          <span style="font-size: 11.5px; opacity: 0.85; font-weight: 600;">Sprint Delivery:</span>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="horizonProgressBar" style="width: 0%;"></div>
           </div>
-          <span class="horizon-window-dates" id="horizonWindowDates">📅 Current Sprint: 28 Sep – 04 Oct 2026</span>
-        </div>
-        <div class="horizon-meta-right">
-          <div class="horizon-view-toggle">
-            <button type="button" class="btn-horizon-view active" id="btnViewSprints" onclick="setSprintViewMode('sprints')" title="Collate tasks under Sprints & Due Date Horizons">
-              🏃 Sprint Horizon View
-            </button>
-            <button type="button" class="btn-horizon-view" id="btnViewTable" onclick="setSprintViewMode('table')" title="View continuous flat table">
-              📋 Flat Table
-            </button>
-          </div>
+          <span class="progress-pct-text" id="horizonProgressPct">0%</span>
+          <span class="progress-sub-text" id="horizonProgressSubtext">0 of 0 delivered</span>
         </div>
       </div>
-      <div class="horizon-metrics-row">
-        <div class="horizon-metric-card metric-this-week" onclick="setDeliveryFilter('THIS_WEEK')" title="Click to filter tasks delivering this week / current sprint">
-          <div class="metric-icon">⚡</div>
-          <div class="metric-data">
-            <div class="metric-value" id="horizonCountThisWeek">0</div>
-            <div class="metric-label">Due This Week</div>
-          </div>
-          <span class="metric-action-tag">Filter ➔</span>
-        </div>
-        <div class="horizon-metric-card metric-overdue" onclick="setDeliveryFilter('OVERDUE')" title="Click to filter overdue tasks needing urgent action">
-          <div class="metric-icon">🚨</div>
-          <div class="metric-data">
-            <div class="metric-value" id="horizonCountOverdue">0</div>
-            <div class="metric-label">Overdue Tickets</div>
-          </div>
-          <span class="metric-action-tag">Escalate ➔</span>
-        </div>
-        <div class="horizon-metric-card metric-next-week" onclick="setDeliveryFilter('NEXT_WEEK')" title="Click to filter tasks scheduled for next week / sprint">
-          <div class="metric-icon">⏭️</div>
-          <div class="metric-data">
-            <div class="metric-value" id="horizonCountNextWeek">0</div>
-            <div class="metric-label">Next Sprint (05–11 Oct)</div>
-          </div>
-          <span class="metric-action-tag">Filter ➔</span>
-        </div>
-        <div class="horizon-metric-card metric-progress">
-          <div class="metric-progress-header">
-            <span class="metric-label">This Week's Delivery Target</span>
-            <span class="metric-pct" id="horizonProgressPct">0% Delivered</span>
-          </div>
-          <div class="horizon-progress-track">
-            <div class="horizon-progress-bar" id="horizonProgressBar" style="width: 0%;"></div>
-          </div>
-          <div class="metric-subtext" id="horizonProgressSubtext">0 of 0 delivered this sprint</div>
+
+      <div class="horizon-strip-right">
+        <div class="horizon-view-toggle">
+          <button type="button" class="btn-horizon-view active" id="btnViewSprints" onclick="setSprintViewMode('sprints')" title="Collate tasks under Sprints & Due Date Horizons">
+            🏃 Sprint Horizon View
+          </button>
+          <button type="button" class="btn-horizon-view" id="btnViewTable" onclick="setSprintViewMode('table')" title="View continuous flat table">
+            📋 Flat Table
+          </button>
         </div>
       </div>
     </div>
@@ -3768,13 +3958,13 @@
           <span>Filter Status:</span>
         </div>
         <div class="status-pills-bar" id="statusPillsBar">
-          <button type="button" class="status-pill active" data-filter="ALL" onclick="setStatusFilter('ALL')" title="Show all tickets">All</button>
-          <button type="button" class="status-pill pill-inprog" data-filter="IN_PROGRESS" onclick="toggleStatusFilter('IN_PROGRESS')" ondblclick="setStatusFilter('IN_PROGRESS')" title="Click to toggle, double-click for only In Progress">🟢 In Progress</button>
-          <button type="button" class="status-pill pill-review" data-filter="IN_REVIEW" onclick="toggleStatusFilter('IN_REVIEW')" ondblclick="setStatusFilter('IN_REVIEW')" title="Click to toggle, double-click for only In Review">🟡 In Review</button>
-          <button type="button" class="status-pill pill-todo" data-filter="TODO" onclick="toggleStatusFilter('TODO')" ondblclick="setStatusFilter('TODO')" title="Click to toggle, double-click for only To Do">🔵 To Do</button>
-          <button type="button" class="status-pill pill-done" data-filter="DONE" onclick="toggleStatusFilter('DONE')" ondblclick="setStatusFilter('DONE')" title="Click to toggle, double-click for only Done / Closed">✅ Done / Closed</button>
-          <button type="button" class="status-pill pill-poc" data-filter="POC" onclick="toggleStatusFilter('POC')" ondblclick="setStatusFilter('POC')" title="Click to toggle, double-click for only POC">🟣 POC</button>
-          <button type="button" class="status-pill pill-discuss" data-filter="DISCUSS" onclick="toggleStatusFilter('DISCUSS')" ondblclick="setStatusFilter('DISCUSS')" title="Click to toggle, double-click for only Discuss">🔴 Discuss</button>
+          <button type="button" class="status-pill active" data-filter="ALL" onclick="setStatusFilter('ALL')" title="Show all tickets">All <span class="pill-cnt" id="kpi-filter-all"></span></button>
+          <button type="button" class="status-pill pill-inprog" data-filter="IN_PROGRESS" onclick="toggleStatusFilter('IN_PROGRESS')" ondblclick="setStatusFilter('IN_PROGRESS')" title="Click to toggle, double-click for only In Progress">🟢 In Progress <span class="pill-cnt" id="kpi-in-prog">-</span></button>
+          <button type="button" class="status-pill pill-review" data-filter="IN_REVIEW" onclick="toggleStatusFilter('IN_REVIEW')" ondblclick="setStatusFilter('IN_REVIEW')" title="Click to toggle, double-click for only In Review">🟡 In Review <span class="pill-cnt" id="kpi-review">-</span></button>
+          <button type="button" class="status-pill pill-todo" data-filter="TODO" onclick="toggleStatusFilter('TODO')" ondblclick="setStatusFilter('TODO')" title="Click to toggle, double-click for only To Do">🔵 To Do <span class="pill-cnt" id="kpi-todo">-</span></button>
+          <button type="button" class="status-pill pill-done" data-filter="DONE" onclick="toggleStatusFilter('DONE')" ondblclick="setStatusFilter('DONE')" title="Click to toggle, double-click for only Done / Closed">✅ Done / Closed <span class="pill-cnt" id="kpi-done">-</span></button>
+          <button type="button" class="status-pill pill-poc" data-filter="POC" onclick="toggleStatusFilter('POC')" ondblclick="setStatusFilter('POC')" title="Click to toggle, double-click for only POC">🟣 POC <span class="pill-cnt" id="kpi-poc">-</span></button>
+          <button type="button" class="status-pill pill-discuss" data-filter="DISCUSS" onclick="toggleStatusFilter('DISCUSS')" ondblclick="setStatusFilter('DISCUSS')" title="Click to toggle, double-click for only Discuss">🔴 Discuss <span class="pill-cnt" id="kpi-discuss">-</span></button>
         </div>
 
         <!-- Detailed Multi-Select Dropdown -->
@@ -3808,8 +3998,8 @@
           <button type="button" class="delivery-pill pill-this-week" data-horizon="THIS_WEEK" onclick="setDeliveryFilter('THIS_WEEK')" title="Delivering in Current Sprint / This Week">⚡ This Week <span id="count-this-week" class="pill-cnt">0</span></button>
           <button type="button" class="delivery-pill pill-overdue" data-horizon="OVERDUE" onclick="setDeliveryFilter('OVERDUE')" title="Open tickets with past due dates">🚨 Overdue <span id="count-overdue" class="pill-cnt">0</span></button>
           <button type="button" class="delivery-pill pill-next-week" data-horizon="NEXT_WEEK" onclick="setDeliveryFilter('NEXT_WEEK')" title="Scheduled for Next Sprint">⏭️ Next Week <span id="count-next-week" class="pill-cnt">0</span></button>
-          <button type="button" class="delivery-pill pill-future" data-horizon="FUTURE" onclick="setDeliveryFilter('FUTURE')" title="Upcoming future sprints">📦 Future</button>
-          <button type="button" class="delivery-pill pill-unscheduled" data-horizon="UNSCHEDULED" onclick="setDeliveryFilter('UNSCHEDULED')" title="Tickets without a set due date">❓ No Due Date</button>
+          <button type="button" class="delivery-pill pill-future" data-horizon="FUTURE" onclick="setDeliveryFilter('FUTURE')" title="Upcoming future sprints">📦 Future <span id="count-future" class="pill-cnt">0</span></button>
+          <button type="button" class="delivery-pill pill-unscheduled" data-horizon="UNSCHEDULED" onclick="setDeliveryFilter('UNSCHEDULED')" title="Tickets without a set due date">❓ No Due Date <span id="count-unscheduled" class="pill-cnt">0</span></button>
         </div>
       </div>
 
@@ -6101,7 +6291,11 @@ Thanks!`;
     let currentColumnSort = { column: null, direction: 'asc' }; // optional column header sort override
 
     function setDeliveryFilter(horizon) {
-      activeDeliveryHorizon = horizon;
+      if (activeDeliveryHorizon === horizon) {
+        activeDeliveryHorizon = 'ALL';
+      } else {
+        activeDeliveryHorizon = horizon;
+      }
       updateDeliveryFilterUI();
       populateTableData();
     }
@@ -6135,10 +6329,12 @@ Thanks!`;
     }
 
     function updateDeliveryFilterUI() {
-      const pills = document.querySelectorAll('.delivery-pill');
+      const pills = document.querySelectorAll('.delivery-pill, .horizon-pill');
       pills.forEach(pill => {
         const horizon = pill.getAttribute('data-horizon');
-        pill.classList.toggle('active', horizon === activeDeliveryHorizon);
+        if (horizon) {
+          pill.classList.toggle('active', horizon === activeDeliveryHorizon);
+        }
       });
     }
 
@@ -6592,6 +6788,8 @@ Thanks!`;
       let thisWeekTotal = 0;
       let thisWeekDelivered = 0;
       let nextWeek = 0;
+      let future = 0;
+      let unscheduled = 0;
 
       const seenTickets = new Set();
       const today = new Date();
@@ -6613,35 +6811,38 @@ Thanks!`;
           if (isDone) thisWeekDelivered++;
         } else if (info.horizon === 'NEXT_WEEK') {
           nextWeek++;
+        } else if (info.horizon === 'FUTURE') {
+          future++;
+        } else if (info.horizon === 'UNSCHEDULED') {
+          unscheduled++;
         }
       });
 
       const pct = thisWeekTotal > 0 ? Math.round((thisWeekDelivered / thisWeekTotal) * 100) : 0;
 
-      const elOverdue = document.getElementById('horizonCountOverdue');
-      const elThisWeek = document.getElementById('horizonCountThisWeek');
-      const elNextWeek = document.getElementById('horizonCountNextWeek');
       const elProgressPct = document.getElementById('horizonProgressPct');
       const elProgressBar = document.getElementById('horizonProgressBar');
       const elProgressSubtext = document.getElementById('horizonProgressSubtext');
       const elDates = document.getElementById('horizonWindowDates');
 
       if (elDates) {
-        elDates.innerText = `📅 Current Sprint: ${formatShortDateRange(curMon, curSun)} 2026`;
+        elDates.innerText = `📅 Sprint: ${formatShortDateRange(curMon, curSun)}`;
       }
-      if (elOverdue) elOverdue.innerText = overdue;
-      if (elThisWeek) elThisWeek.innerText = thisWeekTotal;
-      if (elNextWeek) elNextWeek.innerText = nextWeek;
-      if (elProgressPct) elProgressPct.innerText = `${pct}% Delivered`;
+      if (elProgressPct) elProgressPct.innerText = `${pct}%`;
       if (elProgressBar) elProgressBar.style.width = `${pct}%`;
-      if (elProgressSubtext) elProgressSubtext.innerText = `${thisWeekDelivered} of ${thisWeekTotal} delivered this sprint`;
+      if (elProgressSubtext) elProgressSubtext.innerText = `${thisWeekDelivered} / ${thisWeekTotal} done`;
 
       const cntThisWeek = document.getElementById('count-this-week');
       const cntOverdue = document.getElementById('count-overdue');
       const cntNextWeek = document.getElementById('count-next-week');
+      const cntFuture = document.getElementById('count-future');
+      const cntUnscheduled = document.getElementById('count-unscheduled');
+
       if (cntThisWeek) cntThisWeek.innerText = thisWeekTotal;
       if (cntOverdue) cntOverdue.innerText = overdue;
       if (cntNextWeek) cntNextWeek.innerText = nextWeek;
+      if (cntFuture) cntFuture.innerText = future;
+      if (cntUnscheduled) cntUnscheduled.innerText = unscheduled;
     }
 
     function buildStandardTableRow(item, isAllOverview, hasNotify) {
@@ -6663,6 +6864,9 @@ Thanks!`;
         </td>
         ${!isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, false)}</td>` : ''}
         <td class="task-title-cell">${sharedPrefix}${item.title || ''}</td>
+        <td style="text-align: center; white-space: nowrap; min-width: 135px;">
+          ${createTagSelectHtml(item.owner, item.ticket, item.tag || 'Product', item.rowNumber)}
+        </td>
         <td style="text-align: center;">
           <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
             <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
@@ -6675,22 +6879,48 @@ Thanks!`;
         <td style="text-align: center;"><span class="due-date-badge ${horizonInfo.badgeClass}" title="${horizonInfo.horizon}">${horizonInfo.badgeText}</span></td>
         <td style="text-align: center;">
           <div class="action-btn-group">
-            ${canUserEditTask(item.owner) ? (
-              isClosed ? `
-                <button type="button" class="btn-reopen-ticket" onclick="handleReopenTicket('${item.ticket}')" title="Reopen ${item.ticket} and assign back to a team member">
-                  🔄
+            ${(() => {
+              const isOwnerFeReady = (item.owner || '').trim().toUpperCase() === 'FE READY';
+              if (isOwnerFeReady) {
+                return `<span style="color: var(--text-muted); font-size: 13px; opacity: 0.5;" title="FE Ready reference clone — no action required">-</span>`;
+              }
+
+              const sLower = `${item.internalStatus || ''} ${item.jiraStatus || ''}`.toLowerCase();
+              const isQualifyingForFeReady = (
+                sLower.includes('be done') ||
+                sLower.includes('dev done') ||
+                sLower.includes('backend done') ||
+                sLower.includes('api done') ||
+                sLower.includes('be ready') ||
+                sLower.includes('ready for fe') ||
+                sLower.includes('closed') ||
+                sLower.includes('done') ||
+                isClosed
+              );
+              const feReadyBtnHtml = isQualifyingForFeReady ? `
+                <button type="button" class="btn-action btn-action-fe" onclick="handleMoveToFeReady('${item.ticket}', '${item.owner}')" title="Move & Clone ticket ${item.ticket} to 'FE Ready' sheet (Assignee: CHETNA)">
+                  <span class="action-icon" style="font-size: 11px; line-height: 1;">🚀</span>
+                  <span>FE Ready</span>
                 </button>
-              ` : `
-                <button type="button" class="btn-close-ticket" onclick="handleCloseTicket('${item.ticket}', '${item.owner}')" title="Close ${item.ticket} & move to CLOSED sheet">
-                  ✅
-                </button>
-                <button type="button" class="btn-delete-ticket" onclick="handleDeleteTicket('${item.ticket}', '${item.owner}')" title="Delete ${item.ticket} from Google Sheet">
-                  🗑️
-                </button>
-              `
-            ) : `
-              <span style="font-size: 13px; opacity: 0.35;" title="Read-only: Assigned to ${item.owner}">🔒</span>
-            `}
+              ` : '';
+
+              if (canUserEditTask(item.owner)) {
+                return feReadyBtnHtml + (isClosed ? `
+                  <button type="button" class="btn-action btn-action-icon-only btn-action-reopen" onclick="handleReopenTicket('${item.ticket}')" title="Reopen ${item.ticket} and assign back to team member">
+                    <svg class="action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                  </button>
+                ` : `
+                  <button type="button" class="btn-action btn-action-icon-only btn-action-close" onclick="handleCloseTicket('${item.ticket}', '${item.owner}')" title="Close ${item.ticket} & move to CLOSED sheet">
+                    <svg class="action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </button>
+                  <button type="button" class="btn-action btn-action-icon-only btn-action-delete" onclick="handleDeleteTicket('${item.ticket}', '${item.owner}')" title="Delete ${item.ticket} from Google Sheet">
+                    <svg class="action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                `);
+              } else {
+                return feReadyBtnHtml || `<span style="font-size: 13px; opacity: 0.35;" title="Read-only: Assigned to ${item.owner}">🔒</span>`;
+              }
+            })()}
           </div>
         </td>
       `;
@@ -6829,6 +7059,10 @@ Thanks!`;
             valA = a.type || '';
             valB = b.type || '';
             return valA.localeCompare(valB) * dir;
+          } else if (colSort === 'tag') {
+            valA = a.tag || 'Product';
+            valB = b.tag || 'Product';
+            return valA.localeCompare(valB) * dir;
           } else if (colSort === 'notes' || colSort === 'remarks') {
             valA = isPulse ? (a.remarks || '') : (a.notes || '');
             valB = isPulse ? (b.remarks || '') : (b.notes || '');
@@ -6899,14 +7133,18 @@ Thanks!`;
 
     const STATUS_SHEETS = ['CLOSED'];
     const PROJECT_SHEETS = ['PULSE'];
+    const STAGE_SHEETS = ['FE READY', 'FE Ready'];
     function isStatusSheet(name) {
       return STATUS_SHEETS.includes((name || '').trim().toUpperCase());
     }
     function isProjectSheet(name) {
       return PROJECT_SHEETS.includes((name || '').trim().toUpperCase());
     }
+    function isStageSheet(name) {
+      return STAGE_SHEETS.includes((name || '').trim().toUpperCase());
+    }
     function isNonPersonSheet(name) {
-      return isStatusSheet(name) || isProjectSheet(name);
+      return isStatusSheet(name) || isProjectSheet(name) || isStageSheet(name);
     }
 
     function getTeamMembers() {
@@ -6928,7 +7166,8 @@ Thanks!`;
       'POC',
       'Discuss First',
       'Backlog',
-      'Closed'
+      'Closed',
+      'FE Ready'
     ];
 
     function updateQuickAddStatusDropdown(selectedVal) {
@@ -6948,6 +7187,7 @@ Thanks!`;
       if (!status) return 'badge-blue';
       const s = status.toLowerCase();
       if (s === 'closed') return 'badge-green';
+      if (s.includes('fe ready')) return 'badge-indigo';
       if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('done')) return 'badge-green';
       if (s.includes('review') || s.includes('verify')) return 'badge-yellow';
       if (s.includes('poc') || s.includes('escalated to l2')) return 'badge-purple';
@@ -7030,8 +7270,9 @@ Thanks!`;
         </button>
       `;
 
-      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k));
+      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k));
       const statusKeys = sheetKeys.filter(k => isStatusSheet(k));
+      const stageKeys = sheetKeys.filter(k => isStageSheet(k));
       const projectKeys = sheetKeys.filter(k => isProjectSheet(k));
 
       statusKeys.forEach(name => {
@@ -7041,6 +7282,17 @@ Thanks!`;
         navHtml += `
           <button class="tab-btn tab-btn-closed ${currentActiveTab === lower ? 'active' : ''}" onclick="switchTab('${lower}')" title="Archived / Closed Tickets Sheet">
             ✅ ${name} <span id="badge-${lower}" class="badge-count">${count}</span>
+          </button>
+        `;
+      });
+
+      stageKeys.forEach(name => {
+        const lower = name.toLowerCase();
+        const rows = sheetStore[name] || [];
+        const count = getValidSheetRows(rows).length;
+        navHtml += `
+          <button class="tab-btn tab-btn-fe-ready ${currentActiveTab === lower ? 'active' : ''}" onclick="switchTab('${lower}')" title="Frontend Ready Sheet (Assignee: CHETNA)">
+            🚀 ${name} <span id="badge-${lower}" class="badge-count">${count}</span>
           </button>
         `;
       });
@@ -7092,6 +7344,9 @@ Thanks!`;
                   <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px;" title="Click to sort by Title">
                     Title / Task Description <span class="th-sort-icon" data-col="title">↕</span>
                   </th>
+                  <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
+                    Tag <span class="th-sort-icon" data-col="tag">↕</span>
+                  </th>
                   <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
                     Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
                   </th>
@@ -7104,7 +7359,7 @@ Thanks!`;
                   <th class="sortable-th" onclick="handleHeaderSort('dueDate')" style="width: 105px; text-align: center;" title="Click to sort by Due Date">
                     Due Date <span class="th-sort-icon" data-col="dueDate">↕</span>
                   </th>
-                  <th style="width: 80px; text-align: center;">Action</th>
+                  <th style="min-width: 110px; text-align: center;">Action</th>
                 </tr>
               </thead>
               <tbody id="tbody-all"></tbody>
@@ -7171,9 +7426,12 @@ Thanks!`;
 
         const isClosed = isStatusSheet(name);
         const isUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
+        const isStage = isStageSheet(name);
         const titleText = isClosed
           ? `✅ CLOSED — Archived & Completed Tickets`
-          : `👤 ${name} — Google Sheet Tab`;
+          : (isStage
+            ? `🚀 FE READY — Frontend Ready Queue (Assignee: CHETNA)`
+            : `👤 ${name} — Google Sheet Tab`);
         panesHtml += `
           <div id="tab-${lower}" class="tab-pane ${currentActiveTab === lower ? 'active' : ''}">
             <div class="table-container">
@@ -7187,7 +7445,7 @@ Thanks!`;
               <table id="table-${lower}">
                 <thead>
                   <tr>
-                    ${(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isClosed && !isUpcoming) ? `
+                    ${(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isClosed && !isUpcoming && !isStage) ? `
                     <th style="width: 38px; text-align: center;">
                       <input type="checkbox" onchange="toggleSelectAllVisible(this.checked)" title="Select / Deselect All">
                     </th>` : ''}
@@ -7201,6 +7459,9 @@ Thanks!`;
                     <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px;" title="Click to sort by Title">
                       Title <span class="th-sort-icon" data-col="title">↕</span>
                     </th>
+                    <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
+                      Tag <span class="th-sort-icon" data-col="tag">↕</span>
+                    </th>
                     <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
                       Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
                     </th>
@@ -7213,7 +7474,7 @@ Thanks!`;
                     <th class="sortable-th" onclick="handleHeaderSort('dueDate')" style="width: 105px; text-align: center;" title="Click to sort by Due Date">
                       Due Date <span class="th-sort-icon" data-col="dueDate">↕</span>
                     </th>
-                    <th style="width: 80px; text-align: center;">Action</th>
+                    <th style="min-width: 110px; text-align: center;">Action</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-${lower}"></tbody>
@@ -7320,6 +7581,9 @@ Thanks!`;
       if (isStatusSheet(currentOwner)) {
         return `<span class="badge-count" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.35); padding: 4px 10px; font-weight: 700;">✅ CLOSED</span>`;
       }
+      if (isStageSheet(currentOwner)) {
+        return `<span class="badge-count" style="background: rgba(99, 102, 241, 0.18); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.35); padding: 2px 7px; font-weight: 700; font-size: 11px;">🚀 CHETNA</span>`;
+      }
       const parsed = parseTicketAssignees(ticketKey, currentOwner, notes);
 
       if (parsed.isShared) {
@@ -7408,6 +7672,74 @@ Thanks!`;
           </select>
         </div>
       `;
+    }
+
+    function createTagSelectHtml(assignee, ticket, currentTag, rowNumber) {
+      const cur = (currentTag && currentTag.trim().toLowerCase().includes('support')) ? 'Support' : 'Product';
+      const tagClass = cur === 'Support' ? 'tag-support' : 'tag-product';
+      const isEditable = canUserEditTask(assignee);
+      const icon = cur === 'Support' ? '🛠️' : '📦';
+
+      if (!isEditable) {
+        return `
+          <div class="tag-select-wrap">
+            <span class="tag-badge ${tagClass}" style="cursor: not-allowed; opacity: 0.9;" title="Read-only: Assigned to ${assignee}">
+              <span>${icon}</span> ${cur}
+            </span>
+          </div>
+        `;
+      }
+
+      const safeTicket = (ticket || '').replace(/'/g, "\\'");
+      return `
+        <div class="tag-select-wrap">
+          <select class="tag-select ${tagClass}" 
+                  data-current="${cur}"
+                  onchange="handleTagChange('${assignee}', '${safeTicket}', this.value, ${rowNumber}, this)" 
+                  title="Click to edit Tag (Product | Support) & sync to Google Sheet">
+            <option value="Product" ${cur === 'Product' ? 'selected' : ''}>📦 Product</option>
+            <option value="Support" ${cur === 'Support' ? 'selected' : ''}>🛠️ Support</option>
+          </select>
+        </div>
+      `;
+    }
+
+    async function handleTagChange(assignee, ticket, newTag, rowNumber, selectElem) {
+      const prevTag = selectElem.getAttribute('data-current') || 'Product';
+      const validTag = (newTag && newTag.toLowerCase().includes('support')) ? 'Support' : 'Product';
+
+      selectElem.setAttribute('data-current', validTag);
+      selectElem.className = `tag-select ${validTag === 'Support' ? 'tag-support' : 'tag-product'}`;
+      showToast(`⏳ Updating ${ticket} tag to "${validTag}" in Google Sheet...`);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/update-tag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignee, ticket, tag: validTag, rowNumber })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ ${ticket} Tag updated to "${validTag}" in Google Sheets!`);
+          
+          // Update in-memory sheetStore
+          const tabRows = sheetStore[assignee];
+          if (tabRows && tabRows[rowNumber - 1]) {
+            while (tabRows[rowNumber - 1].length < 9) {
+              tabRows[rowNumber - 1].push('');
+            }
+            tabRows[rowNumber - 1][8] = validTag;
+          }
+        } else {
+          showToast('❌ Failed to update tag: ' + (json.error || 'Server error'));
+          selectElem.value = prevTag;
+          selectElem.className = `tag-select ${prevTag === 'Support' ? 'tag-support' : 'tag-product'}`;
+        }
+      } catch (err) {
+        showToast('❌ Could not reach sync server.');
+        selectElem.value = prevTag;
+        selectElem.className = `tag-select ${prevTag === 'Support' ? 'tag-support' : 'tag-product'}`;
+      }
     }
 
     function populateTableData() {
@@ -7530,13 +7862,15 @@ Thanks!`;
         totalCountAllSheets += dataRows.length;
 
         if (dataRows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets assigned yet. Use the form above to add a ticket!</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="10" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets assigned yet. Use the form above to add a ticket!</td></tr>`;
           return;
         }
 
         const parsedItems = dataRows.map((row, idx) => {
-          let num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate;
-          if (row.length >= 8) {
+          let num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate, tag;
+          if (row.length >= 9) {
+            [num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate, tag] = row;
+          } else if (row.length >= 8) {
             [num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate] = row;
           } else {
             [num, ticket, link, title, internalStatus, notes, dueDate] = row;
@@ -7544,12 +7878,14 @@ Thanks!`;
           }
           const rowNumInSheet = idx + 2;
           const ticketUrl = (link && link.startsWith('http')) ? link : `https://enveu.atlassian.net/browse/${ticket}`;
+          const finalTag = (tag && tag.trim().toLowerCase().includes('support')) ? 'Support' : 'Product';
           return {
             originalIndex: idx + 1,
             rowNumber: rowNumInSheet,
             ticket: ticket || '',
             link: ticketUrl,
             title: title || '',
+            tag: finalTag,
             jiraStatus: jiraStatus || 'To Do',
             internalStatus: internalStatus || 'To Pick Up',
             notes: notes || '',
@@ -7566,6 +7902,7 @@ Thanks!`;
           const matchQuery = !q ||
             (item.ticket || '').toLowerCase().includes(q) ||
             (item.title || '').toLowerCase().includes(q) ||
+            (item.tag || '').toLowerCase().includes(q) ||
             (item.jiraStatus || '').toLowerCase().includes(q) ||
             (item.internalStatus || '').toLowerCase().includes(q) ||
             (item.notes || '').toLowerCase().includes(q) ||
@@ -7583,7 +7920,7 @@ Thanks!`;
         const isSheetClosed = isStatusSheet(name);
         const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
         const hasSheetNotify = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming);
-        const emptyColspan = hasSheetNotify ? 10 : 9;
+        const emptyColspan = hasSheetNotify ? 11 : 10;
 
         renderRowsWithSprintGroups(tbody, sorted, false, hasSheetNotify, emptyColspan, name);
       });
@@ -7592,7 +7929,7 @@ Thanks!`;
       const allTbody = document.getElementById('tbody-all');
       if (allTbody) {
         allTbody.innerHTML = '';
-        const emptyColspanAll = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 9 : 8;
+        const emptyColspanAll = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 10 : 9;
         if (allRows.length === 0) {
           allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
         } else {
@@ -7613,6 +7950,7 @@ Thanks!`;
             const matchQuery = !q ||
               (item.ticket || '').toLowerCase().includes(q) ||
               (item.title || '').toLowerCase().includes(q) ||
+              (item.tag || '').toLowerCase().includes(q) ||
               (item.jiraStatus || '').toLowerCase().includes(q) ||
               (item.internalStatus || '').toLowerCase().includes(q) ||
               (item.notes || '').toLowerCase().includes(q) ||
@@ -7666,7 +8004,7 @@ Thanks!`;
     }
 
     function updateKpis(allRows) {
-      let inProg = 0, review = 0, todo = 0, poc = 0, discuss = 0;
+      let inProg = 0, review = 0, todo = 0, poc = 0, discuss = 0, done = 0, total = 0;
       const seenTickets = new Set();
 
       allRows.forEach(r => {
@@ -7674,21 +8012,30 @@ Thanks!`;
         if (tKey && seenTickets.has(tKey)) return;
         if (tKey) seenTickets.add(tKey);
 
-        if (isStatusSheet(r.owner)) return;
+        total++;
+        if (isTicketDone(r) || isStatusSheet(r.owner)) {
+          done++;
+          return;
+        }
 
         const s = (r.internalStatus || r.jiraStatus || '').toLowerCase();
-        if (s === 'closed') return;
+        if (s === 'closed') {
+          done++;
+          return;
+        }
         if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('done')) inProg++;
         else if (s.includes('review') || s.includes('verify')) review++;
         else if (s.includes('poc') || s.includes('escalated to l2')) poc++;
         else if (s.includes('discuss') || s.includes('escalated to l3')) discuss++;
         else todo++;
       });
-      document.getElementById('kpi-in-prog').innerText = inProg;
-      document.getElementById('kpi-review').innerText = review;
-      document.getElementById('kpi-todo').innerText = todo;
-      document.getElementById('kpi-poc').innerText = poc;
-      document.getElementById('kpi-discuss').innerText = discuss;
+      if (document.getElementById('kpi-in-prog')) document.getElementById('kpi-in-prog').innerText = inProg;
+      if (document.getElementById('kpi-review')) document.getElementById('kpi-review').innerText = review;
+      if (document.getElementById('kpi-todo')) document.getElementById('kpi-todo').innerText = todo;
+      if (document.getElementById('kpi-done')) document.getElementById('kpi-done').innerText = done;
+      if (document.getElementById('kpi-poc')) document.getElementById('kpi-poc').innerText = poc;
+      if (document.getElementById('kpi-discuss')) document.getElementById('kpi-discuss').innerText = discuss;
+      if (document.getElementById('kpi-filter-all')) document.getElementById('kpi-filter-all').innerText = total;
     }
 
     function handleSearch() {
@@ -7768,6 +8115,65 @@ Thanks!`;
         }
       } catch (err) {
         showToast('❌ Could not connect to Sync Server.');
+      }
+    }
+
+    // Move/Clone Ticket to FE Ready sheet with assignee CHETNA & fixed status FE Ready
+    async function handleMoveToFeReady(ticket, assignee) {
+      if (!ticket) return;
+
+      const confirmMove = confirm(`🚀 Move & Clone ticket ${ticket} to FE Ready sheet?\n\nThis will clone the task into the "FE Ready" sheet with:\n• Assignee: CHETNA\n• Status: FE Ready\n\nFrontend can pick it up immediately. The original task row in ${assignee || 'its tab'} remains preserved.`);
+      if (!confirmMove) return;
+
+      showToast(`🚀 Cloning ${ticket} to FE Ready sheet for CHETNA...`);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/move-to-fe-ready', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket, fromAssignee: assignee })
+        });
+
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ ${ticket} successfully cloned to FE Ready sheet for CHETNA!`);
+          if (json.data) {
+            sheetStore = json.data;
+            renderDynamicTabsAndPanes();
+          } else {
+            await fetchLiveSheets(true);
+          }
+        } else {
+          showToast('❌ Move to FE Ready failed: ' + (json.error || 'Server error'));
+        }
+      } catch (err) {
+        showToast('❌ Could not connect to Sync Server.');
+      }
+    }
+
+    // Explicitly create/sync the FE Ready tab in the Master Google Sheet
+    async function handleSyncFeReadySheet(btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Syncing...';
+      }
+      showToast('🚀 Verifying & creating "FE Ready" tab in Google Sheets...');
+      try {
+        const res = await fetch('http://localhost:3100/api/sheet/create-fe-ready', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ "FE Ready" sheet is verified and active in Google Sheets!');
+          await fetchLiveSheets(true);
+        } else {
+          showToast('⚠️ Note: ' + (json.error || 'Server error'));
+        }
+      } catch (e) {
+        showToast('❌ Could not connect to Sync Server.');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = '🚀 Sync Tab in Google Sheets';
+        }
       }
     }
 
@@ -8904,9 +9310,10 @@ Thanks!`;
       const ticket = document.getElementById('ticketInput').value.trim();
       const assignee = document.getElementById('assigneeInput').value;
       const title = document.getElementById('titleInput').value.trim();
-      const jiraStatus = document.getElementById('jiraStatusInput').value.trim();
+      const tag = document.getElementById('tagInput') ? document.getElementById('tagInput').value : 'Product';
+      const jiraStatus = document.getElementById('jiraStatusInput') ? document.getElementById('jiraStatusInput').value.trim() : 'To Do';
       const internalStatus = document.getElementById('internalStatusInput').value;
-      const dueDate = document.getElementById('dueDateInput').value.trim();
+      const dueDate = document.getElementById('dueDateInput') ? document.getElementById('dueDateInput').value.trim() : 'Not set';
 
       let finalAssignee = assignee;
       if (currentUser && currentUser.role === 'MEMBER') {
@@ -8936,6 +9343,7 @@ Thanks!`;
         if (foundInTabs.length > 0) {
           openDuplicateResolutionModal(ticket.toUpperCase(), finalAssignee.toUpperCase(), foundInTabs, {
             title,
+            tag,
             jiraStatus,
             internalStatus,
             dueDate
@@ -8955,6 +9363,7 @@ Thanks!`;
             ticket, 
             assignee: finalAssignee, 
             title, 
+            tag,
             jiraStatus, 
             internalStatus, 
             dueDate,
@@ -8970,7 +9379,7 @@ Thanks!`;
             ticket.toUpperCase(),
             finalAssignee.toUpperCase(),
             json.existingAssignees || ['Another member'],
-            { title, jiraStatus, internalStatus, dueDate }
+            { title, tag, jiraStatus, internalStatus, dueDate }
           );
           return;
         }
@@ -8978,11 +9387,13 @@ Thanks!`;
         if (json.success) {
           const successMsg = json.message || (isQuickAddShared
             ? `✅ Synced shared ticket ${ticket} across ${quickAddSharedMembers.map(m => `${m.name} (${m.role})`).join(' & ')} tabs in Google Sheets!`
-            : `✅ Synced ${ticket} to ${finalAssignee} Google Sheet tab!`);
+            : `✅ Synced ${ticket} (${tag}) to ${finalAssignee} Google Sheet tab!`);
           showToast(successMsg);
           document.getElementById('ticketInput').value = '';
           document.getElementById('titleInput').value = '';
-          document.getElementById('jiraStatusInput').value = '';
+          if (document.getElementById('tagInput')) document.getElementById('tagInput').value = 'Product';
+          if (document.getElementById('jiraStatusInput')) document.getElementById('jiraStatusInput').value = 'To Do';
+          if (document.getElementById('dueDateInput')) document.getElementById('dueDateInput').value = 'Not set';
           document.getElementById('jiraIndicator').style.display = 'none';
           document.getElementById('ticketDuplicateBanner').style.display = 'none';
           await fetchLiveSheets(true);
