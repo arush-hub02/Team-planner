@@ -281,7 +281,7 @@ function formatToday() {
 const mcpSessionCache = {}; // { [apiKey]: { sid: string, expires: number } }
 
 async function getOrInitSession(apiKey) {
-  const activeKey = (apiKey && apiKey.startsWith('ck_')) ? apiKey : (currentRequestApiKey || COMPOSIO_KEY);
+  const activeKey = (apiKey && apiKey.startsWith('ck_')) ? apiKey : (currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY);
   const now = Date.now();
   if (mcpSessionCache[activeKey] && mcpSessionCache[activeKey].expires > now) {
     return mcpSessionCache[activeKey].sid;
@@ -315,7 +315,7 @@ function sendComposioMcp(method, params, sessionId, customApiKey) {
       params: params || {}
     });
 
-    let activeKey = customApiKey || currentRequestApiKey;
+    let activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey;
     if (!activeKey || !activeKey.startsWith('ck_')) {
       activeKey = COMPOSIO_KEY;
     }
@@ -396,7 +396,7 @@ async function manageComposioConnections(apiKey, toolkitsWithActions) {
 }
 
 async function executeComposioTool(toolSlug, args, customApiKey) {
-  const activeKey = customApiKey || currentRequestApiKey || COMPOSIO_KEY;
+  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   let sid = await getOrInitSession(activeKey);
 
   let callRes = await sendComposioMcp('tools/call', {
@@ -431,7 +431,7 @@ async function executeComposioTool(toolSlug, args, customApiKey) {
 
 async function executeComposioBatch(toolsList, customApiKey) {
   if (!toolsList || toolsList.length === 0) return null;
-  const activeKey = customApiKey || currentRequestApiKey || COMPOSIO_KEY;
+  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   let sid = await getOrInitSession(activeKey);
 
   let callRes = await sendComposioMcp('tools/call', {
