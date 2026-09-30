@@ -394,15 +394,10 @@
     }
 
     .form-grid {
-      display: grid;
-      grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) minmax(280px, 2.6fr) minmax(130px, 0.9fr) minmax(170px, 1.2fr) minmax(140px, 1fr);
+      display: flex;
+      flex-wrap: wrap;
       gap: 12px;
       align-items: flex-end;
-    }
-    @media (max-width: 1380px) {
-      .form-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      }
     }
 
     .form-group {
@@ -412,15 +407,48 @@
       min-width: 0;
     }
 
-    .form-group label {
+    .fg-ticket {
+      flex: 0 1 170px;
+      min-width: 140px;
+    }
+    .fg-assignee {
+      flex: 0 1 185px;
+      min-width: 150px;
+    }
+    .fg-epic {
+      flex: 1 1 200px;
+      min-width: 165px;
+    }
+    .fg-title {
+      flex: 2 1 280px;
+      min-width: 220px;
+    }
+    .fg-tag {
+      flex: 0 1 130px;
+      min-width: 110px;
+    }
+    .fg-status {
+      flex: 0 1 175px;
+      min-width: 145px;
+    }
+    .fg-submit {
+      flex: 0 0 auto;
+    }
+
+    .form-group > label,
+    .form-group-label-row {
+      height: 20px;
+      min-height: 20px;
       font-size: 11px;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       display: flex;
+      align-items: center;
       justify-content: space-between;
       white-space: nowrap;
+      margin: 0;
     }
 
     /* Input Box with Integrated Action */
@@ -1727,9 +1755,119 @@
     .task-title-cell {
       font-weight: 500;
       color: #f1f5f9;
-      line-height: 1.35;
-      font-size: 12px;
-      max-width: 480px;
+      line-height: 1.4;
+      font-size: 12.5px;
+      text-align: left;
+      vertical-align: middle;
+      max-width: 520px;
+    }
+    .task-title-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-align: left;
+      flex-wrap: wrap;
+    }
+    .task-title-text {
+      font-weight: 500;
+      color: #f1f5f9;
+      text-align: left;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* Inline Editable Task Title */
+    .editable-title-box {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .title-display-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border-radius: 5px;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      transition: background 0.15s ease;
+      max-width: 100%;
+    }
+    .title-display-wrap:hover {
+      background: rgba(56, 189, 248, 0.1);
+    }
+    .title-display-wrap:hover .btn-edit-title-trigger {
+      opacity: 1;
+      visibility: visible;
+    }
+    .btn-edit-title-trigger {
+      opacity: 0;
+      visibility: hidden;
+      font-size: 11px;
+      background: transparent;
+      border: none;
+      color: #38bdf8;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+    }
+    .btn-edit-title-trigger:hover {
+      transform: scale(1.15);
+    }
+    .title-editor-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-width: 280px;
+    }
+    .title-input-inline {
+      flex: 1;
+      background: #0b0f19;
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 12.5px;
+      font-weight: 500;
+      padding: 4px 8px;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+      font-family: inherit;
+    }
+    .btn-title-save {
+      background: #10b981;
+      border: none;
+      color: #ffffff;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      transition: background 0.12s;
+      white-space: nowrap;
+    }
+    .btn-title-save:hover {
+      background: #059669;
+    }
+    .btn-title-cancel {
+      background: rgba(148, 163, 184, 0.18);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #94a3b8;
+      padding: 4px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .btn-title-cancel:hover {
+      background: rgba(148, 163, 184, 0.3);
+      color: #ffffff;
     }
 
     /* Status Badges */
@@ -2650,6 +2788,277 @@
     @keyframes shimmer {
       0% { background-position: -200% 0; }
       100% { background-position: 200% 0; }
+    }
+
+    /* 👑 Epic Section Header & Badges */
+    .epic-header-row {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.06) 50%, rgba(15, 23, 42, 0.5) 100%) !important;
+      border-left: 4px solid #f59e0b;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .epic-header-row:hover {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.22) 0%, rgba(217, 119, 6, 0.1) 50%, rgba(15, 23, 42, 0.7) 100%) !important;
+    }
+    .epic-header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .epic-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .epic-chevron {
+      font-size: 13px;
+      color: #fbbf24;
+      transition: transform 0.2s ease;
+      display: inline-block;
+    }
+    .epic-chevron.collapsed {
+      transform: rotate(-90deg);
+    }
+    .epic-pill-badge {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
+    }
+    .epic-title-text {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #fef3c7;
+      letter-spacing: 0.2px;
+    }
+    .epic-count-badge {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .epic-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .epic-mini-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #fbbf24;
+    }
+    .epic-mini-track {
+      width: 64px;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+    .epic-mini-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f59e0b, #10b981);
+      transition: width 0.3s ease;
+    }
+    .btn-epic-add-task {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fcd34d;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-epic-add-task:hover {
+      background: rgba(245, 158, 11, 0.3);
+      color: #ffffff;
+      border-color: #f59e0b;
+    }
+    .epic-tag-chip {
+      background: rgba(245, 158, 11, 0.14);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      margin-right: 6px;
+      vertical-align: middle;
+      transition: all 0.15s ease;
+    }
+    .epic-tag-chip:hover {
+      background: rgba(245, 158, 11, 0.28);
+      color: #ffffff;
+      border-color: #f59e0b;
+    }
+
+    /* 🎯 Plan Tab & Badge */
+    .tab-btn-plan {
+      background: rgba(16, 185, 129, 0.12) !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+      color: #6ee7b7 !important;
+    }
+    .tab-btn-plan:hover {
+      background: rgba(16, 185, 129, 0.22) !important;
+      color: #a7f3d0 !important;
+      border-color: #34d399 !important;
+    }
+    .tab-btn-plan.active {
+      background: linear-gradient(135deg, #059669, #047857) !important;
+      color: #ffffff !important;
+      border-color: #10b981 !important;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+    }
+    .plan-ticket-badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      display: inline-block;
+    }
+
+    /* ✨ Dynamic Columns & Inline Cell Editor */
+    .dynamic-th {
+      background: rgba(139, 92, 246, 0.12) !important;
+      color: #c4b5fd !important;
+      border-bottom: 2px solid rgba(139, 92, 246, 0.35) !important;
+    }
+    .dynamic-th:hover {
+      background: rgba(139, 92, 246, 0.2) !important;
+      color: #ede9fe !important;
+    }
+    .dynamic-col-cell {
+      min-width: 110px;
+    }
+    .dynamic-cell-box {
+      width: 100%;
+      min-width: 100px;
+      max-width: 280px;
+      position: relative;
+    }
+    .cell-display-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 24px;
+    }
+    .cell-display-wrap:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .cell-text {
+      flex: 1;
+      color: #f1f5f9;
+      font-size: 12px;
+      line-height: 1.35;
+      word-break: break-word;
+      text-align: left;
+    }
+    .cell-text.empty-val {
+      color: #64748b;
+      font-style: italic;
+      font-size: 11px;
+    }
+    .cell-display-wrap:hover .cell-text.empty-val {
+      color: #38bdf8;
+    }
+    .btn-edit-cell-trigger {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .cell-display-wrap:hover .btn-edit-cell-trigger {
+      opacity: 1;
+    }
+    .cell-editor-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      padding: 2px 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      z-index: 30;
+      position: relative;
+    }
+    .cell-text-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 2px 4px;
+      min-width: 80px;
+    }
+    .cell-edit-actions {
+      display: flex;
+      gap: 2px;
+    }
+    .btn-cell-save, .btn-cell-cancel {
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+    .btn-cell-save {
+      background: #10b981;
+      color: white;
+    }
+    .btn-cell-save:hover {
+      background: #059669;
+    }
+    .btn-cell-cancel {
+      background: rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+    }
+    .btn-cell-cancel:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .cell-readonly {
+      font-size: 12px;
+      color: #cbd5e1;
+      padding: 2px 4px;
     }
 
     .toast-msg {
@@ -3836,30 +4245,30 @@
       </div>
       <form id="addTicketForm" onsubmit="handleFormSubmit(event)">
         <div class="form-grid">
-          <div class="form-group">
-            <label>Ticket ID *</label>
+          <div class="form-group fg-ticket">
+            <label>Ticket ID <span id="ticketReqStar" style="color: #f87171;">*</span></label>
             <div class="ticket-input-box">
-              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600" oninput="checkTicketDuplicate()" onchange="autoFetchJira(); checkTicketDuplicate();" required>
+              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600 (Optional for PLAN)" oninput="checkTicketDuplicate()" onchange="autoFetchJira(); checkTicketDuplicate();">
               <button type="button" onclick="autoFetchJira(); checkTicketDuplicate();" class="ticket-fetch-btn" title="Fetch details from Jira">
                 ⚡
               </button>
             </div>
           </div>
-          <div class="form-group" id="assigneeSingleGroup">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-              <label style="margin-bottom: 0;">Assignee *</label>
+          <div class="form-group fg-assignee" id="assigneeSingleGroup">
+            <div class="form-group-label-row">
+              <label style="margin-bottom: 0;">Assignee / Sheet *</label>
               <button type="button" onclick="toggleSharedAddMode(true)" class="btn-toggle-shared" title="Switch to shared multi-member task with roles">
-                🤝 Shared Task
+                🤝 Shared
               </button>
             </div>
-            <select id="assigneeInput" class="form-select" onchange="checkTicketDuplicate()">
+            <select id="assigneeInput" class="form-select" onchange="handleAssigneeSelectChange(); checkTicketDuplicate()">
               <!-- Dynamically populated from Google Sheet tabs -->
             </select>
           </div>
 
           <!-- Shared Multi-Assignee Section (Hidden by default) -->
-          <div class="form-group" id="assigneeSharedGroup" style="display: none; grid-column: span 2;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+          <div class="form-group" id="assigneeSharedGroup" style="display: none; width: 100%; margin-bottom: 6px;">
+            <div class="form-group-label-row">
               <label style="margin-bottom: 0; color: #d8b4fe; font-weight: 700;">🤝 Shared Assignees & Custom Roles</label>
               <button type="button" onclick="toggleSharedAddMode(false)" class="btn-toggle-shared" style="color: #94a3b8;">
                 Switch to Single Assignee
@@ -3870,18 +4279,24 @@
               + Add Co-Assignee
             </button>
           </div>
-          <div class="form-group">
+          <!-- Epic Selection (Dynamic for PLAN & Epics) -->
+          <div class="form-group fg-epic" id="epicGroup" style="display: none;">
+            <label>🎯 Epic / Milestone</label>
+            <input type="text" id="epicInput" class="form-input" list="epicDatalist" placeholder="e.g. Watchity, Enveu Cloud MCP, Migration">
+            <datalist id="epicDatalist"></datalist>
+          </div>
+          <div class="form-group fg-title">
             <label>Title / Description <span id="jiraIndicator" style="font-size: 11px; color: #38bdf8; display: none;"></span></label>
             <input type="text" id="titleInput" class="form-input" placeholder="Title (auto-fills from Jira)">
           </div>
-          <div class="form-group">
+          <div class="form-group fg-tag">
             <label>Tag</label>
             <select id="tagInput" class="form-select" style="font-weight: 600;">
               <option value="Product">📦 Product</option>
               <option value="Support">🛠️ Support</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group fg-status">
             <label>Internal Status</label>
             <select id="internalStatusInput" class="form-select">
               <option value="To Pick Up">🔵 To Pick Up</option>
@@ -3898,8 +4313,8 @@
           </div>
           <input type="hidden" id="jiraStatusInput" value="To Do">
           <input type="hidden" id="dueDateInput" value="Not set">
-          <div class="form-group">
-            <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center;">
+          <div class="form-group fg-submit">
+            <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center; min-width: 120px;">
               🚀 Add & Sync
             </button>
           </div>
@@ -4311,6 +4726,39 @@
         </div>
       </div>
     </div>
+  <!-- ✨ Add Dynamic Column Modal -->
+  <div id="addColumnModal" class="modal-overlay" onclick="if(event.target===this)closeAddColumnModal()" style="display:none; z-index:10000;">
+    <div class="modal-card" style="width: 480px; max-width: 95vw; padding: 22px 24px; border: 1px solid rgba(139,92,246,0.45); box-shadow: 0 25px 60px rgba(0,0,0,0.75);">
+      <div class="modal-header" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">✨</span>
+          <div>
+            <div style="font-size: 16px; font-weight: 700; color: #f8fafc;">Add Dynamic Column to Sheet</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Adds header in Google Sheets & makes cells instantly editable</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeAddColumnModal()" title="Close">✕</button>
+      </div>
+      <form onsubmit="submitAddColumn(event)">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 5px;">Target Sheet Tab</label>
+            <select id="newColSheetSelect" class="form-select" style="width: 100%;"></select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 5px;">New Column Name *</label>
+            <input type="text" id="newColNameInput" class="form-input" placeholder="e.g. Priority, Effort, Target Sprint, Impact, Module" required>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); padding: 8px 12px; border-radius: 6px;">
+            💡 The new column will appear in Row 1 of your Google Sheet tab and immediately render on the dashboard with editable cells for every row.
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
+          <button type="button" class="btn btn-secondary" onclick="closeAddColumnModal()">Cancel</button>
+          <button type="submit" id="btnAddColSubmit" class="btn btn-primary">✨ Add Column</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -4318,7 +4766,9 @@
     let currentUser = null;
 
     // Relative API Base URL for local & Vercel deployment
-    const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:') ? '' : 'http://localhost:3100';
+    const isSameOriginApi = (window.location.port === '3100') ||
+      (window.location.hostname && !['localhost', '127.0.0.1', ''].includes(window.location.hostname));
+    const API_BASE = isSameOriginApi ? '' : 'http://localhost:3100';
 
     // In-memory Composio session key (Never saved to localStorage to prevent credential theft/XSS)
     let sessionComposioKey = '';
@@ -4377,7 +4827,7 @@
       let finalUrl = url;
       if (typeof url === 'string') {
         if (url.startsWith('http://localhost:3100/api/')) {
-          finalUrl = (API_BASE ? API_BASE : '') + url.replace('http://localhost:3100', '');
+          finalUrl = API_BASE ? url : url.replace('http://localhost:3100', '');
         } else if (url.startsWith('/api/')) {
           finalUrl = (API_BASE ? API_BASE : '') + url;
         }
@@ -4396,6 +4846,7 @@
       if (!currentUser) return false;
       if (currentUser.role === 'ADMIN') return true;
       if (!assignee) return false;
+      if (isPlanSheet(assignee)) return true; // All authenticated users can edit tasks in PLAN
       const userAllowed = currentUser.allowedSheets || [currentUser.username.toUpperCase()];
       return userAllowed.some(s => s.toUpperCase() === assignee.trim().toUpperCase());
     }
@@ -4500,7 +4951,7 @@
       btn.innerText = 'Verifying...';
 
       try {
-        const res = await originalFetch('/api/auth/login', {
+        const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
@@ -4627,7 +5078,7 @@
       }
 
       try {
-        const res = await originalFetch('/api/composio/verify', {
+        const res = await fetch('/api/composio/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ apiKey: key })
@@ -4691,7 +5142,7 @@
       const jiraAction = document.getElementById('readinessJiraAction');
 
       try {
-        const res = await originalFetch('/api/composio/check-connections', {
+        const res = await fetch('/api/composio/check-connections', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ apiKey: getActiveComposioKey() })
@@ -4803,7 +5254,7 @@
       }
 
       try {
-        const res = await originalFetch('/api/composio/connect-app', {
+        const res = await fetch('/api/composio/connect-app', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -5982,7 +6433,7 @@ Thanks!`;
       btn.innerHTML = '<span>Verifying key with Composio...</span>';
 
       try {
-        const res = await originalFetch('/api/composio/verify', {
+        const res = await fetch('/api/composio/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ apiKey: key })
@@ -6032,7 +6483,7 @@ Thanks!`;
       }
 
       try {
-        const res = await originalFetch('/api/composio/connect-app', {
+        const res = await fetch('/api/composio/connect-app', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -6072,7 +6523,7 @@ Thanks!`;
 
     async function fetchComposioUsage() {
       try {
-        const res = await originalFetch('/api/composio/usage');
+        const res = await fetch('/api/composio/usage');
         const data = await res.json();
         if (res.ok && data.success) {
           const badgeEl = document.getElementById('composioMeterMonthBadge');
@@ -6115,7 +6566,7 @@ Thanks!`;
       fetchComposioUsage();
 
       try {
-        const res = await originalFetch('/api/composio/check-connections', {
+        const res = await fetch('/api/composio/check-connections', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ apiKey: getActiveComposioKey() })
@@ -6852,31 +7303,66 @@ Thanks!`;
       const sharedPrefix = parsed.isShared ? `<span class="shared-inline-badge">🤝 Shared</span>` : '';
       const isClosed = isStatusSheet(item.owner);
 
+      const dynCols = isAllOverview ? getAllDynamicColumnsAcrossSheets() : getSheetDynamicColumns(item.owner);
+      const dynCellsHtml = dynCols.map(c => {
+        const cellData = (item.extraCols && item.extraCols[c.name]) ? item.extraCols[c.name] : { colIdx: c.index, name: c.name, letter: c.letter, value: '' };
+        return `<td class="dynamic-td">${renderDynamicCell(item.owner, cellData.colIdx, cellData.name, cellData.value, item.rowNumber, canUserEditTask(item.owner))}</td>`;
+      }).join('');
+
+      let ticketCellHtml = '';
+      if (item.ticket && !item.ticket.startsWith('PLAN-') && !item.ticket.startsWith('TASK-') && item.link && item.link.startsWith('http')) {
+        ticketCellHtml = `
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
+            <span>${item.ticket}</span>
+            <span class="ext-arrow">↗</span>
+          </a>
+        `;
+      } else if (item.ticket) {
+        ticketCellHtml = `<span class="plan-ticket-badge" title="Planning Task: ${escapeHtml(item.ticket)}">${escapeHtml(item.ticket)}</span>`;
+      } else {
+        ticketCellHtml = `<span style="color: var(--text-muted);">-</span>`;
+      }
+
+      const isPlanTab = isPlanSheet(item.owner);
+      const epicChipHtml = (item.epic && (isAllOverview || !isPlanTab)) ? `
+        <span class="epic-tag-chip" onclick="filterByEpic('${escapeHtml(item.epic).replace(/'/g, "\\'")}')" title="Belongs to Epic: ${escapeHtml(item.epic)} (Click to filter)">
+          🎯 ${escapeHtml(item.epic)}
+        </span>
+      ` : '';
+
+
       tr.innerHTML = `
         ${hasNotify ? buildNotifyCheckboxCell(item) : ''}
         ${!isAllOverview ? `<td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>` : ''}
         ${isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, true)}</td>` : ''}
         <td>
-          <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
-            <span>${item.ticket || ''}</span>
-            <span class="ext-arrow">↗</span>
-          </a>
+          ${ticketCellHtml}
         </td>
         ${!isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, false)}</td>` : ''}
-        <td class="task-title-cell">${sharedPrefix}${item.title || ''}</td>
+        <td class="task-title-cell" style="vertical-align: middle; text-align: left;">
+          <div class="task-title-row">
+            ${sharedPrefix}
+            ${epicChipHtml}
+            ${renderTitleCell(item.owner, item.ticket, item.title, item.rowNumber, item.titleColIdx, canUserEditTask(item.owner))}
+          </div>
+        </td>
         <td style="text-align: center; white-space: nowrap; min-width: 135px;">
           ${createTagSelectHtml(item.owner, item.ticket, item.tag || 'Product', item.rowNumber)}
         </td>
+        ${dynCellsHtml}
+        ${!isPlanTab ? `
         <td style="text-align: center;">
           <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
             <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
           </span>
-        </td>
+        </td>` : ''}
         <td style="text-align: center;">
           ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
         </td>
         <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
-        <td style="text-align: center;"><span class="due-date-badge ${horizonInfo.badgeClass}" title="${horizonInfo.horizon}">${horizonInfo.badgeText}</span></td>
+        <td style="text-align: center;">
+          ${renderDueDateCell(item.owner, item.ticket, item.dueDate, item.rowNumber, horizonInfo)}
+        </td>
         <td style="text-align: center;">
           <div class="action-btn-group">
             ${(() => {
@@ -6930,6 +7416,65 @@ Thanks!`;
     function renderRowsWithSprintGroups(tbody, items, isAllOverview, hasNotify, emptyColspan, sheetName) {
       if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${emptyColspan}" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${sheetName || 'this view'}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
+        return;
+      }
+
+      // 👑 Group by Epic when sheet has epics or tasks with epics
+      const hasEpics = items.some(it => it.epic && it.epic.trim());
+      if (hasEpics && currentSprintViewMode !== 'table') {
+        const epicGroupsMap = new Map();
+        items.forEach(it => {
+          const epKey = (it.epic && it.epic.trim()) ? it.epic.trim() : 'General Tasks (No Epic)';
+          if (!epicGroupsMap.has(epKey)) {
+            epicGroupsMap.set(epKey, []);
+          }
+          epicGroupsMap.get(epKey).push(it);
+        });
+
+        epicGroupsMap.forEach((groupItems, epicName) => {
+          const isCollapsed = collapsedEpics.has(epicName);
+          const doneCount = groupItems.filter(it => isTicketDone(it)).length;
+          const totalCount = groupItems.length;
+          const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+          const safeEpicName = escapeHtml(epicName);
+
+          const epicTr = document.createElement('tr');
+          epicTr.className = 'epic-header-row';
+          epicTr.innerHTML = `
+            <td colspan="${emptyColspan}">
+              <div class="epic-header-content">
+                <div class="epic-header-left" onclick="toggleEpicCollapse('${escapeHtml(epicName).replace(/'/g, "\\'")}')" title="Click to collapse / expand this Epic group">
+                  <span class="epic-chevron ${isCollapsed ? 'collapsed' : ''}">▾</span>
+                  <span class="epic-icon">🎯</span>
+                  <span class="epic-title-text">Epic: ${safeEpicName}</span>
+                  <span class="epic-pill-badge">${totalCount} ${totalCount === 1 ? 'task' : 'tasks'}</span>
+                  <button type="button" class="btn-epic-add-task" style="padding: 2px 8px; font-size: 11px;" onclick="event.stopPropagation(); filterByEpic('${escapeHtml(epicName).replace(/'/g, "\\'")}')" title="Filter table to only this Epic">🔍 Filter</button>
+                </div>
+                <div class="epic-header-right">
+                  <div class="epic-mini-progress" title="${doneCount} / ${totalCount} completed">
+                    <div class="epic-mini-track">
+                      <div class="epic-mini-fill" style="width: ${pct}%;"></div>
+                    </div>
+                    <span class="epic-progress-lbl" style="font-weight: 700;">${doneCount}/${totalCount} (${pct}%)</span>
+                  </div>
+                  <button type="button" class="btn-epic-add-task" onclick="event.stopPropagation(); openAddTaskForEpic('${sheetName || 'PLAN'}', '${escapeHtml(epicName).replace(/'/g, "\\'")}')" title="Add new task directly under this Epic">
+                    ➕ Add Task
+                  </button>
+                </div>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(epicTr);
+
+          groupItems.forEach(item => {
+            const rowEl = buildStandardTableRow(item, isAllOverview, hasNotify);
+            rowEl.setAttribute('data-epic-id', epicName);
+            if (isCollapsed) {
+              rowEl.style.display = 'none';
+            }
+            tbody.appendChild(rowEl);
+          });
+        });
         return;
       }
 
@@ -7134,6 +7679,8 @@ Thanks!`;
     const STATUS_SHEETS = ['CLOSED'];
     const PROJECT_SHEETS = ['PULSE'];
     const STAGE_SHEETS = ['FE READY', 'FE Ready'];
+    const PLAN_SHEETS = ['PLAN', 'Plan'];
+
     function isStatusSheet(name) {
       return STATUS_SHEETS.includes((name || '').trim().toUpperCase());
     }
@@ -7143,13 +7690,644 @@ Thanks!`;
     function isStageSheet(name) {
       return STAGE_SHEETS.includes((name || '').trim().toUpperCase());
     }
+    function isPlanSheet(name) {
+      return PLAN_SHEETS.includes((name || '').trim().toUpperCase());
+    }
     function isNonPersonSheet(name) {
-      return isStatusSheet(name) || isProjectSheet(name) || isStageSheet(name);
+      return isStatusSheet(name) || isProjectSheet(name) || isStageSheet(name) || isPlanSheet(name);
     }
 
     function getTeamMembers() {
       const keys = Object.keys(sheetStore).length > 0 ? Object.keys(sheetStore) : ['ARUSH', 'CHETNA', 'KRISHNA', 'MANISH', 'RAHUL', 'SONU'];
       return keys.filter(k => !isNonPersonSheet(k));
+    }
+
+    function colIndexToLetter(colIdx) {
+      let temp = colIdx + 1;
+      let letter = '';
+      while (temp > 0) {
+        let mod = (temp - 1) % 26;
+        letter = String.fromCharCode(65 + mod) + letter;
+        temp = Math.floor((temp - mod) / 26);
+      }
+      return letter;
+    }
+
+    // 🧠 Universal Dynamic Sheet Schema Engine
+    function getSheetSchema(sheetName) {
+      const rows = sheetStore[sheetName] || [];
+      const headerRow = (rows[0] || []).map(h => String(h || '').trim());
+      
+      const schema = {
+        sheetName,
+        headerRow,
+        snoColIdx: -1,
+        epicColIdx: -1,
+        ticketColIdx: -1,
+        linkColIdx: -1,
+        titleColIdx: -1,
+        jiraStatusColIdx: -1,
+        internalStatusColIdx: -1,
+        notesColIdx: -1,
+        dueDateColIdx: -1,
+        tagColIdx: -1,
+        dynamicCols: []
+      };
+
+      if (headerRow.length === 0) return schema;
+      const claimedIndices = new Set();
+
+      // Detect S.No / #
+      schema.snoColIdx = headerRow.findIndex(h => /^(#|s\.?no\.?|id|sr|no)$/i.test(h));
+      if (schema.snoColIdx >= 0) claimedIndices.add(schema.snoColIdx);
+
+      // Detect Epic column
+      schema.epicColIdx = headerRow.findIndex(h => /^(epic|epic\s*name|module|feature\s*group)$/i.test(h));
+      if (schema.epicColIdx >= 0) claimedIndices.add(schema.epicColIdx);
+
+      // Detect Ticket ID
+      schema.ticketColIdx = headerRow.findIndex(h => /^(ticket|ticket\s*id|ticket\s*no|ticket\s*number|jira|jira\s*ticket|key)$/i.test(h));
+      if (schema.ticketColIdx >= 0) claimedIndices.add(schema.ticketColIdx);
+
+      // Detect Ticket Link
+      schema.linkColIdx = headerRow.findIndex(h => /^(link|ticket\s*link|url|jira\s*link)$/i.test(h));
+      if (schema.linkColIdx >= 0) claimedIndices.add(schema.linkColIdx);
+
+      // Detect Title / Task
+      schema.titleColIdx = headerRow.findIndex(h => /^(task|title|task\s*title|task\s*description|summary|name|description)$/i.test(h));
+      if (schema.titleColIdx >= 0) claimedIndices.add(schema.titleColIdx);
+
+      // Detect Jira Status
+      schema.jiraStatusColIdx = headerRow.findIndex(h => /^(jira\s*status)$/i.test(h));
+      if (schema.jiraStatusColIdx >= 0) claimedIndices.add(schema.jiraStatusColIdx);
+
+      // Detect Internal Status
+      schema.internalStatusColIdx = headerRow.findIndex(h => /^(internal\s*status|status|state|progress)$/i.test(h));
+      if (schema.internalStatusColIdx >= 0) claimedIndices.add(schema.internalStatusColIdx);
+
+      // Detect Action / Notes / Remarks
+      schema.notesColIdx = headerRow.findIndex(h => /^(action\s*\/?\s*notes|remarks|notes|action|comment|comments|dependency\s*\/?\s*remarks)$/i.test(h));
+      if (schema.notesColIdx >= 0) claimedIndices.add(schema.notesColIdx);
+
+      // Detect Due Date
+      schema.dueDateColIdx = headerRow.findIndex(h => /^(due\s*date|due|deadline|target\s*date|target)$/i.test(h));
+      if (schema.dueDateColIdx >= 0) claimedIndices.add(schema.dueDateColIdx);
+
+      // Detect Tag
+      schema.tagColIdx = headerRow.findIndex(h => /^(tag)$/i.test(h));
+      if (schema.tagColIdx >= 0) claimedIndices.add(schema.tagColIdx);
+
+      // Standard fallback for member sheets if schema didn't match exact regexes
+      if (!isPlanSheet(sheetName) && !isProjectSheet(sheetName)) {
+        if (schema.snoColIdx < 0 && headerRow.length > 0) schema.snoColIdx = 0;
+        if (schema.ticketColIdx < 0 && headerRow.length > 1) schema.ticketColIdx = 1;
+        if (schema.linkColIdx < 0 && headerRow.length > 2) schema.linkColIdx = 2;
+        if (schema.titleColIdx < 0 && headerRow.length > 3) schema.titleColIdx = 3;
+        if (schema.jiraStatusColIdx < 0 && headerRow.length > 4) schema.jiraStatusColIdx = 4;
+        if (schema.internalStatusColIdx < 0 && headerRow.length > 5) schema.internalStatusColIdx = 5;
+        if (schema.notesColIdx < 0 && headerRow.length > 6) schema.notesColIdx = 6;
+        if (schema.dueDateColIdx < 0 && headerRow.length > 7) schema.dueDateColIdx = 7;
+        if (schema.tagColIdx < 0 && headerRow.length > 8) schema.tagColIdx = 8;
+        claimedIndices.add(0).add(1).add(2).add(3).add(4).add(5).add(6).add(7).add(8);
+      }
+
+      // Any remaining non-empty column in headerRow is a dynamic column!
+      headerRow.forEach((colName, cIdx) => {
+        if (colName && !claimedIndices.has(cIdx)) {
+          schema.dynamicCols.push({
+            index: cIdx,
+            name: colName,
+            letter: colIndexToLetter(cIdx)
+          });
+        }
+      });
+
+      return schema;
+    }
+
+    // Dynamic Columns Discovery (Captures any column beyond standard schema or custom headers)
+    function getSheetDynamicColumns(sheetName) {
+      const schema = getSheetSchema(sheetName);
+      return schema.dynamicCols;
+    }
+
+    function getAllDynamicColumnsAcrossSheets() {
+      const colMap = new Map();
+      Object.keys(sheetStore).forEach(s => {
+        if (!isProjectSheet(s)) {
+          const cols = getSheetDynamicColumns(s);
+          cols.forEach(c => {
+            if (!colMap.has(c.name.toLowerCase())) {
+              colMap.set(c.name.toLowerCase(), c);
+            }
+          });
+        }
+      });
+      return Array.from(colMap.values());
+    }
+
+    // 👑 Epic Detection (Merged columns across rows or section dividers)
+    function isEpicRow(row) {
+      if (!row || !Array.isArray(row) || row.length === 0) return false;
+      const nonEmpties = row.map((c, i) => ({ val: String(c || '').trim(), idx: i })).filter(item => item.val.length > 0);
+      if (nonEmpties.length === 0) return false;
+
+      // 1. Explicit keyword check
+      const fullText = nonEmpties.map(e => e.val).join(' ');
+      if (/^\s*(?:👑|⚡|🎯)?\s*(?:epic|module|milestone|feature\s*group|stream)[\s:-]/i.test(fullText) || /\[epic\]/i.test(fullText)) {
+        return true;
+      }
+
+      // 2. Merged column pattern: row has only 1 or 2 non-empty cells across all columns
+      if (nonEmpties.length <= 2) {
+        const firstVal = nonEmpties[0].val;
+        // Don't mistake header row for epic
+        if (firstVal === '#' || firstVal === 'SNo' || firstVal === 'S.No.' || firstVal === 'Ticket ID' || firstVal.toLowerCase() === 'ticket') return false;
+
+        // If it explicitly contains Epic keyword
+        if (/epic/i.test(firstVal)) return true;
+
+        // If it's a section divider with descriptive text (length > 3) and no Jira ticket key and no status
+        const isJiraKey = /^[A-Z0-9]+-\d+$/i.test((row[1] || '').trim());
+        const hasStatus = (row[4] && row[4].trim()) || (row[5] && row[5].trim());
+        if (!isJiraKey && !hasStatus && firstVal.length >= 3) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function extractEpicTitle(row) {
+      if (!row || !Array.isArray(row)) return 'General Epic';
+      const nonEmpties = row.map(c => String(c || '').trim()).filter(Boolean);
+      let title = nonEmpties.join(' - ');
+      // Clean leading symbols or hashes
+      title = title.replace(/^#+\s*/, '').replace(/^\s*👑\s*/, '').replace(/^\s*🎯\s*/, '').trim();
+      return title || 'Untitled Epic';
+    }
+
+    let collapsedEpics = new Set();
+    function toggleEpicCollapse(epicId) {
+      if (collapsedEpics.has(epicId)) {
+        collapsedEpics.delete(epicId);
+      } else {
+        collapsedEpics.add(epicId);
+      }
+      populateTableData();
+    }
+
+    let activeEpicFilter = '';
+    function filterByEpic(epicName) {
+      if (activeEpicFilter === epicName) {
+        activeEpicFilter = '';
+        showToast('All Epics shown');
+      } else {
+        activeEpicFilter = epicName;
+        showToast(`Filtered by Epic: ${epicName}`);
+      }
+      populateTableData();
+    }
+
+    function handleAssigneeSelectChange() {
+      const assignee = document.getElementById('assigneeInput').value;
+      const ticketInput = document.getElementById('ticketInput');
+      const star = document.getElementById('ticketReqStar');
+      const epicGroup = document.getElementById('epicGroup');
+      const epicDatalist = document.getElementById('epicDatalist');
+
+      if (epicDatalist) {
+        const epics = new Set();
+        Object.keys(sheetStore).forEach(s => {
+          const rows = sheetStore[s] || [];
+          rows.slice(1).forEach(r => {
+            if (isPlanSheet(s) && r[1] && r[1].trim()) epics.add(r[1].trim());
+          });
+        });
+        epicDatalist.innerHTML = Array.from(epics).map(e => `<option value="${escapeHtml(e)}">`).join('');
+      }
+
+      if (isPlanSheet(assignee)) {
+        if (star) star.style.display = 'none';
+        if (ticketInput) ticketInput.placeholder = "e.g. SES-873 (Optional for PLAN - auto-generates if blank)";
+        if (epicGroup) epicGroup.style.display = 'flex';
+      } else {
+        if (star) star.style.display = 'inline';
+        if (ticketInput) ticketInput.placeholder = "e.g. SES-873, EN-1600";
+        if (epicGroup) epicGroup.style.display = 'none';
+      }
+    }
+
+    // ✨ Inline Dynamic Cell Editor
+    function renderDynamicCell(sheet, colIdx, colName, value, rowNumber, isEditable = true) {
+      const val = (value !== undefined && value !== null) ? String(value).trim() : '';
+      const safeVal = escapeHtml(val);
+      const encVal = encodeURIComponent(val);
+      const displayText = val.length > 0 ? safeVal : `<span class="empty-val">✏️ Edit</span>`;
+
+      if (!isEditable) {
+        return `<div class="cell-readonly" title="Read-only">${safeVal || '-'}</div>`;
+      }
+
+      return `
+        <div class="dynamic-cell-box" 
+             data-sheet="${escapeHtml(sheet)}" 
+             data-row="${rowNumber}" 
+             data-col="${colIdx}" 
+             data-colname="${escapeHtml(colName)}" 
+             data-val="${encVal}">
+          <div class="cell-display-wrap" onclick="startInlineEditCell(this)" title="Click to edit ${escapeHtml(colName)} & sync to Google Sheets">
+            <span class="cell-text ${!val ? 'empty-val' : ''}">${displayText}</span>
+            <button type="button" class="btn-edit-cell-trigger" onclick="event.stopPropagation(); startInlineEditCell(this.closest('.dynamic-cell-box'))" title="Edit">✏️</button>
+          </div>
+          <div class="cell-editor-wrap" style="display: none;">
+            <input type="text" class="cell-text-input" value="${safeVal}" 
+                   onkeydown="handleCellInputKeydown(event, this)" 
+                   onblur="handleCellInputBlur(this)">
+            <div class="cell-edit-actions">
+              <button type="button" class="btn-cell-save" onmousedown="event.preventDefault(); saveInlineCell(this)" title="Save (Enter)">✓</button>
+              <button type="button" class="btn-cell-cancel" onmousedown="event.preventDefault(); cancelInlineEditCell(this)" title="Cancel (Esc)">✕</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function startInlineEditCell(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.dynamic-cell-box') : elem;
+      if (!box) return;
+
+      document.querySelectorAll('.dynamic-cell-box.is-editing').forEach(other => {
+        if (other !== box) cancelInlineEditCell(other);
+      });
+
+      const displayWrap = box.querySelector('.cell-display-wrap');
+      const editorWrap = box.querySelector('.cell-editor-wrap');
+      const input = box.querySelector('.cell-text-input');
+      if (!displayWrap || !editorWrap || !input) return;
+
+      box.classList.add('is-editing');
+      displayWrap.style.display = 'none';
+      editorWrap.style.display = 'flex';
+      input.focus();
+      input.select();
+    }
+
+    function cancelInlineEditCell(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.dynamic-cell-box') : elem;
+      if (!box) return;
+
+      const displayWrap = box.querySelector('.cell-display-wrap');
+      const editorWrap = box.querySelector('.cell-editor-wrap');
+      const input = box.querySelector('.cell-text-input');
+      const oldVal = decodeURIComponent(box.getAttribute('data-val') || '');
+
+      box.classList.remove('is-editing');
+      if (editorWrap) editorWrap.style.display = 'none';
+      if (displayWrap) displayWrap.style.display = 'flex';
+      if (input) input.value = oldVal;
+    }
+
+    function handleCellInputKeydown(event, inputElem) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveInlineCell(inputElem);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelInlineEditCell(inputElem);
+      }
+    }
+
+    function handleCellInputBlur(inputElem) {
+      setTimeout(() => {
+        if (!inputElem || !inputElem.isConnected) return;
+        const box = inputElem.closest('.dynamic-cell-box');
+        if (box && box.classList.contains('is-editing')) {
+          saveInlineCell(inputElem);
+        }
+      }, 200);
+    }
+
+    async function saveInlineCell(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.dynamic-cell-box') : null;
+      if (!box) return;
+
+      const sheet = box.getAttribute('data-sheet');
+      const row = parseInt(box.getAttribute('data-row'), 10);
+      const col = parseInt(box.getAttribute('data-col'), 10);
+      const colName = box.getAttribute('data-colname') || 'Field';
+      const input = box.querySelector('.cell-text-input');
+      const newVal = input ? input.value.trim() : '';
+      const oldVal = decodeURIComponent(box.getAttribute('data-val') || '').trim();
+
+      if (newVal === oldVal) {
+        cancelInlineEditCell(box);
+        return;
+      }
+
+      showToast(`⏳ Syncing ${colName} to Google Sheets...`);
+
+      // Optimistic in-memory update
+      if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+        while (sheetStore[sheet][row - 1].length <= col) {
+          sheetStore[sheet][row - 1].push('');
+        }
+        sheetStore[sheet][row - 1][col] = newVal;
+      }
+
+      box.setAttribute('data-val', encodeURIComponent(newVal));
+      const textSpan = box.querySelector('.cell-text');
+      if (textSpan) {
+        textSpan.innerText = newVal || '✏️ Edit';
+        textSpan.className = `cell-text ${!newVal ? 'empty-val' : ''}`;
+      }
+      cancelInlineEditCell(box);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/sheet/update-cell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet, row, col, value: newVal })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ ${colName} updated in Google Sheets!`);
+        } else {
+          showToast(`❌ Failed to update cell: ${json.error || 'Server error'}`);
+          if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+            sheetStore[sheet][row - 1][col] = oldVal;
+          }
+          if (textSpan) textSpan.innerText = oldVal || '✏️ Edit';
+        }
+      } catch (e) {
+        showToast(`❌ Network error updating cell.`);
+        if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+          sheetStore[sheet][row - 1][col] = oldVal;
+        }
+        if (textSpan) textSpan.innerText = oldVal || '✏️ Edit';
+      }
+    }
+
+    // ✨ Inline Editable Task Title Engine (Live Sync to Google Sheets)
+    function renderTitleCell(sheet, ticket, title, rowNumber, titleColIdx, isEditable = true) {
+      const currentTitle = (title || '').trim();
+      const safeTitle = escapeHtml(currentTitle);
+      const safeSheet = escapeHtml(sheet || '');
+      const safeTicket = escapeHtml(ticket || '');
+      const encTitle = encodeURIComponent(currentTitle);
+      const colIdx = (titleColIdx !== undefined && titleColIdx !== null && titleColIdx >= 0) ? titleColIdx : (sheet === 'PLAN' ? 2 : 3);
+
+      if (!isEditable) {
+        return `<span class="task-title-text" title="Read-only: Assigned to ${safeSheet}">${safeTitle || '-'}</span>`;
+      }
+
+      return `
+        <div class="editable-title-box" 
+             data-sheet="${safeSheet}" 
+             data-ticket="${safeTicket}" 
+             data-row="${rowNumber}" 
+             data-col="${colIdx}" 
+             data-title="${encTitle}">
+          <div class="title-display-wrap" onclick="startInlineEditTitle(this)" title="Click to edit task title & sync to Google Sheets">
+            <span class="task-title-text">${safeTitle || '<span class="empty-val">✏️ Add Title</span>'}</span>
+            <button type="button" class="btn-edit-title-trigger" onclick="event.stopPropagation(); startInlineEditTitle(this.closest('.editable-title-box'))" title="Edit Title">✏️</button>
+          </div>
+          <div class="title-editor-wrap" style="display: none;" onclick="event.stopPropagation()">
+            <input type="text" class="title-input-inline" value="${safeTitle}" 
+                   placeholder="Enter task title..." 
+                   onkeydown="handleTitleInputKeydown(event, this)" 
+                   onblur="handleTitleInputBlur(this)">
+            <button type="button" class="btn-title-save" onmousedown="event.preventDefault(); saveInlineTitle(this)" title="Save (Enter)">✓</button>
+            <button type="button" class="btn-title-cancel" onmousedown="event.preventDefault(); cancelInlineEditTitle(this)" title="Cancel (Esc)">✕</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function startInlineEditTitle(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-title-box') : elem;
+      if (!box) return;
+
+      document.querySelectorAll('.editable-title-box.is-editing').forEach(other => {
+        if (other !== box) cancelInlineEditTitle(other);
+      });
+
+      const displayWrap = box.querySelector('.title-display-wrap');
+      const editorWrap = box.querySelector('.title-editor-wrap');
+      const input = box.querySelector('.title-input-inline');
+      if (!displayWrap || !editorWrap || !input) return;
+
+      box.classList.add('is-editing');
+      displayWrap.style.display = 'none';
+      editorWrap.style.display = 'flex';
+      input.focus();
+      input.select();
+    }
+
+    function cancelInlineEditTitle(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-title-box') : elem;
+      if (!box) return;
+
+      box.setAttribute('data-cancelling', 'true');
+      const displayWrap = box.querySelector('.title-display-wrap');
+      const editorWrap = box.querySelector('.title-editor-wrap');
+      const input = box.querySelector('.title-input-inline');
+      const origVal = decodeURIComponent(box.getAttribute('data-title') || '');
+
+      if (input) input.value = origVal;
+      box.classList.remove('is-editing');
+      if (editorWrap) editorWrap.style.display = 'none';
+      if (displayWrap) displayWrap.style.display = 'inline-flex';
+      setTimeout(() => {
+        box.removeAttribute('data-cancelling');
+      }, 300);
+    }
+
+    function handleTitleInputKeydown(e, inputElem) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveInlineTitle(inputElem);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelInlineEditTitle(inputElem);
+      }
+    }
+
+    function handleTitleInputBlur(inputElem) {
+      setTimeout(() => {
+        const box = inputElem.closest('.editable-title-box');
+        if (box && box.classList.contains('is-editing') && !box.hasAttribute('data-cancelling')) {
+          saveInlineTitle(inputElem);
+        }
+      }, 200);
+    }
+
+    async function saveInlineTitle(elem) {
+      if (!elem) return;
+      const box = elem.closest ? elem.closest('.editable-title-box') : null;
+      if (!box) return;
+
+      const sheet = box.getAttribute('data-sheet');
+      const row = parseInt(box.getAttribute('data-row'), 10);
+      const col = parseInt(box.getAttribute('data-col'), 10);
+      const ticket = box.getAttribute('data-ticket') || '';
+      const input = box.querySelector('.title-input-inline');
+      const newVal = input ? input.value.trim() : '';
+      const oldVal = decodeURIComponent(box.getAttribute('data-title') || '').trim();
+
+      if (newVal === oldVal) {
+        cancelInlineEditTitle(box);
+        return;
+      }
+
+      if (!newVal) {
+        showToast('⚠️ Task title cannot be empty');
+        cancelInlineEditTitle(box);
+        return;
+      }
+
+      showToast(`⏳ Syncing title to Google Sheets (${sheet})...`);
+
+      // Optimistic in-memory update
+      if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+        while (sheetStore[sheet][row - 1].length <= col) {
+          sheetStore[sheet][row - 1].push('');
+        }
+        sheetStore[sheet][row - 1][col] = newVal;
+      }
+
+      box.setAttribute('data-title', encodeURIComponent(newVal));
+      const textSpan = box.querySelector('.task-title-text');
+      if (textSpan) {
+        textSpan.innerText = newVal;
+      }
+      cancelInlineEditTitle(box);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/sheet/update-cell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet, row, col, value: newVal })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ Task title updated & synced to Google Sheets (${sheet})!`);
+        } else {
+          showToast(`❌ Failed to sync title: ${json.error || 'Server error'}`);
+          // revert
+          if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+            sheetStore[sheet][row - 1][col] = oldVal;
+          }
+          if (textSpan) textSpan.innerText = oldVal;
+          box.setAttribute('data-title', encodeURIComponent(oldVal));
+        }
+      } catch (err) {
+        showToast(`❌ Could not connect to sync server.`);
+        if (sheetStore[sheet] && sheetStore[sheet][row - 1]) {
+          sheetStore[sheet][row - 1][col] = oldVal;
+        }
+        if (textSpan) textSpan.innerText = oldVal;
+        box.setAttribute('data-title', encodeURIComponent(oldVal));
+      }
+    }
+
+    function openAddColumnModal(sheetName) {
+      const modal = document.getElementById('addColumnModal');
+      const sheetSelect = document.getElementById('newColSheetSelect');
+      if (sheetSelect) {
+        sheetSelect.innerHTML = '';
+        const keys = Object.keys(sheetStore).filter(s => !isProjectSheet(s));
+        keys.forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.innerText = (isPlanSheet(k) ? '🎯 ' : (isStatusSheet(k) ? '✅ ' : '👤 ')) + k;
+          if (k.toUpperCase() === (sheetName || '').toUpperCase()) opt.selected = true;
+          sheetSelect.appendChild(opt);
+        });
+      }
+      document.getElementById('newColNameInput').value = '';
+      modal.style.display = 'flex';
+      document.getElementById('newColNameInput').focus();
+    }
+
+    function closeAddColumnModal() {
+      const modal = document.getElementById('addColumnModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function submitAddColumn(event) {
+      event.preventDefault();
+      const sheet = document.getElementById('newColSheetSelect').value;
+      const colName = document.getElementById('newColNameInput').value.trim();
+      if (!sheet || !colName) return;
+
+      const btn = document.getElementById('btnAddColSubmit');
+      btn.disabled = true;
+      btn.innerText = '⏳ Adding Column...';
+
+      try {
+        const res = await fetch('http://localhost:3100/api/sheet/add-column', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet, columnName: colName })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(`✅ Column "${colName}" added to ${sheet} in Google Sheets!`);
+          closeAddColumnModal();
+          await fetchLiveSheets(true);
+        } else {
+          showToast(`❌ Error adding column: ${json.error || 'Server error'}`);
+        }
+      } catch (e) {
+        showToast(`❌ Could not reach sync server.`);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '✨ Add Column';
+      }
+    }
+
+    function openAddTaskForEpic(sheetName, epicTitle) {
+      if (sheetName) {
+        switchTab(sheetName.toLowerCase());
+      }
+      const assigneeSelect = document.getElementById('assigneeInput');
+      if (assigneeSelect) {
+        assigneeSelect.value = sheetName || 'PLAN';
+      }
+      const titleInput = document.getElementById('titleInput');
+      if (titleInput) {
+        titleInput.value = `[${epicTitle}] `;
+        titleInput.focus();
+      }
+      handleAssigneeSelectChange();
+      const formCard = document.querySelector('.form-card');
+      if (formCard) {
+        formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      showToast(`🎯 Adding task under Epic "${epicTitle}" in ${sheetName}`);
+    }
+
+    function openQuickAddTaskModal(sheetName) {
+      if (sheetName) {
+        switchTab(sheetName.toLowerCase());
+      }
+      const assigneeSelect = document.getElementById('assigneeInput');
+      if (assigneeSelect) {
+        assigneeSelect.value = sheetName || 'PLAN';
+      }
+      handleAssigneeSelectChange();
+      const titleInput = document.getElementById('titleInput');
+      if (titleInput) titleInput.focus();
+      const formCard = document.querySelector('.form-card');
+      if (formCard) {
+        formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
 
     let STATUS_OPTIONS = [
@@ -7198,9 +8376,9 @@ Thanks!`;
 
     function getValidSheetRows(rows) {
       if (!rows || rows.length === 0) return [];
-      const isHeader = (rows[0][0] === '#' || rows[0][0] === 'SNo' || rows[0][0] === 'Ticket Number' || rows[0][1] === 'Ticket ID');
+      const isHeader = (rows[0][0] === '#' || rows[0][0] === 'SNo' || rows[0][0] === 'S.No.' || rows[0][0] === 'Ticket Number' || rows[0][1] === 'Ticket ID' || rows[0][1] === 'Epic');
       const data = isHeader ? rows.slice(1) : rows;
-      return data.filter(r => (r[1] && String(r[1]).trim()) || (r[3] && String(r[3]).trim()));
+      return data.filter(r => (r[1] && String(r[1]).trim()) || (r[2] && String(r[2]).trim()) || (r[3] && String(r[3]).trim()));
     }
 
     function renderDynamicTabsAndPanes() {
@@ -7231,12 +8409,19 @@ Thanks!`;
           const opt = document.createElement('option');
           opt.value = name;
           opt.innerText = name;
-          opt.selected = true;
+          if (name === prevSelected) opt.selected = true;
           assigneeSelect.appendChild(opt);
         });
-        assigneeSelect.disabled = true;
-        assigneeSelect.style.opacity = '0.9';
-        assigneeSelect.style.cursor = 'not-allowed';
+        if (!allowed.some(s => s.toUpperCase() === 'PLAN')) {
+          const planOpt = document.createElement('option');
+          planOpt.value = 'PLAN';
+          planOpt.innerText = '🎯 PLAN (Planning / Backlog)';
+          if (prevSelected === 'PLAN') planOpt.selected = true;
+          assigneeSelect.appendChild(planOpt);
+        }
+        assigneeSelect.disabled = false;
+        assigneeSelect.style.opacity = '1';
+        assigneeSelect.style.cursor = 'default';
         const btnToggleShared = document.querySelector('.btn-toggle-shared');
         if (btnToggleShared) btnToggleShared.style.display = 'none';
       } else {
@@ -7247,12 +8432,24 @@ Thanks!`;
           if (name === prevSelected) opt.selected = true;
           assigneeSelect.appendChild(opt);
         });
+        const planOpt = document.createElement('option');
+        planOpt.value = 'PLAN';
+        planOpt.innerText = '🎯 PLAN (Planning / Backlog)';
+        if (prevSelected === 'PLAN') planOpt.selected = true;
+        assigneeSelect.appendChild(planOpt);
+
         assigneeSelect.disabled = false;
         assigneeSelect.style.opacity = '1';
         assigneeSelect.style.cursor = 'default';
         const btnToggleShared = document.querySelector('.btn-toggle-shared');
         if (btnToggleShared) btnToggleShared.style.display = 'inline-block';
       }
+
+      // If no valid selection was retained, set based on current tab
+      if (!assigneeSelect.value || (!prevSelected && currentActiveTab === 'plan')) {
+        assigneeSelect.value = currentActiveTab === 'plan' ? 'PLAN' : (currentActiveTab === 'upcoming' ? 'UPCOMING' : (assigneeSelect.options[0]?.value || ''));
+      }
+      handleAssigneeSelectChange();
 
       // Total count across standard task sheets in All Overview (excluding project sheets like PULSE which have their own schema)
       let totalAll = 0;
@@ -7270,7 +8467,8 @@ Thanks!`;
         </button>
       `;
 
-      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k));
+      const planKeys = sheetKeys.filter(k => isPlanSheet(k));
+      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k) && !isPlanSheet(k));
       const statusKeys = sheetKeys.filter(k => isStatusSheet(k));
       const stageKeys = sheetKeys.filter(k => isStageSheet(k));
       const projectKeys = sheetKeys.filter(k => isProjectSheet(k));
@@ -7293,6 +8491,17 @@ Thanks!`;
         navHtml += `
           <button class="tab-btn tab-btn-fe-ready ${currentActiveTab === lower ? 'active' : ''}" onclick="switchTab('${lower}')" title="Frontend Ready Sheet (Assignee: CHETNA)">
             🚀 ${name} <span id="badge-${lower}" class="badge-count">${count}</span>
+          </button>
+        `;
+      });
+
+      planKeys.forEach(name => {
+        const lower = name.toLowerCase();
+        const rows = sheetStore[name] || [];
+        const count = getValidSheetRows(rows).length;
+        navHtml += `
+          <button class="tab-btn tab-btn-plan ${currentActiveTab === lower ? 'active' : ''}" onclick="switchTab('${lower}')" title="Planning & Backlog (Grouped by Epic with Dynamic Columns)">
+            🎯 ${name} <span id="badge-${lower}" class="badge-count">${count}</span>
           </button>
         `;
       });
@@ -7320,13 +8529,28 @@ Thanks!`;
       });
       tabsNav.innerHTML = navHtml;
 
+      const allDynCols = getAllDynamicColumnsAcrossSheets();
+      const dynHeadersAllHtml = allDynCols.map(c => `
+        <th class="dynamic-th" style="min-width: 140px; text-align: center;" title="Dynamic Column: ${escapeHtml(c.name)}">
+          ${escapeHtml(c.name)} (Editable)
+        </th>
+      `).join('');
+
       // Render Table Panes with 2 Status Columns: Jira Status & Internal Status
       let panesHtml = `
         <div id="tab-all" class="tab-pane ${currentActiveTab === 'all' ? 'active' : ''}">
           <div class="table-container">
             <div class="table-header-bar">
               <div class="table-title">📌 Full Team Master Task List</div>
-              <button class="btn btn-secondary" onclick="copyTable('table-all')">📋 Copy All for Sheets</button>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-primary" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="openQuickAddTaskModal('PLAN')">
+                  ➕ Add Task
+                </button>
+                <button class="btn btn-purple" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="openAddColumnModal('PLAN')" title="Add dynamic column to Google Sheets">
+                  ✨ + Add Column
+                </button>
+                <button class="btn btn-secondary" onclick="copyTable('table-all')">📋 Copy All for Sheets</button>
+              </div>
             </div>
             <table id="table-all">
               <thead>
@@ -7341,12 +8565,13 @@ Thanks!`;
                   <th class="sortable-th" onclick="handleHeaderSort('ticket')" style="width: 125px;" title="Click to sort by Ticket ID">
                     Ticket ID <span class="th-sort-icon" data-col="ticket">↕</span>
                   </th>
-                  <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px;" title="Click to sort by Title">
+                  <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px; text-align: left;" title="Click to sort by Title">
                     Title / Task Description <span class="th-sort-icon" data-col="title">↕</span>
                   </th>
                   <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
                     Tag <span class="th-sort-icon" data-col="tag">↕</span>
                   </th>
+                  ${dynHeadersAllHtml}
                   <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
                     Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
                   </th>
@@ -7398,7 +8623,7 @@ Thanks!`;
                       <th class="sortable-th" onclick="handleHeaderSort('ticket')" style="width: 185px;" title="Click to sort by Ticket Number">
                         Ticket Number <span class="th-sort-icon" data-col="ticket">↕</span>
                       </th>
-                      <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 280px;" title="Click to sort by Title">
+                      <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 280px; text-align: left;" title="Click to sort by Title">
                         Title <span class="th-sort-icon" data-col="title">↕</span>
                       </th>
                       <th class="sortable-th" onclick="handleHeaderSort('status')" style="width: 140px; text-align: center;" title="Click to sort by Status">
@@ -7427,17 +8652,34 @@ Thanks!`;
         const isClosed = isStatusSheet(name);
         const isUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
         const isStage = isStageSheet(name);
+        const isPlan = isPlanSheet(name);
         const titleText = isClosed
           ? `✅ CLOSED — Archived & Completed Tickets`
           : (isStage
             ? `🚀 FE READY — Frontend Ready Queue (Assignee: CHETNA)`
-            : `👤 ${name} — Google Sheet Tab`);
+            : (isPlan
+              ? `🎯 PLAN — Planning & Backlog (Tasks Grouped by Epic)`
+              : `👤 ${name} — Google Sheet Tab`));
+
+        const sheetDynCols = getSheetDynamicColumns(name);
+        const dynHeadersHtml = sheetDynCols.map(c => `
+          <th class="dynamic-th sortable-th" onclick="handleDynamicHeaderSort('${escapeHtml(c.name)}')" style="min-width: 140px; text-align: center;" title="Dynamic Column: ${escapeHtml(c.name)} (Col ${c.letter})">
+            ${escapeHtml(c.name)} (Editable) <span class="th-sort-icon" data-col="${escapeHtml(c.name)}">↕</span>
+          </th>
+        `).join('');
+
         panesHtml += `
           <div id="tab-${lower}" class="tab-pane ${currentActiveTab === lower ? 'active' : ''}">
             <div class="table-container">
               <div class="table-header-bar">
                 <div class="table-title">${titleText}</div>
                 <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <button class="btn btn-primary" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="openQuickAddTaskModal('${name}')">
+                    ➕ Add Task
+                  </button>
+                  <button class="btn btn-purple" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="openAddColumnModal('${name}')" title="Add dynamic column to this sheet in Google Sheets">
+                    ✨ + Add Column
+                  </button>
                   ${INDIVIDUAL_SHEETS[name] ? `<a href="${INDIVIDUAL_SHEETS[name].url}" target="_blank" class="btn btn-sheet" style="font-size: 12px; padding: 0 12px; height: 32px;" title="Open ${name}'s private live Google Sheet in new window">🔗 ${name}'s Private Sheet ↗</a>` : ''}
                   <button class="btn btn-secondary" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="copyTable('table-${lower}')">📋 Copy Tab for Sheets</button>
                 </div>
@@ -7456,23 +8698,25 @@ Thanks!`;
                     <th class="sortable-th" onclick="handleHeaderSort('assignee')" style="width: 135px;" title="Click to sort by Assignee">
                       Assignee <span class="th-sort-icon" data-col="assignee">↕</span>
                     </th>
-                    <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px;" title="Click to sort by Title">
+                    <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px; text-align: left;" title="Click to sort by Title">
                       Title <span class="th-sort-icon" data-col="title">↕</span>
                     </th>
                     <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
                       Tag <span class="th-sort-icon" data-col="tag">↕</span>
                     </th>
+                    ${dynHeadersHtml}
+                    ${!isPlan ? `
                     <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
                       Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
-                    </th>
+                    </th>` : ''}
                     <th class="sortable-th" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
                       Internal Status (Editable) <span class="th-sort-icon" data-col="internalStatus">↕</span>
                     </th>
                     <th class="sortable-th" onclick="handleHeaderSort('notes')" style="min-width: 230px;" title="Click to sort by Action / Notes">
-                      Action / Notes (Editable) <span class="th-sort-icon" data-col="notes">↕</span>
+                      ${isPlan ? 'Dependency / Remarks (Editable)' : 'Action / Notes (Editable)'} <span class="th-sort-icon" data-col="notes">↕</span>
                     </th>
                     <th class="sortable-th" onclick="handleHeaderSort('dueDate')" style="width: 105px; text-align: center;" title="Click to sort by Due Date">
-                      Due Date <span class="th-sort-icon" data-col="dueDate">↕</span>
+                      Due Date (Editable) <span class="th-sort-icon" data-col="dueDate">↕</span>
                     </th>
                     <th style="min-width: 110px; text-align: center;">Action</th>
                   </tr>
@@ -7551,6 +8795,13 @@ Thanks!`;
         return { isShared: true, assignees: foundInTabs };
       }
 
+      if (isPlanSheet(currentTabOwner)) {
+        return {
+          isShared: false,
+          assignees: [{ name: 'UPCOMING', role: 'Owner' }]
+        };
+      }
+
       return {
         isShared: false,
         assignees: [{ name: currentTabOwner, role: 'Owner' }]
@@ -7558,17 +8809,19 @@ Thanks!`;
     }
 
     function createAssigneeSelectHtml(currentAssignee, ticket) {
+      const isPlan = isPlanSheet(currentAssignee);
+      const effectiveAssignee = (isPlan || !currentAssignee || currentAssignee.toUpperCase() === 'PLAN') ? 'UPCOMING' : currentAssignee;
       const keys = getTeamMembers();
       let optionsHtml = '';
       keys.forEach(name => {
-        const selected = name.toUpperCase() === (currentAssignee || '').toUpperCase() ? 'selected' : '';
+        const selected = name.toUpperCase() === effectiveAssignee.toUpperCase() ? 'selected' : '';
         optionsHtml += `<option value="${name}" ${selected}>${name}</option>`;
       });
 
       return `
         <div class="assignee-select-wrap">
           <select class="assignee-select" 
-                  data-original="${currentAssignee}"
+                  data-original="${effectiveAssignee}"
                   onchange="handleAssigneeChange('${ticket}', '${currentAssignee}', this.value, this)" 
                   title="Reassign ticket to another team member & move in Google Sheets">
             ${optionsHtml}
@@ -7583,6 +8836,25 @@ Thanks!`;
       }
       if (isStageSheet(currentOwner)) {
         return `<span class="badge-count" style="background: rgba(99, 102, 241, 0.18); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.35); padding: 2px 7px; font-weight: 700; font-size: 11px;">🚀 CHETNA</span>`;
+      }
+      if (isPlanSheet(currentOwner)) {
+        if (!canUserEditTask(currentOwner)) {
+          return `
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="member-pill" style="font-size: 12px; font-weight: 700; color: #a855f7; background: rgba(168,85,247,0.12); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(168,85,247,0.25);">
+                ⏳ UPCOMING
+              </span>
+            </div>
+          `;
+        }
+        return `
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${createAssigneeSelectHtml('UPCOMING', ticketKey)}
+            <button type="button" class="btn-share-trigger" onclick="openSharedModal('${ticketKey}')" title="Assign / share this planning task with a team member">
+              + 🤝 Assign
+            </button>
+          </div>
+        `;
       }
       const parsed = parseTicketAssignees(ticketKey, currentOwner, notes);
 
@@ -7834,7 +9106,7 @@ Thanks!`;
             tr.innerHTML = `
               <td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>
               <td><div style="display: flex; flex-direction: column; gap: 2px;">${ticketBadgesHtml || item.ticket || ''}</div></td>
-              <td class="task-title-cell" style="font-weight: 600;">${item.title || ''}</td>
+              <td class="task-title-cell" style="vertical-align: middle; text-align: left;">${renderTitleCell('PULSE', item.ticket, item.title, item.originalIndex + 1, 1, canUserEditTask('PULSE'))}</td>
               <td style="text-align: center;">
                 <span class="status-badge ${statusClass}">
                   <span class="status-dot"></span>${item.status || 'Todo'}
@@ -7854,61 +9126,155 @@ Thanks!`;
           return;
         }
 
-        // Standard 8-column sheets (team members, UPCOMING & CLOSED)
-        const isHeader = rows.length > 0 && (rows[0][0] === '#' || rows[0][0] === 'SNo' || rows[0][0] === 'Ticket Number' || rows[0][1] === 'Ticket ID');
+        // Dynamic Sheet Schema & Epic Parsing (Handles PLAN, member sheets, merged rows, and custom columns)
+        const schema = getSheetSchema(name);
+        const isHeader = rows.length > 0 && (
+          rows[0][0] === '#' || rows[0][0] === 'SNo' || rows[0][0] === 'S.No.' ||
+          rows[0][0] === 'Ticket Number' || rows[0][1] === 'Ticket ID' || rows[0][1] === 'Epic'
+        );
         const rawDataRows = isHeader ? rows.slice(1) : rows;
-        // Filter out blank ticket rows
-        const dataRows = rawDataRows.filter(r => (r[1] && String(r[1]).trim()) || (r[3] && String(r[3]).trim()));
-        totalCountAllSheets += dataRows.length;
 
-        if (dataRows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="10" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets assigned yet. Use the form above to add a ticket!</td></tr>`;
-          return;
-        }
+        // Parse rows while tracking active Epic across vertically merged cells and banner rows
+        let currentEpic = '';
+        const parsedItems = [];
 
-        const parsedItems = dataRows.map((row, idx) => {
-          let num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate, tag;
-          if (row.length >= 9) {
-            [num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate, tag] = row;
-          } else if (row.length >= 8) {
-            [num, ticket, link, title, jiraStatus, internalStatus, notes, dueDate] = row;
-          } else {
-            [num, ticket, link, title, internalStatus, notes, dueDate] = row;
-            jiraStatus = internalStatus || 'To Pick Up';
-          }
+        rawDataRows.forEach((row, idx) => {
           const rowNumInSheet = idx + 2;
-          const ticketUrl = (link && link.startsWith('http')) ? link : `https://enveu.atlassian.net/browse/${ticket}`;
-          const finalTag = (tag && tag.trim().toLowerCase().includes('support')) ? 'Support' : 'Product';
-          return {
+
+          // 1. Horizontal banner / section divider epic row
+          if (isEpicRow(row)) {
+            currentEpic = extractEpicTitle(row);
+            return; // Epic header banner, not an individual task
+          }
+
+          // 2. Vertical merged Epic column
+          if (schema.epicColIdx >= 0) {
+            const rowEpicVal = (row[schema.epicColIdx] || '').trim();
+            if (rowEpicVal) {
+              currentEpic = rowEpicVal;
+            }
+            // If rowEpicVal is empty, currentEpic is retained (inherited from merged cell above!)
+          }
+
+          // Extract task title
+          let title = '';
+          let titleColIdx = schema.titleColIdx;
+          if (titleColIdx >= 0 && row[titleColIdx]) {
+            title = String(row[titleColIdx]).trim();
+          } else if (row[3]) {
+            title = String(row[3]).trim();
+            if (titleColIdx < 0) titleColIdx = 3;
+          } else if (row[2] && schema.ticketColIdx < 0) {
+            title = String(row[2]).trim();
+            if (titleColIdx < 0) titleColIdx = 2;
+          }
+          if (titleColIdx < 0) {
+            titleColIdx = isPlanSheet(name) ? 2 : 3;
+          }
+
+          // Extract ticket key
+          let ticket = '';
+          if (schema.ticketColIdx >= 0 && row[schema.ticketColIdx]) {
+            ticket = String(row[schema.ticketColIdx]).trim();
+          } else if (isPlanSheet(name)) {
+            const snoVal = schema.snoColIdx >= 0 ? (row[schema.snoColIdx] || '').trim() : '';
+            ticket = snoVal ? `PLAN-${snoVal}` : `PLAN-${idx + 1}`;
+          }
+
+          // Filter out completely blank rows
+          const hasContent = title || ticket || (row.some(c => c && String(c).trim()));
+          if (!hasContent) return;
+
+          // Extract link
+          let link = '';
+          if (schema.linkColIdx >= 0 && row[schema.linkColIdx]) {
+            link = String(row[schema.linkColIdx]).trim();
+          }
+          if (!link && ticket && !ticket.startsWith('PLAN-') && !ticket.startsWith('TASK-')) {
+            link = `https://enveu.atlassian.net/browse/${ticket}`;
+          }
+
+          // Extract Jira Status & Internal Status
+          let jiraStatus = schema.jiraStatusColIdx >= 0 ? (row[schema.jiraStatusColIdx] || '').trim() : '';
+          let internalStatus = schema.internalStatusColIdx >= 0 ? (row[schema.internalStatusColIdx] || '').trim() : '';
+          if (isPlanSheet(name)) {
+            if (!jiraStatus) jiraStatus = 'To Do';
+            if (!internalStatus) internalStatus = 'Planned';
+          } else {
+            if (!jiraStatus) jiraStatus = 'To Do';
+            if (!internalStatus) internalStatus = 'To Pick Up';
+          }
+
+          // Extract Action / Notes
+          let notes = schema.notesColIdx >= 0 ? (row[schema.notesColIdx] || '').trim() : '';
+
+          // Extract Due Date
+          let dueDate = schema.dueDateColIdx >= 0 ? (row[schema.dueDateColIdx] || '').trim() : '';
+          if (!dueDate) dueDate = 'Not set';
+
+          // Extract Tag
+          let tag = schema.tagColIdx >= 0 ? (row[schema.tagColIdx] || '').trim() : '';
+          const finalTag = tag.toLowerCase().includes('support') ? 'Support' : 'Product';
+
+          // Collect dynamic extra columns
+          const extraCols = {};
+          schema.dynamicCols.forEach(dc => {
+            extraCols[dc.name] = {
+              name: dc.name,
+              colIdx: dc.index,
+              colLetter: dc.letter,
+              value: (row[dc.index] !== undefined && row[dc.index] !== null) ? String(row[dc.index]).trim() : ''
+            };
+          });
+
+          parsedItems.push({
             originalIndex: idx + 1,
             rowNumber: rowNumInSheet,
-            ticket: ticket || '',
-            link: ticketUrl,
-            title: title || '',
+            ticket,
+            link,
+            title,
+            titleColIdx,
+            epic: currentEpic || '',
             tag: finalTag,
-            jiraStatus: jiraStatus || 'To Do',
-            internalStatus: internalStatus || 'To Pick Up',
-            notes: notes || '',
-            dueDate: dueDate || 'Not set',
-            owner: name
-          };
+            jiraStatus,
+            internalStatus,
+            notes,
+            dueDate,
+            owner: name,
+            assignee: isPlanSheet(name) ? 'UPCOMING' : name,
+            extraCols,
+            rawRow: row
+          });
         });
+
+        totalCountAllSheets += parsedItems.length;
+
+        if (parsedItems.length === 0) {
+          const emptyColspan0 = 10 + (schema.dynamicCols ? schema.dynamicCols.length : 0);
+          tbody.innerHTML = `<tr><td colspan="${emptyColspan0}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tasks found. Use the form above to add a task!</td></tr>`;
+          return;
+        }
 
         // Push to master list for Overview & KPI calculation
         parsedItems.forEach(item => allRows.push(item));
 
         // Filter items
         const filtered = parsedItems.filter(item => {
+          const extraMatch = Object.values(item.extraCols || {}).some(ec => (ec.value || '').toLowerCase().includes(q));
           const matchQuery = !q ||
             (item.ticket || '').toLowerCase().includes(q) ||
             (item.title || '').toLowerCase().includes(q) ||
+            (item.epic || '').toLowerCase().includes(q) ||
+            (item.assignee || '').toLowerCase().includes(q) ||
             (item.tag || '').toLowerCase().includes(q) ||
             (item.jiraStatus || '').toLowerCase().includes(q) ||
             (item.internalStatus || '').toLowerCase().includes(q) ||
             (item.notes || '').toLowerCase().includes(q) ||
-            (item.dueDate || '').toLowerCase().includes(q);
+            (item.dueDate || '').toLowerCase().includes(q) ||
+            extraMatch;
 
           if (!matchQuery) return false;
+          if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
           if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
           return matchesDeliveryHorizon(item);
         });
@@ -7919,8 +9285,10 @@ Thanks!`;
 
         const isSheetClosed = isStatusSheet(name);
         const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
-        const hasSheetNotify = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming);
-        const emptyColspan = hasSheetNotify ? 11 : 10;
+        const isSheetStage = isStageSheet(name);
+        const isPlan = isPlanSheet(name);
+        const hasSheetNotify = !!(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming && !isSheetStage);
+        const emptyColspan = (hasSheetNotify ? 11 : 10) + schema.dynamicCols.length - (isPlan ? 1 : 0);
 
         renderRowsWithSprintGroups(tbody, sorted, false, hasSheetNotify, emptyColspan, name);
       });
@@ -7929,7 +9297,8 @@ Thanks!`;
       const allTbody = document.getElementById('tbody-all');
       if (allTbody) {
         allTbody.innerHTML = '';
-        const emptyColspanAll = (teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 10 : 9;
+        const allDynCols = getAllDynamicColumnsAcrossSheets();
+        const emptyColspanAll = ((teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 10 : 9) + allDynCols.length;
         if (allRows.length === 0) {
           allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
         } else {
@@ -7947,16 +9316,20 @@ Thanks!`;
 
           // Filter All Overview items
           const filteredAll = uniqueAllItems.filter(item => {
+            const extraMatch = Object.values(item.extraCols || {}).some(ec => (ec.value || '').toLowerCase().includes(q));
             const matchQuery = !q ||
               (item.ticket || '').toLowerCase().includes(q) ||
               (item.title || '').toLowerCase().includes(q) ||
+              (item.epic || '').toLowerCase().includes(q) ||
               (item.tag || '').toLowerCase().includes(q) ||
               (item.jiraStatus || '').toLowerCase().includes(q) ||
               (item.internalStatus || '').toLowerCase().includes(q) ||
               (item.notes || '').toLowerCase().includes(q) ||
-              (item.dueDate || '').toLowerCase().includes(q);
+              (item.dueDate || '').toLowerCase().includes(q) ||
+              extraMatch;
 
             if (!matchQuery) return false;
+            if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
             if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
             return matchesDeliveryHorizon(item);
           });
@@ -8744,10 +10117,12 @@ Thanks!`;
 
       // Optimistic in-memory update
       const tabRows = sheetStore[assignee] || sheetStore[tabName];
+      const isPlan = isPlanSheet(tabName);
+      const noteColIdx = isPlan ? 5 : 6;
       let originalNote = '';
       if (tabRows && tabRows[rowNumber - 1]) {
-        originalNote = tabRows[rowNumber - 1][6] || '';
-        tabRows[rowNumber - 1][6] = cleanNotes;
+        originalNote = tabRows[rowNumber - 1][noteColIdx] || '';
+        tabRows[rowNumber - 1][noteColIdx] = cleanNotes;
       }
 
       // Also update in all other member tabs if ticket exists
@@ -8756,12 +10131,12 @@ Thanks!`;
           const rows = sheetStore[t] || [];
           const match = rows.find((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
           if (match) {
-            match[6] = cleanNotes;
+            match[isPlanSheet(t) ? 5 : 6] = cleanNotes;
           }
         }
       });
 
-      showToast(`⏳ Syncing action note for ${ticketKey} to Google Sheets...`);
+      showToast(`⏳ Syncing ${isPlan ? 'remarks' : 'action note'} for ${ticketKey} to Google Sheets...`);
 
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-action-notes', {
@@ -8776,19 +10151,19 @@ Thanks!`;
         });
         const json = await res.json();
         if (json.success) {
-          showToast(`✅ ${ticketKey} Action Note synced to Google Sheets!`);
+          showToast(`✅ ${ticketKey} ${isPlan ? 'Remarks' : 'Action Note'} synced to Google Sheets!`);
           return { success: true, notes: cleanNotes };
         } else {
           // Revert optimistic update
           if (tabRows && tabRows[rowNumber - 1]) {
-            tabRows[rowNumber - 1][6] = originalNote;
+            tabRows[rowNumber - 1][noteColIdx] = originalNote;
           }
           showToast(`❌ Failed to update note: ${json.error || 'Server error'}`);
           return { success: false, error: json.error };
         }
       } catch (err) {
         if (tabRows && tabRows[rowNumber - 1]) {
-          tabRows[rowNumber - 1][6] = originalNote;
+          tabRows[rowNumber - 1][noteColIdx] = originalNote;
         }
         showToast('❌ Could not reach sync server.');
         return { success: false, error: err.message };
@@ -8936,6 +10311,109 @@ Thanks!`;
       }
     }
 
+    function renderDueDateCell(owner, ticket, dueDate, rowNumber, horizonInfo) {
+      const safeOwner = escapeHtml(owner || '');
+      const safeTicket = escapeHtml(ticket || '');
+      const currentVal = (dueDate && dueDate !== 'Not set') ? escapeHtml(dueDate) : '';
+      const canEdit = canUserEditTask(owner);
+      if (!canEdit) {
+        return `<span class="due-date-badge ${horizonInfo.badgeClass}" title="${horizonInfo.horizon}">${horizonInfo.badgeText}</span>`;
+      }
+      return `
+        <div class="due-date-cell-wrap" data-owner="${safeOwner}" data-ticket="${safeTicket}" data-row="${rowNumber}" data-val="${currentVal}" style="display: inline-block;">
+          <span class="due-date-badge ${horizonInfo.badgeClass}" 
+                onclick="startInlineEditDueDate(this)" 
+                style="cursor: pointer;" 
+                title="Click to edit due date & sync to Google Sheets">
+            ${horizonInfo.badgeText}
+          </span>
+          <div class="due-date-picker-wrap" style="display: none;">
+            <input type="text" class="due-date-input" value="${currentVal}" placeholder="e.g. 15 Oct or YYYY-MM-DD" 
+                   onkeydown="handleDueDateKeydown(event, this)" 
+                   onblur="handleDueDateBlur(this)" 
+                   style="width: 95px; font-size: 11px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--accent); background: var(--bg-card); color: var(--text-main); text-align: center;">
+          </div>
+        </div>
+      `;
+    }
+
+    function startInlineEditDueDate(elem) {
+      if (!elem) return;
+      const wrap = elem.closest('.due-date-cell-wrap');
+      if (!wrap) return;
+      const badge = wrap.querySelector('.due-date-badge');
+      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
+      const input = wrap.querySelector('.due-date-input');
+      if (!badge || !pickerWrap || !input) return;
+      badge.style.display = 'none';
+      pickerWrap.style.display = 'inline-block';
+      input.focus();
+      input.select();
+    }
+
+    async function handleDueDateBlur(inputElem) {
+      if (!inputElem) return;
+      const wrap = inputElem.closest('.due-date-cell-wrap');
+      if (!wrap) return;
+      const badge = wrap.querySelector('.due-date-badge');
+      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
+      const owner = wrap.getAttribute('data-owner');
+      const ticket = wrap.getAttribute('data-ticket');
+      const rowNumber = parseInt(wrap.getAttribute('data-row'), 10);
+      const oldVal = wrap.getAttribute('data-val') || 'Not set';
+      const newVal = inputElem.value.trim() || 'Not set';
+
+      pickerWrap.style.display = 'none';
+      badge.style.display = 'inline-block';
+
+      if (newVal.toLowerCase() === oldVal.toLowerCase()) return;
+
+      badge.innerText = '⏳ Syncing...';
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/update-due-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignee: owner, ticket, dueDate: newVal, rowNumber })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`✅ ${ticket} Due date updated to "${data.dueDate}" in Google Sheets!`);
+          wrap.setAttribute('data-val', data.dueDate);
+          const tabRows = sheetStore[owner];
+          if (tabRows && tabRows[rowNumber - 1]) {
+            tabRows[rowNumber - 1][7] = data.dueDate;
+          }
+          populateTableData();
+        } else {
+          showToast('❌ Failed to update due date: ' + (data.error || 'Server error'));
+          inputElem.value = oldVal;
+          populateTableData();
+        }
+      } catch (err) {
+        showToast('❌ Could not reach sync server.');
+        inputElem.value = oldVal;
+        populateTableData();
+      }
+    }
+
+    function handleDueDateKeydown(event, inputElem) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        inputElem.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        const wrap = inputElem.closest('.due-date-cell-wrap');
+        if (wrap) {
+          const badge = wrap.querySelector('.due-date-badge');
+          const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
+          const oldVal = wrap.getAttribute('data-val') || '';
+          inputElem.value = oldVal;
+          if (pickerWrap) pickerWrap.style.display = 'none';
+          if (badge) badge.style.display = 'inline-block';
+        }
+      }
+    }
+
     // Sync PULSE sheet directly from Chetna's sheet to Master & Dashboard
     async function syncPulseNow() {
       showToast('⚡ Syncing PULSE sheet from Chetna & Master...');
@@ -9027,6 +10505,7 @@ Thanks!`;
           showToast('⚠️ Could not sync: ' + (json.error || 'Check server'));
         }
       } catch (e) {
+        console.error('Error in fetchLiveSheets:', e);
         showToast('⚠️ Sync Server not responding. Ensure node sync_server.js is active.');
       }
     }
@@ -9307,17 +10786,23 @@ Thanks!`;
     async function handleFormSubmit(e) {
       e.preventDefault();
       const submitBtn = document.getElementById('submitBtn');
-      const ticket = document.getElementById('ticketInput').value.trim();
+      let ticket = document.getElementById('ticketInput').value.trim();
       const assignee = document.getElementById('assigneeInput').value;
       const title = document.getElementById('titleInput').value.trim();
       const tag = document.getElementById('tagInput') ? document.getElementById('tagInput').value : 'Product';
       const jiraStatus = document.getElementById('jiraStatusInput') ? document.getElementById('jiraStatusInput').value.trim() : 'To Do';
       const internalStatus = document.getElementById('internalStatusInput').value;
       const dueDate = document.getElementById('dueDateInput') ? document.getElementById('dueDateInput').value.trim() : 'Not set';
+      const epic = document.getElementById('epicInput') ? document.getElementById('epicInput').value.trim() : '';
 
       let finalAssignee = assignee;
       if (currentUser && currentUser.role === 'MEMBER') {
-        finalAssignee = (currentUser.allowedSheets && currentUser.allowedSheets[0]) || currentUser.username.toUpperCase();
+        const allowed = currentUser.allowedSheets || [currentUser.username.toUpperCase()];
+        if (assignee && (allowed.includes(assignee) || assignee === 'PLAN')) {
+          finalAssignee = assignee;
+        } else {
+          finalAssignee = allowed[0] || currentUser.username.toUpperCase();
+        }
       }
       let sharedPayload = {};
       if (currentUser && currentUser.role === 'ADMIN' && isQuickAddShared && quickAddSharedMembers.length > 0) {
@@ -9328,10 +10813,20 @@ Thanks!`;
         };
       }
 
-      if (!ticket || !finalAssignee) return;
+      const isPlan = finalAssignee && finalAssignee.toUpperCase() === 'PLAN';
+      if (isPlan && !ticket) {
+        // Auto-generate planning task key based on current PLAN rows count
+        const planLen = (sheetStore['PLAN'] ? sheetStore['PLAN'].length : 1);
+        ticket = `PLAN-${planLen}`;
+      }
 
-      // Duplicate prevention check: if not shared and already in another tab, prompt resolution modal
-      if (!isQuickAddShared) {
+      if (!ticket || !finalAssignee) {
+        showToast('⚠️ Please provide a ticket number or task title');
+        return;
+      }
+
+      // Duplicate prevention check: if not shared, not PLAN, and already in another tab, prompt resolution modal
+      if (!isQuickAddShared && !isPlan && !ticket.startsWith('PLAN-')) {
         const foundInTabs = [];
         Object.keys(sheetStore).forEach(tab => {
           const rows = sheetStore[tab] || [];
@@ -9362,11 +10857,12 @@ Thanks!`;
           body: JSON.stringify({ 
             ticket, 
             assignee: finalAssignee, 
-            title, 
+            title: title || ticket, 
             tag,
             jiraStatus, 
             internalStatus, 
             dueDate,
+            epic,
             ...sharedPayload
           })
         });
@@ -9391,6 +10887,7 @@ Thanks!`;
           showToast(successMsg);
           document.getElementById('ticketInput').value = '';
           document.getElementById('titleInput').value = '';
+          if (document.getElementById('epicInput')) document.getElementById('epicInput').value = '';
           if (document.getElementById('tagInput')) document.getElementById('tagInput').value = 'Product';
           if (document.getElementById('jiraStatusInput')) document.getElementById('jiraStatusInput').value = 'To Do';
           if (document.getElementById('dueDateInput')) document.getElementById('dueDateInput').value = 'Not set';
@@ -9419,6 +10916,25 @@ Thanks!`;
 
       const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
       if (activeBtn) activeBtn.classList.add('active');
+
+      // Sync assignee selector in Quick Add form to match the active tab
+      const assigneeSelect = document.getElementById('assigneeInput');
+      if (assigneeSelect) {
+        if (tabId === 'plan') {
+          assigneeSelect.value = 'PLAN';
+          handleAssigneeSelectChange();
+        } else if (tabId === 'upcoming') {
+          assigneeSelect.value = 'UPCOMING';
+          handleAssigneeSelectChange();
+        } else if (tabId !== 'all' && tabId !== 'closed') {
+          const upper = tabId.toUpperCase();
+          const matchOpt = Array.from(assigneeSelect.options).find(o => o.value.toUpperCase() === upper);
+          if (matchOpt) {
+            assigneeSelect.value = matchOpt.value;
+            handleAssigneeSelectChange();
+          }
+        }
+      }
     }
 
     function copyTable(tableId) {

@@ -70,42 +70,42 @@ const USER_ACCOUNTS = {
     password: 'arush@enveu2026',
     name: 'Arush',
     role: 'MEMBER',
-    allowedSheets: ['ARUSH']
+    allowedSheets: ['ARUSH', 'PLAN']
   },
   'chetna': {
     username: 'chetna',
     password: 'chetna@enveu2026',
     name: 'Chetna',
     role: 'MEMBER',
-    allowedSheets: ['CHETNA', 'PULSE', 'FE Ready', 'FE READY']
+    allowedSheets: ['CHETNA', 'PULSE', 'FE Ready', 'FE READY', 'PLAN']
   },
   'krishna': {
     username: 'krishna',
     password: 'krishna@enveu2026',
     name: 'Krishna',
     role: 'MEMBER',
-    allowedSheets: ['KRISHNA']
+    allowedSheets: ['KRISHNA', 'PLAN']
   },
   'manish': {
     username: 'manish',
     password: 'manish@enveu2026',
     name: 'Manish',
     role: 'MEMBER',
-    allowedSheets: ['MANISH']
+    allowedSheets: ['MANISH', 'PLAN']
   },
   'rahul': {
     username: 'rahul',
     password: 'rahul@enveu2026',
     name: 'Rahul',
     role: 'MEMBER',
-    allowedSheets: ['RAHUL']
+    allowedSheets: ['RAHUL', 'PLAN']
   },
   'sonu': {
     username: 'sonu',
     password: 'sonu@enveu2026',
     name: 'Sonu',
     role: 'MEMBER',
-    allowedSheets: ['SONU']
+    allowedSheets: ['SONU', 'PLAN']
   }
 };
 
@@ -543,7 +543,7 @@ async function ensureTagColumnAcrossSheets(customApiKey) {
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   console.log('[ensureTagColumnAcrossSheets] Ensuring Tag column and dropdown validation in Master & Individual sheets...');
 
-  const masterTabs = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready'];
+  const masterTabs = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'];
   
   // 1. Ensure header I1 is 'Tag' and formatted across Master tabs
   for (const tab of masterTabs) {
@@ -618,17 +618,78 @@ async function ensureTagColumnAcrossSheets(customApiKey) {
   return true;
 }
 
-// Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with zero redundant calls)
+function colIndexToLetter(colIdx) {
+  let temp = colIdx + 1;
+  let letter = '';
+  while (temp > 0) {
+    let mod = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    temp = Math.floor((temp - mod) / 26);
+  }
+  return letter;
+}
+
+function resolveActualTabName(inputName) {
+  if (!inputName) return '';
+  const trimmed = String(inputName).trim();
+  const known = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready', 'PLAN'];
+  const allSheets = (cache && cache.sheetNames) ? cache.sheetNames : known;
+  const found = allSheets.find(s => s.toUpperCase() === trimmed.toUpperCase());
+  return found || trimmed.toUpperCase();
+}
+
+// Dynamically discover all worksheets/tabs from the Google Spreadsheet
+async function discoverSheetNames(customApiKey) {
+  try {
+    const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+    const res = await executeComposioTool('GOOGLESHEETS_GET_SPREADSHEET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID
+    }, activeKey);
+    const sheets = res?.data?.results?.[0]?.response?.data?.sheets;
+    if (Array.isArray(sheets) && sheets.length > 0) {
+      const titles = sheets.map(s => s.properties?.title).filter(Boolean);
+      if (titles.length > 0) {
+        return titles;
+      }
+    }
+  } catch (e) {
+    console.warn('[discoverSheetNames] Note querying spreadsheet metadata:', e.message);
+  }
+  return null;
+}
+
+// Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with dynamic columns A:ZZ and rows up to 500)
 async function fetchAllSheetsFromGoogle() {
-  const sheetNames = [
-    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready'
+  const baseTabs = [
+    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready', 'PLAN'
   ];
 
+  let sheetNames = [...baseTabs];
+  try {
+    const activeKey = currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+    if (activeKey) {
+      const discovered = await discoverSheetNames(activeKey);
+      if (discovered && discovered.length > 0) {
+        const merged = [...baseTabs];
+        discovered.forEach(d => {
+          if (!merged.some(m => m.trim().toUpperCase() === d.trim().toUpperCase())) {
+            merged.push(d);
+          }
+        });
+        sheetNames = merged;
+      }
+    }
+  } catch (dErr) {
+    console.warn('[fetchAllSheetsFromGoogle] Note discovering sheet names:', dErr.message);
+  }
+
+  // Fetch dynamic range A1:ZZ500 to capture all columns (including dynamically added ones) and up to 500 rows
   const tools = sheetNames.map(tab => ({
     tool_slug: 'GOOGLESHEETS_VALUES_GET',
     arguments: {
       spreadsheet_id: SPREADSHEET_ID,
-      range: `${tab}!A1:I100`
+      range: `${tab}!A1:ZZ500`
     }
   }));
 
@@ -1178,6 +1239,195 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // POST /api/sheet/update-cell -> Update any arbitrary cell in any sheet dynamically & sync to Google Sheets
+  if (urlObj.pathname === '/api/sheet/update-cell' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { sheet, row, col, value } = JSON.parse(body || '{}');
+        if (!sheet || row === undefined || col === undefined) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'sheet, row, and col are required' }));
+          return;
+        }
+
+        const tabName = String(sheet).trim().toUpperCase();
+        const rowNum = parseInt(row, 10);
+        const colIdx = parseInt(col, 10);
+        const cellVal = (value !== undefined && value !== null) ? String(value) : '';
+
+        // RBAC check: ADMIN can edit any sheet;
+        // PLAN and PULSE are shared team collaboration sheets, accessible to all users;
+        // For individual member sheets, users can edit their own sheet
+        const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
+        const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
+        const userConfig = USER_ACCOUNTS[clientUser];
+        const isSharedTab = ['PLAN', 'PULSE'].includes(tabName);
+        if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+          const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
+          if (!isAllowed) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: `Permission denied: As a team member, you can only edit tasks on your assigned sheet (${userConfig.allowedSheets.join(', ')}).` }));
+            return;
+          }
+        }
+
+        const colLetter = colIndexToLetter(colIdx);
+        const cellRange = `${tabName}!${colLetter}${rowNum}`;
+
+        console.log(`[Update Cell] Tab: ${tabName}, Cell: ${cellRange}, Value: "${cellVal}"`);
+
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: cellRange,
+            majorDimension: 'ROWS',
+            values: [[cellVal]]
+          }]
+        });
+
+        // If updating Internal Status (Col F / idx 5) on non-PLAN sheets, also format cell color
+        if (tabName !== 'PLAN' && colIdx === 5 && STATUS_COLORS[cellVal]) {
+          const colorConfig = STATUS_COLORS[cellVal];
+          await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+            spreadsheet_id: SPREADSHEET_ID,
+            sheet_name: tabName,
+            range: `${colLetter}${rowNum}`,
+            background_color: colorConfig.bg,
+            text_color: colorConfig.text,
+            bold: true,
+            horizontal_alignment: 'CENTER'
+          }).catch(() => {});
+          registerCustomStatus(cellVal);
+        }
+
+        // If updating Tag (Col I / idx 8), format tag color
+        if (colIdx === 8) {
+          const tagCol = (cellVal.toLowerCase() === 'support') ? { bg: '#fef3c7', text: '#92400e' } : { bg: '#e0e7ff', text: '#3730a3' };
+          await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+            spreadsheet_id: SPREADSHEET_ID,
+            sheet_name: tabName,
+            range: `${colLetter}${rowNum}`,
+            background_color: tagCol.bg,
+            text_color: tagCol.text,
+            bold: true,
+            horizontal_alignment: 'CENTER'
+          }).catch(() => {});
+        }
+
+        // Update in-memory cache
+        if (cache.data && cache.data[tabName]) {
+          const rIdx = rowNum - 1;
+          if (cache.data[tabName][rIdx]) {
+            while (cache.data[tabName][rIdx].length <= colIdx) {
+              cache.data[tabName][rIdx].push('');
+            }
+            cache.data[tabName][rIdx][colIdx] = cellVal;
+          }
+          if (INDIVIDUAL_SHEETS[tabName]) {
+            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          sheet: tabName,
+          row: rowNum,
+          col: colIdx,
+          colLetter,
+          range: cellRange,
+          value: cellVal,
+          message: `Cell ${colLetter}${rowNum} in ${tabName} updated successfully!`
+        }));
+      } catch (err) {
+        console.error('Error updating cell:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/sheet/add-column -> Dynamically add a new column header to Google Sheets
+  if (urlObj.pathname === '/api/sheet/add-column' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { sheet, columnName } = JSON.parse(body || '{}');
+        if (!sheet || !columnName || !columnName.trim()) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'sheet and columnName are required' }));
+          return;
+        }
+
+        const tabName = String(sheet).trim().toUpperCase();
+        const newColName = columnName.trim();
+
+        // 1. Fetch current row 1 to see existing headers
+        const curRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+          spreadsheet_id: SPREADSHEET_ID,
+          range: `${tabName}!1:1`
+        });
+        const headerRow = curRes?.data?.results?.[0]?.response?.data?.values?.[0] || [];
+        
+        // Find next column index
+        const nextColIdx = headerRow.length > 0 ? headerRow.length : 9;
+        const colLetter = colIndexToLetter(nextColIdx);
+        const cellRange = `${tabName}!${colLetter}1`;
+
+        console.log(`[Add Column] Tab: ${tabName}, Column "${newColName}" at ${cellRange}`);
+
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: cellRange,
+            majorDimension: 'ROWS',
+            values: [[newColName]]
+          }]
+        });
+
+        // Format header cell with clean styling
+        try {
+          await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+            spreadsheet_id: SPREADSHEET_ID,
+            sheet_name: tabName,
+            range: `${colLetter}1`,
+            background_color: '#3730a3',
+            text_color: '#ffffff',
+            bold: true,
+            horizontal_alignment: 'CENTER'
+          });
+        } catch (fErr) {
+          console.warn('[add-column] Format header note:', fErr.message);
+        }
+
+        // Invalidate cache immediately so next pull gets new column
+        cache.timestamp = 0;
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          sheet: tabName,
+          columnName: newColName,
+          colIndex: nextColIdx,
+          colLetter,
+          range: cellRange,
+          message: `Column "${newColName}" added successfully at ${colLetter}1 in ${tabName}!`
+        }));
+      } catch (err) {
+        console.error('Error adding column:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // GET /api/sheets -> Dynamically fetch all sheet names and rows with RBAC enforcement
   if (urlObj.pathname === '/api/sheets' && req.method === 'GET') {
     try {
@@ -1322,12 +1572,16 @@ async function handleRequest(req, res) {
         }
 
         const tabName = assignee.trim().toUpperCase();
+        const isPlan = tabName === 'PLAN';
+        const targetColLetter = isPlan ? 'G' : 'F';
+        const targetColIdx = isPlan ? 6 : 5;
 
-        // RBAC Check: Team members can only update their own assigned tasks
+        // RBAC Check: Team members can only update their own assigned tasks or shared sheets (PLAN, PULSE)
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
-        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+        const isSharedTab = ['PLAN', 'PULSE'].includes(tabName);
+        if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
           const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
           if (!isAllowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -1342,7 +1596,7 @@ async function handleRequest(req, res) {
         if (!targetRow || isNaN(targetRow)) {
           const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
             spreadsheet_id: SPREADSHEET_ID,
-            range: `${tabName}!A1:H50`
+            range: `${tabName}!A1:I50`
           });
           const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
           const foundIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
@@ -1353,30 +1607,30 @@ async function handleRequest(req, res) {
           }
         }
 
-        console.log(`[Update Internal Status] Tab: ${tabName}, Row: ${targetRow}, Status: ${internalStatus}`);
+        console.log(`[Update Internal Status] Tab: ${tabName}, Row: ${targetRow} (${targetColLetter}), Status: ${internalStatus}`);
 
-        // 1. Update Column F (Internal Status) in Google Sheets
+        // 1. Update Column G (Internal Status in PLAN) or Column F (standard sheets) in Google Sheets
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
-            range: `${tabName}!F${targetRow}`,
+            range: `${tabName}!${targetColLetter}${targetRow}`,
             majorDimension: 'ROWS',
             values: [[internalStatus]]
           }]
         });
 
-        // 2. Format cell F
+        // 2. Format cell
         const colorConfig = STATUS_COLORS[internalStatus] || STATUS_COLORS['To Pick Up'];
         await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
           spreadsheet_id: SPREADSHEET_ID,
           sheet_name: tabName,
-          range: `F${targetRow}`,
+          range: `${targetColLetter}${targetRow}`,
           background_color: colorConfig.bg,
           text_color: colorConfig.text,
           bold: true,
           horizontal_alignment: 'CENTER'
-        });
+        }).catch(() => {});
 
         // Register custom status if new
         registerCustomStatus(internalStatus);
@@ -1385,7 +1639,7 @@ async function handleRequest(req, res) {
         if (cache.data && cache.data[tabName]) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
-            cache.data[tabName][rIdx][5] = internalStatus;
+            cache.data[tabName][rIdx][targetColIdx] = internalStatus;
           }
           if (INDIVIDUAL_SHEETS[tabName]) {
             pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
@@ -1425,11 +1679,12 @@ async function handleRequest(req, res) {
         const tabName = assignee.trim().toUpperCase();
         const validTag = (tag.trim().toLowerCase() === 'support') ? 'Support' : 'Product';
 
-        // RBAC Check: Team members can only update their own assigned tasks
+        // RBAC Check: Team members can only update their own assigned tasks or shared sheets (PLAN, PULSE)
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
-        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+        const isSharedTab = ['PLAN', 'PULSE'].includes(tabName);
+        if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
           const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
           if (!isAllowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -1523,11 +1778,12 @@ async function handleRequest(req, res) {
         const ticketKey = (ticket || '').trim().toUpperCase();
         const actionNotes = typeof notes === 'string' ? notes : (notes !== undefined && notes !== null ? String(notes) : '');
 
-        // RBAC Check: Team members can only update their own assigned tasks (or PULSE if allowed)
+        // RBAC Check: Team members can only update their own assigned tasks (or PLAN / PULSE if allowed)
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
-        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+        const isSharedTab = ['PLAN', 'PULSE'].includes(tabName);
+        if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
           const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
           if (!isAllowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -1538,18 +1794,23 @@ async function handleRequest(req, res) {
 
         let targetRow = parseInt(rowNumber, 10);
 
+        const isPlan = tabName === 'PLAN';
+        const targetColLetter = isPlan ? 'F' : 'G';
+        const targetColIdx = isPlan ? 5 : 6;
+
         // If rowNumber is not supplied or invalid, find row in sheet by ticket
         if (!targetRow || isNaN(targetRow)) {
           const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
             spreadsheet_id: SPREADSHEET_ID,
-            range: `${tabName}!A1:H100`
+            range: `${tabName}!A1:I100`
           });
           const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
           const foundIdx = rows.findIndex((r, idx) => {
             if (idx === 0) return false;
             const t1 = (r[1] || '').trim().toUpperCase();
             const t0 = (r[0] || '').trim().toUpperCase();
-            return t1 === ticketKey || t0 === ticketKey;
+            const t2 = (r[2] || '').trim().toUpperCase();
+            return t1 === ticketKey || t0 === ticketKey || (isPlan && t2 === ticketKey) || `PLAN-${t0}` === ticketKey;
           });
           if (foundIdx > 0) {
             targetRow = foundIdx + 1;
@@ -1558,14 +1819,14 @@ async function handleRequest(req, res) {
           }
         }
 
-        console.log(`[Update Action Notes] Tab: ${tabName}, Row: ${targetRow}, Ticket: ${ticketKey}, Notes: "${actionNotes}"`);
+        console.log(`[Update Action Notes] Tab: ${tabName}, Row: ${targetRow} (${targetColLetter}), Ticket: ${ticketKey}, Notes: "${actionNotes}"`);
 
-        // 1. Update Column G (Action / Notes or Remarks in PULSE) in Master Google Sheet
+        // 1. Update Column F (Dependency / Remarks in PLAN) or Column G (Action / Notes in standard sheets)
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
-            range: `${tabName}!G${targetRow}`,
+            range: `${tabName}!${targetColLetter}${targetRow}`,
             majorDimension: 'ROWS',
             values: [[actionNotes]]
           }]
@@ -1593,7 +1854,7 @@ async function handleRequest(req, res) {
         if (cache.data && cache.data[tabName]) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
-            cache.data[tabName][rIdx][6] = actionNotes;
+            cache.data[tabName][rIdx][targetColIdx] = actionNotes;
           }
           if (INDIVIDUAL_SHEETS[tabName]) {
             pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
@@ -1611,6 +1872,83 @@ async function handleRequest(req, res) {
         }));
       } catch (err) {
         console.error('Error updating action notes:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/update-due-date -> Update Due Date and sync to Google Sheets (Col H)
+  if (urlObj.pathname === '/api/ticket/update-due-date' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { assignee, ticket, dueDate, rowNumber } = JSON.parse(body || '{}');
+        if (!assignee) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'assignee is required' }));
+          return;
+        }
+
+        const tabName = assignee.trim().toUpperCase();
+        const ticketKey = (ticket || '').trim().toUpperCase();
+        const formattedDueDate = parseJiraDueDate(dueDate);
+
+        let targetRow = parseInt(rowNumber, 10);
+        if (!targetRow || isNaN(targetRow)) {
+          const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+            spreadsheet_id: SPREADSHEET_ID,
+            range: `${tabName}!A1:I100`
+          });
+          const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
+          const foundIdx = rows.findIndex((r, idx) => {
+            if (idx === 0) return false;
+            const t1 = (r[1] || '').trim().toUpperCase();
+            const t0 = (r[0] || '').trim().toUpperCase();
+            const t2 = (r[2] || '').trim().toUpperCase();
+            return t1 === ticketKey || t0 === ticketKey || t2 === ticketKey || `PLAN-${t0}` === ticketKey;
+          });
+          if (foundIdx > 0) {
+            targetRow = foundIdx + 1;
+          } else {
+            targetRow = 2;
+          }
+        }
+
+        // Col H is index 7 (Due Date) in both standard sheets and PLAN!
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: `${tabName}!H${targetRow}`,
+            majorDimension: 'ROWS',
+            values: [[formattedDueDate]]
+          }]
+        });
+
+        if (cache.data && cache.data[tabName]) {
+          const rIdx = targetRow - 1;
+          if (cache.data[tabName][rIdx]) {
+            cache.data[tabName][rIdx][7] = formattedDueDate;
+          }
+          if (INDIVIDUAL_SHEETS[tabName]) {
+            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          assignee: tabName,
+          ticket: ticketKey,
+          dueDate: formattedDueDate,
+          rowNumber: targetRow,
+          message: 'Due date updated and synced to Google Sheets!'
+        }));
+      } catch (err) {
+        console.error('Error updating due date:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -1672,8 +2010,14 @@ async function handleRequest(req, res) {
         const fromRows = getRes?.data?.results?.[0]?.response?.data?.values || [];
         const toRows = getRes?.data?.results?.[1]?.response?.data?.values || [];
 
-        // 2. Find row in fromTab
-        const targetIdx = fromRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+        // 2. Find row in fromTab (check ticket Col B, S.No Col A, title Col C, or PLAN-x)
+        const targetIdx = fromRows.findIndex((r, idx) => {
+          if (idx === 0) return false;
+          const t1 = (r[1] || '').trim().toUpperCase();
+          const t0 = (r[0] || '').trim().toUpperCase();
+          const t2 = (r[2] || '').trim().toUpperCase();
+          return t1 === ticketKey || t0 === ticketKey || `PLAN-${t0}` === ticketKey || t2.toUpperCase() === ticketKey;
+        });
         if (targetIdx === -1) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey} not found in ${fromTab}'s tab` }));
@@ -1691,10 +2035,11 @@ async function handleRequest(req, res) {
         });
 
         // Pad fromRows with empty cells to wipe out the old last row
+        const fromColCount = Math.max(8, (fromRows[0] && fromRows[0].length) || 8);
         const paddedFromRows = [...newFromRows];
-        const emptyRow = ['', '', '', '', '', '', '', ''];
+        const emptyRow = new Array(fromColCount).fill('');
         while (paddedFromRows.length < fromRows.length) {
-          paddedFromRows.push(emptyRow);
+          paddedFromRows.push([...emptyRow]);
         }
 
         // 4. Upsert row to toTab (prevent duplicate entries if already in destination tab)
@@ -1703,7 +2048,26 @@ async function handleRequest(req, res) {
           newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
         const existingToIdx = newToRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
-        const movedRow = [...targetRow];
+        
+        let movedRow;
+        if (fromTab === 'PLAN') {
+          const taskTitle = targetRow[2] || targetRow[1] || ticketKey;
+          const taskNotes = targetRow[5] ? `[Epic: ${targetRow[1] || 'None'}] ${targetRow[5]}` : (targetRow[1] ? `[Epic: ${targetRow[1]}]` : '');
+          const taskTag = targetRow[8] || 'Product';
+          movedRow = [
+            '',
+            ticketKey,
+            ticketKey.includes('-') && !ticketKey.startsWith('PLAN-') ? `https://enveu.atlassian.net/browse/${ticketKey}` : '',
+            taskTitle,
+            'To Do',
+            'To Pick Up',
+            taskNotes,
+            'Not set',
+            taskTag
+          ];
+        } else {
+          movedRow = [...targetRow];
+        }
 
         let newRowIndex;
         if (existingToIdx > 0) {
@@ -1720,14 +2084,16 @@ async function handleRequest(req, res) {
         }
 
         // 5. Batch update Google Sheets for both tabs
+        const fromEndCol = colIndexToLetter(Math.max(8, (paddedFromRows[0] && paddedFromRows[0].length - 1) || 8));
+        const toEndCol = colIndexToLetter(Math.max(8, (newToRows[0] && newToRows[0].length - 1) || 8));
         const updatePayload = [
           {
-            range: `${fromTab}!A1:H${paddedFromRows.length}`,
+            range: `${fromTab}!A1:${fromEndCol}${paddedFromRows.length}`,
             majorDimension: 'ROWS',
             values: paddedFromRows
           },
           {
-            range: `${toTab}!A1:H${newToRows.length}`,
+            range: `${toTab}!A1:${toEndCol}${newToRows.length}`,
             majorDimension: 'ROWS',
             values: newToRows
           }
@@ -2049,7 +2415,17 @@ async function handleRequest(req, res) {
         for (const tab of targetTabs) {
           if (!sheetData[tab]) continue;
           const rows = sheetData[tab] || [];
-          const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          const targetIdx = rows.findIndex((r, idx) => {
+            if (idx === 0) return false;
+            if (r[1] && r[1].trim().toUpperCase() === ticketKey) return true;
+            if (ticketKey.startsWith('PLAN-')) {
+              const numPart = ticketKey.replace('PLAN-', '').trim();
+              if (r[0] && r[0].trim() === numPart) return true;
+              if (r[2] && r[2].trim().toUpperCase() === ticketKey) return true;
+            }
+            if (r[0] && r[0].trim().toUpperCase() === ticketKey) return true;
+            return false;
+          });
 
           if (targetIdx > 0) {
             deletedFromCount++;
@@ -2060,14 +2436,16 @@ async function handleRequest(req, res) {
             });
 
             // Pad with empty row to clear out deleted row in Google Sheets
+            const maxCols = Math.max(9, ...rows.map(r => r.length));
+            const endLetter = colIndexToLetter(maxCols - 1);
             const paddedRows = [...newRows];
             while (paddedRows.length < oldLength) {
-              paddedRows.push(['', '', '', '', '', '', '', '']);
+              paddedRows.push(new Array(maxCols).fill(''));
             }
 
             sheetData[tab] = newRows;
             updatePayload.push({
-              range: `${tab}!A1:H${paddedRows.length}`,
+              range: `${tab}!A1:${endLetter}${paddedRows.length}`,
               majorDimension: 'ROWS',
               values: paddedRows
             });
@@ -2702,19 +3080,25 @@ async function handleRequest(req, res) {
           dueDate
         } = payload;
 
+        const tabName = (assignee || '').trim().toUpperCase();
+
+        // Support for items that need to be planned later or ticket is not present
+        if (!ticket && (title || notes || tabName === 'PLAN')) {
+          ticket = (tabName === 'PLAN' ? 'PLAN-' : 'TASK-') + Date.now().toString().slice(-4);
+        }
+
         if (!ticket || !assignee) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: 'ticket and assignee are required' }));
+          res.end(JSON.stringify({ success: false, error: 'ticket (or title) and assignee are required' }));
           return;
         }
 
-        const tabName = assignee.trim().toUpperCase();
-
-        // RBAC Check: Team members can only add tickets assigned to their own sheet
+        // RBAC Check: Team members can add tasks to their own sheet or shared sheets like PLAN
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
-        if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
+        const isSharedTab = ['PLAN'].includes(tabName);
+        if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
           const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
           if (!isAllowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -2724,22 +3108,24 @@ async function handleRequest(req, res) {
         }
 
         const ticketKey = ticket.trim().toUpperCase();
-        const ticketUrl = `https://enveu.atlassian.net/browse/${ticketKey}`;
+        const ticketUrl = (ticketKey.startsWith('PLAN-') || ticketKey.startsWith('TASK-')) ? '' : `https://enveu.atlassian.net/browse/${ticketKey}`;
 
-        // Query Jira to verify / fill missing fields
-        try {
-          const jiraRes = await executeComposioTool('JIRA_GET_ISSUE', {
-            issue_key: ticketKey,
-            fields: ['summary', 'status', 'duedate', 'assignee']
-          });
-          const fields = jiraRes?.data?.results?.[0]?.response?.data?.fields || {};
-          if (fields.summary && !title) title = fields.summary;
-          if (fields.status?.name) jiraStatus = fields.status.name;
-          if (!dueDate || dueDate === 'Not set' || dueDate.toLowerCase() === 'tbd') {
-            dueDate = parseJiraDueDate(fields.duedate);
+        // Query Jira to verify / fill missing fields if it's a real Jira ticket
+        if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-')) {
+          try {
+            const jiraRes = await executeComposioTool('JIRA_GET_ISSUE', {
+              issue_key: ticketKey,
+              fields: ['summary', 'status', 'duedate', 'assignee']
+            });
+            const fields = jiraRes?.data?.results?.[0]?.response?.data?.fields || {};
+            if (fields.summary && !title) title = fields.summary;
+            if (fields.status?.name) jiraStatus = fields.status.name;
+            if (!dueDate || dueDate === 'Not set' || dueDate.toLowerCase() === 'tbd') {
+              dueDate = parseJiraDueDate(fields.duedate);
+            }
+          } catch (e) {
+            console.warn('Jira lookup exception:', e.message);
           }
-        } catch (e) {
-          console.warn('Jira lookup exception:', e.message);
         }
 
         const finalTitle = title || `Ticket ${ticketKey}`;
@@ -2941,20 +3327,38 @@ async function handleRequest(req, res) {
           targetRowNum = currentRows.length > 0 ? (currentRows.length + 1) : 2;
         }
 
-        const newRow = [
-          targetIndexStr,
-          ticketKey,
-          ticketUrl,
-          finalTitle,
-          finalJiraStatus,
-          finalInternalStatus,
-          finalNotes,
-          finalDueDate,
-          finalTag
-        ];
+        let newRow;
+        if (tabName === 'PLAN') {
+          // Schema for PLAN: [S.No., Epic, Task, Region, Effort, Dependency / Remarks, Internal Status, Due Date, Tag]
+          newRow = [
+            targetIndexStr,
+            (payload.epic || '').trim(),
+            finalTitle,
+            (payload.region || '').trim(),
+            (payload.effort || '').trim(),
+            (payload.notes || payload.remarks || payload.dependency || '').trim(),
+            finalInternalStatus || 'Planned',
+            finalDueDate || 'Not set',
+            finalTag
+          ];
+        } else {
+          newRow = [
+            targetIndexStr,
+            ticketKey,
+            ticketUrl,
+            finalTitle,
+            finalJiraStatus,
+            finalInternalStatus,
+            finalNotes,
+            finalDueDate,
+            finalTag
+          ];
+        }
 
         // 2. Write / update row to Google Sheets
-        const writeRange = `${tabName}!A${targetRowNum}:I${targetRowNum}`;
+        const maxColIdx = Math.max(8, newRow.length - 1);
+        const endLetter = colIndexToLetter(maxColIdx);
+        const writeRange = `${tabName}!A${targetRowNum}:${endLetter}${targetRowNum}`;
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
@@ -2965,38 +3369,12 @@ async function handleRequest(req, res) {
           }]
         });
 
-        // 3. Format Jira Status (Col E), Internal Status (Col F), and Tag (Col I)
-        const jCol = STATUS_COLORS[finalJiraStatus] || STATUS_COLORS['To Pick Up'];
-        const iCol = STATUS_COLORS[finalInternalStatus] || STATUS_COLORS['To Pick Up'];
+        // 3. Format cells
         const tagCol = finalTag === 'Support'
           ? { bg: '#fef3c7', text: '#92400e' }
           : { bg: '#e0e7ff', text: '#3730a3' };
 
-        await executeComposioBatch([
-          {
-            tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
-            arguments: {
-              spreadsheet_id: SPREADSHEET_ID,
-              sheet_name: tabName,
-              range: `E${targetRowNum}`,
-              background_color: jCol.bg,
-              text_color: jCol.text,
-              bold: true,
-              horizontal_alignment: 'CENTER'
-            }
-          },
-          {
-            tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
-            arguments: {
-              spreadsheet_id: SPREADSHEET_ID,
-              sheet_name: tabName,
-              range: `F${targetRowNum}`,
-              background_color: iCol.bg,
-              text_color: iCol.text,
-              bold: true,
-              horizontal_alignment: 'CENTER'
-            }
-          },
+        const formatBatch = [
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
@@ -3009,7 +3387,40 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ]);
+        ];
+
+        if (tabName !== 'PLAN') {
+          const jCol = STATUS_COLORS[finalJiraStatus] || STATUS_COLORS['To Pick Up'];
+          const iCol = STATUS_COLORS[finalInternalStatus] || STATUS_COLORS['To Pick Up'];
+          formatBatch.unshift(
+            {
+              tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+              arguments: {
+                spreadsheet_id: SPREADSHEET_ID,
+                sheet_name: tabName,
+                range: `E${targetRowNum}`,
+                background_color: jCol.bg,
+                text_color: jCol.text,
+                bold: true,
+                horizontal_alignment: 'CENTER'
+              }
+            },
+            {
+              tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+              arguments: {
+                spreadsheet_id: SPREADSHEET_ID,
+                sheet_name: tabName,
+                range: `F${targetRowNum}`,
+                background_color: iCol.bg,
+                text_color: iCol.text,
+                bold: true,
+                horizontal_alignment: 'CENTER'
+              }
+            }
+          );
+        }
+
+        await executeComposioBatch(formatBatch).catch(() => {});
 
         // Invalidate cache immediately
         cache.timestamp = 0;
