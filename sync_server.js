@@ -660,14 +660,15 @@ async function discoverSheetNames(customApiKey) {
 }
 
 // Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with dynamic columns A:ZZ and rows up to 500)
-async function fetchAllSheetsFromGoogle() {
+async function fetchAllSheetsFromGoogle(passedApiKey) {
   const baseTabs = [
     'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready', 'PLAN'
   ];
 
+  const activeKey = passedApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
   let sheetNames = [...baseTabs];
   try {
-    const activeKey = currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
     if (activeKey) {
       const discovered = await discoverSheetNames(activeKey);
       if (discovered && discovered.length > 0) {
@@ -693,7 +694,7 @@ async function fetchAllSheetsFromGoogle() {
     }
   }));
 
-  const batchResult = await executeComposioBatch(tools);
+  const batchResult = await executeComposioBatch(tools, activeKey);
   const sheetData = {};
 
   if (batchResult?.data?.results) {
@@ -2893,26 +2894,39 @@ async function handleRequest(req, res) {
   // POST /api/jira/sync-all -> Batch sync all Jira tickets across all sheets
   if (urlObj.pathname === '/api/jira/sync-all' && req.method === 'POST') {
     try {
+      // Validate API key upfront — fail fast with a clear 401 if not available
+      const syncApiKey = currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+      if (!syncApiKey || !syncApiKey.startsWith('ck_')) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Composio API Key is required. Please sign in and configure your key in the dashboard.' }));
+        return;
+      }
+
       console.log('⚡ Starting Bulk Jira Sync for All Sheets...');
       
       // 1. Fetch live sheets
-      const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
+      const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle(syncApiKey);
       
       // 2. Collect unique Jira tickets
       const allTicketKeys = new Set();
       sheetNames.forEach(tab => {
+        if (tab === 'PLAN') return; // PLAN doesn't contain Jira tickets
         const rows = sheetData[tab] || [];
+        const isPulse = tab === 'PULSE';
+
         rows.forEach((row, idx) => {
-          if (idx === 0 && row[0] === '#') return;
-          const ticket = (row[1] || '').trim().toUpperCase();
-          if (ticket && ticket.includes('-')) {
-            allTicketKeys.add(ticket);
+          if (idx === 0) return; // skip header
+          // In PULSE, ticket is in row[0]; in other sheets, ticket is in row[1]
+          const targetStr = isPulse ? String(row[0] || '') : String(row[1] || '');
+          const matches = targetStr.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
+          if (matches) {
+            matches.forEach(m => allTicketKeys.add(m.trim().toUpperCase()));
           }
         });
       });
 
       const keyList = Array.from(allTicketKeys);
-      console.log(`Found ${keyList.length} Jira tickets across all sheets:`, keyList);
+      console.log(`Found ${keyList.length} valid Jira tickets across all sheets:`, keyList);
 
       if (keyList.length === 0) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2920,126 +2934,127 @@ async function handleRequest(req, res) {
         return;
       }
 
-      // 3. Batch query Jira for all tickets
-      const jiraTools = keyList.map(k => ({
-        tool_slug: 'JIRA_GET_ISSUE',
-        arguments: {
-          issue_key: k,
-          fields: ['summary', 'status', 'duedate']
-        }
-      }));
-
-      const jiraRes = await executeComposioBatch(jiraTools);
+      // 3. Query Jira in parallel chunks to keep latency minimal
+      const CHUNK_SIZE = 25;
       const jiraMap = {};
 
-      if (jiraRes?.data?.results) {
-        jiraRes.data.results.forEach((r, i) => {
-          const k = keyList[i];
-          const fields = r.response?.data?.fields || {};
-          if (fields.summary || fields.status) {
-            jiraMap[k] = {
-              title: fields.summary || '',
-              jiraStatus: fields.status?.name || 'To Do',
-              dueDate: parseJiraDueDate(fields.duedate)
-            };
+      for (let i = 0; i < keyList.length; i += CHUNK_SIZE) {
+        const chunkKeys = keyList.slice(i, i + CHUNK_SIZE);
+        const jiraTools = chunkKeys.map(k => ({
+          tool_slug: 'JIRA_GET_ISSUE',
+          arguments: {
+            issue_key: k,
+            fields: ['summary', 'status', 'duedate']
           }
-        });
+        }));
+
+        try {
+          const jiraRes = await executeComposioBatch(jiraTools, syncApiKey);
+          if (jiraRes?.data?.results) {
+            jiraRes.data.results.forEach((r, idx) => {
+              const k = chunkKeys[idx];
+              const fields = r.response?.data?.fields || {};
+              if (fields.summary || fields.status) {
+                jiraMap[k] = {
+                  title: fields.summary || '',
+                  jiraStatus: fields.status?.name || 'To Do',
+                  dueDate: parseJiraDueDate(fields.duedate)
+                };
+              }
+            });
+          }
+        } catch (jErr) {
+          console.warn('[sync-all] Chunk Jira query warning:', jErr.message);
+        }
       }
 
       console.log(`Successfully fetched details for ${Object.keys(jiraMap).length} tickets from Jira.`);
 
-      // 4. Update rows for each sheet tab and prepare batch writes (8 columns)
+      // 4. Update rows for each sheet tab and prepare batch writes
       const updateData = [];
-      const formatCalls = [];
+      const updatedMemberTabs = [];
       let updatedCount = 0;
 
       sheetNames.forEach(tab => {
+        if (tab === 'PLAN') return; // PLAN tab does not have Jira status
         const rows = sheetData[tab] || [];
         if (rows.length <= 1) return;
 
         let hasTabChanges = false;
+        const isPulse = tab === 'PULSE';
+
         rows.forEach((row, rIdx) => {
-          if (rIdx === 0 && row[0] === '#') return;
-          const k = (row[1] || '').trim().toUpperCase();
-          if (jiraMap[k]) {
-            const j = jiraMap[k];
-            
-            // row: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date]
-            if (j.title) row[3] = j.title;
-            if (j.jiraStatus) row[4] = j.jiraStatus;
-            // row[5] is Internal Status (keep as-is or set if empty)
-            if (!row[5]) row[5] = j.jiraStatus || 'To Pick Up';
-            
-            // row[7] is Due Date from Jira
-            if (j.dueDate) row[7] = j.dueDate;
+          if (rIdx === 0) return;
 
-            // Ensure ticket URL is properly set in row[2]
-            row[2] = `https://enveu.atlassian.net/browse/${k}`;
-
-            hasTabChanges = true;
-            updatedCount++;
-
-            // Color formatting for Jira Status (Col E) and Internal Status (Col F)
-            const cellRow = rIdx + 1; // 1-based index in Google Sheets
-            
-            const jCol = STATUS_COLORS[row[4]] || STATUS_COLORS['To Pick Up'];
-            formatCalls.push({
-              tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
-              arguments: {
-                spreadsheet_id: SPREADSHEET_ID,
-                sheet_name: tab,
-                range: `E${cellRow}`,
-                background_color: jCol.bg,
-                text_color: jCol.text,
-                bold: true,
-                horizontal_alignment: 'CENTER'
+          if (isPulse) {
+            // PULSE layout: [Ticket Number, Title, Status, Assignee, Type, Link, Remarks]
+            const ticketCell = String(row[0] || '').trim();
+            const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
+            if (matches && matches.length > 0) {
+              const mainKey = matches[0].toUpperCase();
+              if (jiraMap[mainKey]) {
+                const j = jiraMap[mainKey];
+                if (j.title) row[1] = j.title;
+                if (j.jiraStatus) row[2] = j.jiraStatus;
+                row[5] = `https://enveu.atlassian.net/browse/${mainKey}`;
+                hasTabChanges = true;
+                updatedCount++;
               }
-            });
-
-            const iCol = STATUS_COLORS[row[5]] || STATUS_COLORS['To Pick Up'];
-            formatCalls.push({
-              tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
-              arguments: {
-                spreadsheet_id: SPREADSHEET_ID,
-                sheet_name: tab,
-                range: `F${cellRow}`,
-                background_color: iCol.bg,
-                text_color: iCol.text,
-                bold: true,
-                horizontal_alignment: 'CENTER'
+            }
+          } else {
+            // Standard layout: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date, Tag]
+            const ticketCell = String(row[1] || '').trim();
+            const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
+            if (matches && matches.length > 0) {
+              const mainKey = matches[0].toUpperCase();
+              if (jiraMap[mainKey]) {
+                const j = jiraMap[mainKey];
+                if (j.title) row[3] = j.title;
+                if (j.jiraStatus) row[4] = j.jiraStatus;
+                if (!row[5]) row[5] = j.jiraStatus || 'To Pick Up';
+                if (j.dueDate && (!row[7] || row[7] === 'Not set' || row[7] === 'tbd')) {
+                  row[7] = j.dueDate;
+                }
+                row[2] = `https://enveu.atlassian.net/browse/${mainKey}`;
+                hasTabChanges = true;
+                updatedCount++;
               }
-            });
+            }
           }
         });
 
         if (hasTabChanges) {
+          const maxCols = Math.max(...rows.map(r => r.length), isPulse ? 7 : 9);
+          const endLetter = colIndexToLetter(maxCols - 1);
+          rows.forEach(r => {
+            while (r.length < maxCols) r.push('');
+          });
           updateData.push({
-            range: `${tab}!A1:H${rows.length}`,
+            range: `${tab}!A1:${endLetter}${rows.length}`,
             majorDimension: 'ROWS',
             values: rows
           });
+          if (INDIVIDUAL_SHEETS[tab]) {
+            updatedMemberTabs.push(tab);
+          }
         }
       });
 
-      // 5. Execute batch write to Google Sheets
+      // 5. Execute batch write to Google Sheets Master
       if (updateData.length > 0) {
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updateData
-        });
+        }, syncApiKey);
       }
 
-      // 6. Apply format colors in batches of 20
-      if (formatCalls.length > 0) {
-        const CHUNK_SIZE = 20;
-        for (let i = 0; i < formatCalls.length; i += CHUNK_SIZE) {
-          const chunk = formatCalls.slice(i, i + CHUNK_SIZE);
-          await executeComposioBatch(chunk);
-        }
-      }
+      // 6. Push updates to individual member sheets in background
+      updatedMemberTabs.forEach(tab => {
+        pushMasterToIndividualSheet(tab, sheetData[tab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${tab}:`, e.message));
+      });
 
-      // 7. Update cache
+      // 7. Update cache immediately
       cache = {
         data: sheetData,
         sheetNames,
