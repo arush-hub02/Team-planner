@@ -9459,11 +9459,13 @@ Thanks!`;
     }
 
     // Close Ticket -> Moves ticket to CLOSED sheet in Google Sheets
-    async function handleCloseTicket(ticket, assignee) {
+    async function handleCloseTicket(ticket, assignee, skipConfirm = false) {
       if (!ticket) return;
 
-      const confirmClose = confirm(`✅ Mark ticket ${ticket} as Closed?\n\nThis will move the ticket from ${assignee ? assignee + "'s tab" : "the active tab"} to the CLOSED Google Sheet tab.`);
-      if (!confirmClose) return;
+      if (!skipConfirm) {
+        const confirmClose = confirm(`✅ Mark ticket ${ticket} as Closed?\n\nThis will move the ticket from ${assignee ? assignee + "'s tab" : "the active tab"} to the CLOSED Google Sheet tab.`);
+        if (!confirmClose) return;
+      }
 
       showToast(`⏳ Closing ${ticket} and moving to CLOSED sheet...`);
 
@@ -9871,7 +9873,7 @@ Thanks!`;
       if (newStatus === 'Closed' && !isStatusSheet(assignee)) {
         const moveConfirmed = confirm(`You set ${ticket} to Closed.\n\nDo you want to move this ticket to the CLOSED Google Sheet tab?`);
         if (moveConfirmed) {
-          await handleCloseTicket(ticket, assignee);
+          await handleCloseTicket(ticket, assignee, true);
           return;
         }
       }

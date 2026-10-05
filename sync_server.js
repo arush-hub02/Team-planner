@@ -423,7 +423,11 @@ async function executeComposioTool(toolSlug, args, customApiKey) {
   for (const line of lines) {
     if (line.startsWith('data: ')) {
       const parsed = JSON.parse(line.slice(6));
-      return parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      const resData = parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      if (parsed.result?.isError || (resData && (resData.error || resData.successful === false))) {
+        console.warn(`[executeComposioTool] Warning/Error from tool ${toolSlug}:`, resData.error || (resData.data && resData.data.results && resData.data.results[0]?.response?.error) || resData);
+      }
+      return resData;
     }
   }
   return null;
@@ -458,7 +462,11 @@ async function executeComposioBatch(toolsList, customApiKey) {
   for (const line of lines) {
     if (line.startsWith('data: ')) {
       const parsed = JSON.parse(line.slice(6));
-      return parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      const resData = parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      if (parsed.result?.isError || (resData && (resData.error || resData.successful === false))) {
+        console.warn(`[executeComposioBatch] Warning/Error from batch:`, resData.error || (resData.data && resData.data.results && resData.data.results.find(r => r.response?.error)?.response?.error) || resData);
+      }
+      return resData;
     }
   }
   return null;
@@ -538,6 +546,68 @@ async function ensureFeReadySheetExists(customApiKey) {
 
   return true;
 }
+
+async function ensureClosedSheetExists(customApiKey) {
+  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+  try {
+    const testRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'CLOSED!A1:I1'
+    }, activeKey);
+
+    if (testRes?.data?.values && testRes.data.values.length > 0) {
+      return true;
+    }
+  } catch (err) {
+    // continue
+  }
+
+  try {
+    await executeComposioTool('GOOGLESHEETS_ADD_SHEET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      title: 'CLOSED',
+      forceUnique: false
+    }, activeKey);
+  } catch (cErr) {
+    // sheet may already exist
+  }
+
+  try {
+    await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      valueInputOption: 'USER_ENTERED',
+      data: [{
+        range: 'CLOSED!A1:I1',
+        majorDimension: 'ROWS',
+        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
+      }]
+    }, activeKey);
+
+    await executeComposioBatch([
+      {
+        tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
+        arguments: {
+          spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
+          sheet_name: 'CLOSED',
+          range: 'A1:I1',
+          background_color: '#065f46',
+          text_color: '#ffffff',
+          bold: true,
+          horizontal_alignment: 'CENTER'
+        }
+      }
+    ], activeKey);
+  } catch (hErr) {
+    console.warn('[ensureClosedSheetExists] Warning writing header:', hErr.message);
+  }
+
+  return true;
+}
+
 
 async function ensureTagColumnAcrossSheets(customApiKey) {
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
@@ -2279,11 +2349,19 @@ async function handleRequest(req, res) {
             rows.push(newRow);
           }
 
+          const maxCols = Math.max(9, (rows[0] && rows[0].length) || 9, ...rows.map(r => (r ? r.length : 0)));
+          const endLetter = colIndexToLetter(maxCols - 1);
+          const normalizedRows = rows.map(r => {
+            const copy = [...r];
+            while (copy.length < maxCols) copy.push('');
+            return copy.slice(0, maxCols);
+          });
+
           sheetData[tabName] = rows;
           updatePayload.push({
-            range: `${tabName}!A1:H${rows.length}`,
+            range: `${tabName}!A1:${endLetter}${normalizedRows.length}`,
             majorDimension: 'ROWS',
-            values: rows
+            values: normalizedRows
           });
 
           const jCol = STATUS_COLORS[existingInfo.jiraStatus] || STATUS_COLORS['To Pick Up'];
@@ -2293,6 +2371,7 @@ async function handleRequest(req, res) {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
               spreadsheet_id: SPREADSHEET_ID,
+              spreadsheetId: SPREADSHEET_ID,
               sheet_name: tabName,
               range: `E${targetRowIdx}`,
               background_color: jCol.bg,
@@ -2305,6 +2384,7 @@ async function handleRequest(req, res) {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
               spreadsheet_id: SPREADSHEET_ID,
+              spreadsheetId: SPREADSHEET_ID,
               sheet_name: tabName,
               range: `F${targetRowIdx}`,
               background_color: iCol.bg,
@@ -2325,14 +2405,23 @@ async function handleRequest(req, res) {
               const oldLength = rows.length;
               const newRows = rows.filter((_, idx) => idx !== rIdx);
               newRows.forEach((r, idx) => { if (idx > 0) r[0] = String(idx); });
-              while (newRows.length < oldLength) {
-                newRows.push(['', '', '', '', '', '', '', '']);
+
+              const maxRemCols = Math.max(9, (rows[0] && rows[0].length) || 9, ...newRows.map(r => (r ? r.length : 0)));
+              const remEndLetter = colIndexToLetter(maxRemCols - 1);
+              const paddedNewRows = [...newRows];
+              while (paddedNewRows.length < oldLength) {
+                paddedNewRows.push(new Array(maxRemCols).fill(''));
               }
+              const normalizedNewRows = paddedNewRows.map(r => {
+                const copy = [...r];
+                while (copy.length < maxRemCols) copy.push('');
+                return copy.slice(0, maxRemCols);
+              });
               sheetData[remTab] = newRows;
               updatePayload.push({
-                range: `${remTab}!A1:H${newRows.length}`,
+                range: `${remTab}!A1:${remEndLetter}${normalizedNewRows.length}`,
                 majorDimension: 'ROWS',
-                values: newRows
+                values: normalizedNewRows
               });
             }
           }
@@ -2511,8 +2600,8 @@ async function handleRequest(req, res) {
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
         if (clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
-          const fromTab = fromAssignee ? fromAssignee.trim().toUpperCase() : '';
-          const isAllowed = fromTab && userConfig.allowedSheets.some(s => s.toUpperCase() === fromTab);
+          const fromTab = fromAssignee ? resolveActualTabName(fromAssignee) : '';
+          const isAllowed = fromTab && userConfig.allowedSheets.some(s => s.toUpperCase() === fromTab.toUpperCase());
           if (!isAllowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: `Permission denied: As a team member, you can only close tasks from your own sheet (${userConfig.allowedSheets.join(', ')}).` }));
@@ -2523,20 +2612,23 @@ async function handleRequest(req, res) {
         // 1. Fetch live sheets
         const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
 
-        let closedTab = sheetNames.find(s => s.trim().toUpperCase() === 'CLOSED') || 'CLOSED';
+        let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
         let closedRows = sheetData[closedTab] || [];
         if (closedRows.length === 0 || (closedRows[0][0] !== '#' && closedRows[0][0] !== 'SNo')) {
+          await ensureClosedSheetExists();
           closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         // Determine target member tabs to remove from
-        const memberTabs = (fromAssignee && !allTabs)
-          ? [fromAssignee.trim().toUpperCase()]
+        const resolvedFrom = fromAssignee ? resolveActualTabName(fromAssignee) : null;
+        let memberTabs = (resolvedFrom && !allTabs)
+          ? [resolvedFrom]
           : sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase());
 
         let movedTicketData = null;
         const updatePayload = [];
         let removedCount = 0;
+        const affectedMemberTabs = [];
 
         for (const tab of memberTabs) {
           if (!sheetData[tab]) continue;
@@ -2554,18 +2646,67 @@ async function handleRequest(req, res) {
               if (idx > 0) r[0] = String(idx);
             });
 
+            // Calculate max columns to ensure uniform grid and dynamic end column
+            const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
+            const endCol = colIndexToLetter(maxTabCols - 1);
+
             // Pad with empty row to clear out deleted row in Google Sheets
             const paddedRows = [...newRows];
             while (paddedRows.length < oldLength) {
-              paddedRows.push(['', '', '', '', '', '', '', '']);
+              paddedRows.push(new Array(maxTabCols).fill(''));
             }
 
-            sheetData[tab] = newRows;
-            updatePayload.push({
-              range: `${tab}!A1:H${paddedRows.length}`,
-              majorDimension: 'ROWS',
-              values: paddedRows
+            const normalizedPaddedRows = paddedRows.map(r => {
+              const copy = [...r];
+              while (copy.length < maxTabCols) copy.push('');
+              return copy.slice(0, maxTabCols);
             });
+
+            sheetData[tab] = newRows;
+            affectedMemberTabs.push(tab);
+            updatePayload.push({
+              range: `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
+              majorDimension: 'ROWS',
+              values: normalizedPaddedRows
+            });
+          }
+        }
+
+        // Fallback: If not found in specified fromAssignee tab, search all member sheets
+        if (!movedTicketData && resolvedFrom && !allTabs) {
+          const fallbackTabs = sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase() && s.trim().toUpperCase() !== resolvedFrom.toUpperCase());
+          for (const tab of fallbackTabs) {
+            if (!sheetData[tab]) continue;
+            const rows = sheetData[tab] || [];
+            const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+            if (targetIdx > 0) {
+              removedCount++;
+              movedTicketData = [...rows[targetIdx]];
+              const oldLength = rows.length;
+              const newRows = rows.filter((_, idx) => idx !== targetIdx);
+              newRows.forEach((r, idx) => {
+                if (idx > 0) r[0] = String(idx);
+              });
+              const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
+              const endCol = colIndexToLetter(maxTabCols - 1);
+              const paddedRows = [...newRows];
+              while (paddedRows.length < oldLength) {
+                paddedRows.push(new Array(maxTabCols).fill(''));
+              }
+              const normalizedPaddedRows = paddedRows.map(r => {
+                const copy = [...r];
+                while (copy.length < maxTabCols) copy.push('');
+                return copy.slice(0, maxTabCols);
+              });
+              sheetData[tab] = newRows;
+              affectedMemberTabs.push(tab);
+              updatePayload.push({
+                range: `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
+                majorDimension: 'ROWS',
+                values: normalizedPaddedRows
+              });
+              break;
+            }
           }
         }
 
@@ -2575,10 +2716,14 @@ async function handleRequest(req, res) {
           return;
         }
 
+        // Determine max columns for CLOSED tab
+        const maxClosedCols = Math.max(9, (closedRows[0] && closedRows[0].length) || 9, movedTicketData.length);
+        const closedEndCol = colIndexToLetter(maxClosedCols - 1);
+
         // Prepare row in CLOSED sheet
         const existingClosedIdx = closedRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
         const closedRow = [...movedTicketData];
-        while (closedRow.length < 8) closedRow.push('');
+        while (closedRow.length < maxClosedCols) closedRow.push('');
 
         // Set status to Closed
         closedRow[5] = 'Closed';
@@ -2595,19 +2740,32 @@ async function handleRequest(req, res) {
           targetClosedRowIdx = closedRows.length;
         }
 
+        const normalizedClosedRows = closedRows.map(r => {
+          const copy = [...r];
+          while (copy.length < maxClosedCols) copy.push('');
+          return copy.slice(0, maxClosedCols);
+        });
+
         sheetData[closedTab] = closedRows;
         updatePayload.push({
-          range: `${closedTab}!A1:H${closedRows.length}`,
+          range: `${closedTab}!A1:${closedEndCol}${normalizedClosedRows.length}`,
           majorDimension: 'ROWS',
-          values: closedRows
+          values: normalizedClosedRows
         });
 
         // 2. Batch update Google Sheets
-        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
         });
+
+        if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
+          const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+          console.error(`❌ [Close Ticket] Google Sheets batch update failed:`, errMsg);
+          throw new Error(`Google Sheets update failed: ${errMsg}`);
+        }
 
         // 3. Format status cells in CLOSED sheet
         const cCol = STATUS_COLORS['Closed'];
@@ -2616,6 +2774,7 @@ async function handleRequest(req, res) {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
               spreadsheet_id: SPREADSHEET_ID,
+              spreadsheetId: SPREADSHEET_ID,
               sheet_name: closedTab,
               range: `F${targetClosedRowIdx}`,
               background_color: cCol.bg,
@@ -2624,9 +2783,16 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ]);
+        ]).catch(e => console.warn('[Close Ticket] Format note:', e.message));
 
-        // 4. Update server cache
+        // 4. Push updates to individual member sheets immediately
+        affectedMemberTabs.forEach(mTab => {
+          if (INDIVIDUAL_SHEETS[mTab]) {
+            pushMasterToIndividualSheet(mTab, sheetData[mTab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${mTab}:`, e.message));
+          }
+        });
+
+        // 5. Update server cache
         cache = {
           sheetNames,
           data: sheetData,
@@ -2663,11 +2829,11 @@ async function handleRequest(req, res) {
         }
 
         const ticketKey = ticket.trim().toUpperCase();
-        const destTab = toAssignee.trim().toUpperCase();
+        const destTab = resolveActualTabName(toAssignee);
         console.log(`[Reopen Ticket] Moving ${ticketKey} from CLOSED to ${destTab}...`);
 
         const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
-        let closedTab = sheetNames.find(s => s.trim().toUpperCase() === 'CLOSED') || 'CLOSED';
+        let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
 
         const closedRows = sheetData[closedTab] || [];
         const targetIdx = closedRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
@@ -2679,7 +2845,6 @@ async function handleRequest(req, res) {
         }
 
         const targetRow = [...closedRows[targetIdx]];
-        while (targetRow.length < 8) targetRow.push('');
 
         // Remove from CLOSED
         const oldLength = closedRows.length;
@@ -2687,10 +2852,20 @@ async function handleRequest(req, res) {
         newClosedRows.forEach((r, idx) => {
           if (idx > 0) r[0] = String(idx);
         });
+
+        const maxClosedCols = Math.max(9, ...closedRows.map(r => (r ? r.length : 0)));
+        const closedEndCol = colIndexToLetter(maxClosedCols - 1);
+
         const paddedClosedRows = [...newClosedRows];
         while (paddedClosedRows.length < oldLength) {
-          paddedClosedRows.push(['', '', '', '', '', '', '', '']);
+          paddedClosedRows.push(new Array(maxClosedCols).fill(''));
         }
+        const normalizedPaddedClosedRows = paddedClosedRows.map(r => {
+          const copy = [...r];
+          while (copy.length < maxClosedCols) copy.push('');
+          return copy.slice(0, maxClosedCols);
+        });
+
         sheetData[closedTab] = newClosedRows;
 
         // Upsert into destTab
@@ -2699,6 +2874,11 @@ async function handleRequest(req, res) {
         if (newToRows.length === 0 || (newToRows[0][0] !== '#' && newToRows[0][0] !== 'SNo')) {
           newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
+
+        const maxDestCols = Math.max(9, (newToRows[0] && newToRows[0].length) || 9, targetRow.length);
+        const destEndCol = colIndexToLetter(maxDestCols - 1);
+
+        while (targetRow.length < maxDestCols) targetRow.push('');
 
         // Set status back to 'To Pick Up' (or Jira status)
         targetRow[5] = targetRow[4] || 'To Pick Up';
@@ -2714,26 +2894,40 @@ async function handleRequest(req, res) {
           newToRows.push(targetRow);
           newRowIndex = newToRows.length;
         }
+
+        const normalizedNewToRows = newToRows.map(r => {
+          const copy = [...r];
+          while (copy.length < maxDestCols) copy.push('');
+          return copy.slice(0, maxDestCols);
+        });
+
         sheetData[destTab] = newToRows;
 
         const updatePayload = [
           {
-            range: `${closedTab}!A1:H${paddedClosedRows.length}`,
+            range: `${closedTab}!A1:${closedEndCol}${normalizedPaddedClosedRows.length}`,
             majorDimension: 'ROWS',
-            values: paddedClosedRows
+            values: normalizedPaddedClosedRows
           },
           {
-            range: `${destTab}!A1:H${newToRows.length}`,
+            range: `${destTab}!A1:${destEndCol}${normalizedNewToRows.length}`,
             majorDimension: 'ROWS',
-            values: newToRows
+            values: normalizedNewToRows
           }
         ];
 
-        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
         });
+
+        if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
+          const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+          console.error(`❌ [Reopen Ticket] Google Sheets batch update failed:`, errMsg);
+          throw new Error(`Google Sheets update failed: ${errMsg}`);
+        }
 
         // Format status cell in destTab
         const iCol = STATUS_COLORS[targetRow[5]] || STATUS_COLORS['To Pick Up'];
@@ -2742,6 +2936,7 @@ async function handleRequest(req, res) {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
               spreadsheet_id: SPREADSHEET_ID,
+              spreadsheetId: SPREADSHEET_ID,
               sheet_name: destTab,
               range: `F${newRowIndex}`,
               background_color: iCol.bg,
@@ -2750,7 +2945,12 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ]);
+        ]).catch(e => console.warn('[Reopen Ticket] Format note:', e.message));
+
+        // Push to individual member sheet
+        if (INDIVIDUAL_SHEETS[destTab]) {
+          pushMasterToIndividualSheet(destTab, sheetData[destTab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${destTab}:`, e.message));
+        }
 
         cache = {
           sheetNames,
@@ -3301,15 +3501,22 @@ async function handleRequest(req, res) {
             if (rIdx > 0) {
               const oldLength = rows.length;
               const newRows = rows.filter((_, idx) => idx !== rIdx);
-              newRows.forEach((r, idx) => { if (idx > 0) r[0] = String(idx); });
-              while (newRows.length < oldLength) {
-                newRows.push(['', '', '', '', '', '', '', '']);
+              const maxOldCols = Math.max(9, (rows[0] && rows[0].length) || 9, ...newRows.map(r => (r ? r.length : 0)));
+              const oldEndLetter = colIndexToLetter(maxOldCols - 1);
+              const paddedNewRows = [...newRows];
+              while (paddedNewRows.length < oldLength) {
+                paddedNewRows.push(new Array(maxOldCols).fill(''));
               }
+              const normalizedNewRows = paddedNewRows.map(r => {
+                const copy = [...r];
+                while (copy.length < maxOldCols) copy.push('');
+                return copy.slice(0, maxOldCols);
+              });
               sheetData[oldTab] = newRows;
               removeBatch.push({
-                range: `${oldTab}!A1:H${newRows.length}`,
+                range: `${oldTab}!A1:${oldEndLetter}${normalizedNewRows.length}`,
                 majorDimension: 'ROWS',
-                values: newRows
+                values: normalizedNewRows
               });
             }
           }
