@@ -1755,34 +1755,40 @@
     .task-title-cell {
       font-weight: 500;
       color: #f1f5f9;
-      line-height: 1.4;
-      font-size: 12.5px;
+      line-height: 1.45;
+      font-size: 13px;
       text-align: left;
       vertical-align: middle;
-      max-width: 520px;
+      width: 100%;
+      min-width: 320px;
     }
     .task-title-row {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       text-align: left;
+      width: 100%;
       flex-wrap: wrap;
     }
     .task-title-text {
       font-weight: 500;
       color: #f1f5f9;
       text-align: left;
-      line-height: 1.4;
-      word-break: break-word;
+      line-height: 1.45;
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
 
     /* Inline Editable Task Title */
     .editable-title-box {
       position: relative;
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      width: 100%;
       max-width: 100%;
       min-width: 0;
+      flex: 1 1 auto;
     }
     .title-display-wrap {
       display: inline-flex;
@@ -1790,9 +1796,10 @@
       gap: 6px;
       cursor: pointer;
       border-radius: 5px;
-      padding: 2px 4px;
-      margin: -2px -4px;
+      padding: 2px 6px;
+      margin: -2px -6px;
       transition: background 0.15s ease;
+      width: 100%;
       max-width: 100%;
     }
     .title-display-wrap:hover {
@@ -7339,7 +7346,7 @@ Thanks!`;
           ${ticketCellHtml}
         </td>
         ${!isAllOverview ? `<td>${renderAssigneeCell(item.ticket, item.owner, item.notes, false)}</td>` : ''}
-        <td class="task-title-cell" style="vertical-align: middle; text-align: left;">
+        <td class="task-title-cell" style="vertical-align: middle; text-align: left; width: 100%; min-width: 320px;">
           <div class="task-title-row">
             ${sharedPrefix}
             ${epicChipHtml}
@@ -8565,7 +8572,7 @@ Thanks!`;
                   <th class="sortable-th" onclick="handleHeaderSort('ticket')" style="width: 125px;" title="Click to sort by Ticket ID">
                     Ticket ID <span class="th-sort-icon" data-col="ticket">↕</span>
                   </th>
-                  <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px; text-align: left;" title="Click to sort by Title">
+                  <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 320px; width: 100%; text-align: left;" title="Click to sort by Title">
                     Title / Task Description <span class="th-sort-icon" data-col="title">↕</span>
                   </th>
                   <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
@@ -8623,7 +8630,7 @@ Thanks!`;
                       <th class="sortable-th" onclick="handleHeaderSort('ticket')" style="width: 185px;" title="Click to sort by Ticket Number">
                         Ticket Number <span class="th-sort-icon" data-col="ticket">↕</span>
                       </th>
-                      <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 280px; text-align: left;" title="Click to sort by Title">
+                      <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 320px; width: 100%; text-align: left;" title="Click to sort by Title">
                         Title <span class="th-sort-icon" data-col="title">↕</span>
                       </th>
                       <th class="sortable-th" onclick="handleHeaderSort('status')" style="width: 140px; text-align: center;" title="Click to sort by Status">
@@ -8698,7 +8705,7 @@ Thanks!`;
                     <th class="sortable-th" onclick="handleHeaderSort('assignee')" style="width: 135px;" title="Click to sort by Assignee">
                       Assignee <span class="th-sort-icon" data-col="assignee">↕</span>
                     </th>
-                    <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 260px; text-align: left;" title="Click to sort by Title">
+                    <th class="sortable-th" onclick="handleHeaderSort('title')" style="min-width: 320px; width: 100%; text-align: left;" title="Click to sort by Title">
                       Title <span class="th-sort-icon" data-col="title">↕</span>
                     </th>
                     <th class="sortable-th" onclick="handleHeaderSort('tag')" style="min-width: 135px; width: 135px; text-align: center; white-space: nowrap;" title="Click to sort by Tag (Product / Support)">
