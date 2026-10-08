@@ -77,7 +77,7 @@ const USER_ACCOUNTS = {
     password: 'chetna@enveu2026',
     name: 'Chetna',
     role: 'MEMBER',
-    allowedSheets: ['CHETNA', 'PULSE', 'FE Ready', 'FE READY', 'PLAN']
+    allowedSheets: ['CHETNA', 'FE Ready', 'FE READY', 'PLAN']
   },
   'krishna': {
     username: 'krishna',
@@ -181,7 +181,7 @@ let cache = {
 const CACHE_TTL_MS = 180000; // 3 minutes (180,000 ms)
 
 const STATUS_SHEETS = ['CLOSED'];
-const PROJECT_SHEETS = ['PULSE'];
+const PROJECT_SHEETS = [];
 function isStatusSheet(name) {
   return STATUS_SHEETS.includes((name || '').trim().toUpperCase());
 }
@@ -702,7 +702,7 @@ function colIndexToLetter(colIdx) {
 function resolveActualTabName(inputName) {
   if (!inputName) return '';
   const trimmed = String(inputName).trim();
-  const known = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready', 'PLAN'];
+  const known = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'];
   const allSheets = (cache && cache.sheetNames) ? cache.sheetNames : known;
   const found = allSheets.find(s => s.toUpperCase() === trimmed.toUpperCase());
   return found || trimmed.toUpperCase();
@@ -732,7 +732,7 @@ async function discoverSheetNames(customApiKey) {
 // Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with dynamic columns A:ZZ and rows up to 500)
 async function fetchAllSheetsFromGoogle(passedApiKey) {
   const baseTabs = [
-    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'PULSE', 'FE Ready', 'PLAN'
+    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'
   ];
 
   const activeKey = passedApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
@@ -742,13 +742,13 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     if (activeKey) {
       const discovered = await discoverSheetNames(activeKey);
       if (discovered && discovered.length > 0) {
-        const merged = [...baseTabs];
-        discovered.forEach(d => {
-          if (!merged.some(m => m.trim().toUpperCase() === d.trim().toUpperCase())) {
-            merged.push(d);
+        const validDiscovered = discovered.map(d => String(d).trim());
+        sheetNames = baseTabs.filter(b => validDiscovered.some(v => v.toUpperCase() === b.toUpperCase()));
+        validDiscovered.forEach(d => {
+          if (!sheetNames.some(s => s.toUpperCase() === d.toUpperCase())) {
+            sheetNames.push(d);
           }
         });
-        sheetNames = merged;
       }
     }
   } catch (dErr) {
@@ -770,9 +770,14 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   if (batchResult?.data?.results) {
     batchResult.data.results.forEach((r, idx) => {
       const tab = sheetNames[idx];
-      sheetData[tab] = r.response?.data?.values || [];
+      if (!r.response?.error && !r.response?.data?.error) {
+        sheetData[tab] = r.response?.data?.values || [];
+      }
     });
   }
+
+  // Filter out any tabs that failed to load (e.g. deleted worksheets)
+  sheetNames = sheetNames.filter(tab => sheetData[tab] !== undefined);
 
   if (Object.keys(sheetData).length > 0) {
     cache = {
@@ -858,42 +863,8 @@ async function pushMasterToIndividualSheet(memberName, masterRows) {
 }
 
 async function syncPulseSheet() {
-  try {
-    const chetnaRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-      spreadsheet_id: INDIVIDUAL_SHEETS.CHETNA,
-      range: 'PULSE!A1:G100'
-    });
-    const chetnaRows = chetnaRes?.data?.results?.[0]?.response?.data?.values || [];
-    if (chetnaRows.length === 0) return;
-
-    // Check Master sheet PULSE rows
-    const masterRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-      spreadsheet_id: SPREADSHEET_ID,
-      range: `PULSE!A1:G${chetnaRows.length}`
-    });
-    const masterRows = masterRes?.data?.results?.[0]?.response?.data?.values || [];
-
-    const normChetna = chetnaRows.map(r => (Array.isArray(r) ? r.map(c => String(c ?? '').trim()) : []));
-    const normMaster = masterRows.map(r => (Array.isArray(r) ? r.map(c => String(c ?? '').trim()) : []));
-
-    if (JSON.stringify(normChetna) !== JSON.stringify(normMaster)) {
-      console.log(`🔄 [PULSE Sync] Detected real updates in Chetna's PULSE sheet (${chetnaRows.length} rows). Syncing to Master Sheet...`);
-      await executeComposioTool('GOOGLESHEETS_VALUES_UPDATE', {
-        spreadsheet_id: SPREADSHEET_ID,
-        range: `PULSE!A1:G${chetnaRows.length}`,
-        value_input_option: 'USER_ENTERED',
-        values: chetnaRows
-      });
-
-      if (cache.data) {
-        cache.data['PULSE'] = chetnaRows;
-        cache.timestamp = Date.now();
-      }
-      console.log(`✅ [PULSE Synced] Updated Master Sheet PULSE tab with ${chetnaRows.length} rows`);
-    }
-  } catch (err) {
-    console.error('Error syncing PULSE sheet:', err.message);
-  }
+  // Decommissioned: PULSE sheet deleted by user
+  return;
 }
 
 let isSyncingIndividual = false;
@@ -902,8 +873,6 @@ async function syncIndividualSheetsWithMaster() {
   isSyncingIndividual = true;
 
   try {
-    // 0. Sync PULSE project sheet
-    await syncPulseSheet();
     // 1. Fetch live master sheets
     const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
 
@@ -1329,12 +1298,12 @@ async function handleRequest(req, res) {
         const cellVal = (value !== undefined && value !== null) ? String(value) : '';
 
         // RBAC check: ADMIN can edit any sheet;
-        // PLAN and PULSE are shared team collaboration sheets, accessible to all users;
+        // PLAN is a shared team collaboration sheet, accessible to all users;
         // For individual member sheets, users can edit their own sheet
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
         const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
         const userConfig = USER_ACCOUNTS[clientUser];
-        const isSharedTab = ['PLAN', 'PULSE'].includes(tabName);
+        const isSharedTab = ['PLAN'].includes(tabName);
         if (!isSharedTab && clientRole === 'MEMBER' && userConfig && !userConfig.allowedSheets.includes('ALL')) {
           const isAllowed = userConfig.allowedSheets.some(s => s.toUpperCase() === tabName);
           if (!isAllowed) {

@@ -7745,7 +7745,7 @@ Thanks!`;
     });
 
     const STATUS_SHEETS = ['CLOSED'];
-    const PROJECT_SHEETS = ['PULSE'];
+    const PROJECT_SHEETS = [];
     const STAGE_SHEETS = ['FE READY', 'FE Ready'];
     const PLAN_SHEETS = ['PLAN', 'Plan'];
 
@@ -8541,10 +8541,10 @@ Thanks!`;
       `;
 
       const planKeys = sheetKeys.filter(k => isPlanSheet(k));
-      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k) && !isPlanSheet(k));
+      const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k) && !isPlanSheet(k) && k.toUpperCase() !== 'PULSE');
       const statusKeys = sheetKeys.filter(k => isStatusSheet(k));
       const stageKeys = sheetKeys.filter(k => isStageSheet(k));
-      const projectKeys = sheetKeys.filter(k => isProjectSheet(k));
+      const projectKeys = sheetKeys.filter(k => isProjectSheet(k) && (sheetStore[k] || []).length > 0);
 
       statusKeys.forEach(name => {
         const lower = name.toLowerCase();
@@ -10583,6 +10583,9 @@ Thanks!`;
             updateQuickAddStatusDropdown();
           }
           sheetStore = json.data;
+          if (currentActiveTab === 'pulse' && !json.data['PULSE'] && !json.data['pulse']) {
+            currentActiveTab = 'all';
+          }
           renderDynamicTabsAndPanes();
           
           const now = new Date();
