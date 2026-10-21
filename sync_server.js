@@ -2,6 +2,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3100;
@@ -45,15 +46,346 @@ function unsealApiKey(sealedToken) {
   }
 }
 
+const COMPOSIO_CONFIG_PATH = path.join(os.tmpdir(), 'task_sync_composio_config.json');
+
+function loadComposioConfig() {
+  try {
+    if (fs.existsSync(COMPOSIO_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(COMPOSIO_CONFIG_PATH, 'utf8'));
+      if (parsed && parsed.apiKey) {
+        return parsed.apiKey;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read composio_config.json:', e.message);
+  }
+  return process.env.COMPOSIO_API_KEY || COMPOSIO_KEY || '';
+}
+
+function saveComposioConfig(key) {
+  try {
+    if (key && (key.startsWith('ck_') || key.startsWith('sealed_v1:'))) {
+      fs.writeFileSync(COMPOSIO_CONFIG_PATH, JSON.stringify({ apiKey: key, lastUpdated: new Date().toISOString() }, null, 2), 'utf8');
+      return true;
+    }
+  } catch (e) {
+    console.warn('Could not write composio_config.json:', e.message);
+  }
+  return false;
+}
+
+let lastKnownActiveApiKey = loadComposioConfig();
+
 function resolveApiKey(rawKey) {
-  if (!rawKey || typeof rawKey !== 'string') return lastKnownActiveApiKey || '';
+  if (!rawKey || typeof rawKey !== 'string') return lastKnownActiveApiKey || loadComposioConfig() || '';
   const trimmed = rawKey.trim();
   if (trimmed.startsWith('ck_')) return trimmed;
   if (trimmed.startsWith('sealed_v1:')) {
     const unsealed = unsealApiKey(trimmed);
-    return unsealed || lastKnownActiveApiKey || '';
+    return unsealed || lastKnownActiveApiKey || loadComposioConfig() || '';
   }
-  return lastKnownActiveApiKey || '';
+  return lastKnownActiveApiKey || loadComposioConfig() || '';
+}
+
+// ==========================================
+// 🚀 YouTrack Integration Engine & Config
+// ==========================================
+const YOUTRACK_BASE_URL = process.env.YOUTRACK_BASE_URL || 'https://enveu.youtrack.cloud';
+const YOUTRACK_CONFIG_PATH = path.join(os.tmpdir(), 'task_sync_youtrack_config.json');
+
+function loadYouTrackConfig() {
+  try {
+    if (fs.existsSync(YOUTRACK_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(YOUTRACK_CONFIG_PATH, 'utf8'));
+      return {
+        baseUrl: parsed.baseUrl || YOUTRACK_BASE_URL,
+        token: parsed.token || process.env.YOUTRACK_TOKEN || '',
+        stateField: parsed.stateField || 'State',
+        lastUpdated: parsed.lastUpdated || null
+      };
+    }
+  } catch (e) {
+    console.warn('Could not read youtrack_config.json:', e.message);
+  }
+  return {
+    baseUrl: process.env.YOUTRACK_BASE_URL || YOUTRACK_BASE_URL,
+    token: process.env.YOUTRACK_TOKEN || '',
+    stateField: 'State',
+    lastUpdated: null
+  };
+}
+
+function saveYouTrackConfig(cfg) {
+  try {
+    fs.writeFileSync(YOUTRACK_CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.warn('Could not write youtrack_config.json:', e.message);
+    return false;
+  }
+}
+
+let activeYouTrackToken = loadYouTrackConfig().token || '';
+let currentRequestYouTrackToken = null;
+
+function parseYouTrackDueDate(rawDate) {
+  if (!rawDate || rawDate === 'null' || rawDate === 'None') return 'Not set';
+  if (typeof rawDate === 'object' && rawDate.presentation) return String(rawDate.presentation);
+  if (typeof rawDate === 'number' || /^\d{10,13}$/.test(String(rawDate))) {
+    const ms = Number(rawDate) < 10000000000 ? Number(rawDate) * 1000 : Number(rawDate);
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${d.getDate()} ${months[d.getMonth()]}`;
+    }
+  }
+  const match = String(rawDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = parseInt(match[3], 10);
+    const month = months[parseInt(match[2], 10) - 1];
+    return `${day} ${month}`;
+  }
+  const str = String(rawDate).trim();
+  return str && str.toLowerCase() !== 'tbd' ? str : 'Not set';
+}
+
+function convertDateToYouTrackIso(raw) {
+  if (!raw || raw === 'Not set' || raw === 'null' || raw === 'None') return null;
+  const s = String(raw).trim();
+  if (s.toLowerCase() === 'tbd') return null;
+
+  // 1. Check YYYY-MM-DD
+  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${String(isoMatch[2]).padStart(2, '0')}-${String(isoMatch[3]).padStart(2, '0')}`;
+  }
+
+  // 2. Check DD Mon or DD Mon YYYY (e.g. 26 Oct or 26 Oct 2026)
+  const monthMap = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+  const monMatch = s.match(/^(\d{1,2})[\s\-\/]+([a-zA-Z]{3,9})(?:[\s\-\/]+(\d{4}))?$/);
+  if (monMatch) {
+    const day = String(monMatch[1]).padStart(2, '0');
+    const monKey = monMatch[2].slice(0, 3).toLowerCase();
+    const month = monthMap[monKey];
+    const year = monMatch[3] || new Date().getFullYear();
+    if (month) return `${year}-${month}-${day}`;
+  }
+
+  // 3. Check DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const day = String(dmyMatch[1]).padStart(2, '0');
+    const month = String(dmyMatch[2]).padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  // 4. Fallback Date object / parse
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return null;
+}
+
+async function verifyYouTrackToken(tokenToTest, customUrl) {
+  const cfg = loadYouTrackConfig();
+  const token = (tokenToTest || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const cleanBaseUrl = (customUrl || cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+
+  if (!token) {
+    return { valid: false, error: 'Token is empty. Please enter your YouTrack Access Token.' };
+  }
+
+  try {
+    const resp = await fetch(`${cleanBaseUrl}/api/users/me?fields=id,login,name,guest`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (resp.status === 401 || resp.status === 403) {
+      return { valid: false, error: `Authentication failed (HTTP ${resp.status}): Token is invalid or expired.` };
+    }
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      return { valid: false, error: `YouTrack responded with HTTP ${resp.status}: ${txt}` };
+    }
+
+    const user = await resp.json();
+    if (user.guest) {
+      return { valid: false, error: 'Token resolved as Guest user. Please use a token with authenticated permissions.' };
+    }
+
+    return {
+      valid: true,
+      baseUrl: cleanBaseUrl,
+      user: {
+        id: user.id,
+        login: user.login,
+        name: user.name || user.login
+      }
+    };
+  } catch (err) {
+    return { valid: false, error: `Failed to connect to YouTrack: ${err.message}` };
+  }
+}
+
+async function fetchYouTrackIssue(issueKey, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  if (!token) {
+    const err = new Error('YouTrack Access Token is missing. Please configure your token in the dashboard.');
+    err.status = 401;
+    err.isAuthError = true;
+    throw err;
+  }
+
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = issueKey.trim().toUpperCase();
+  const url = `${cleanBaseUrl}/api/issues/${encodeURIComponent(cleanKey)}?fields=idReadable,summary,resolved,customFields(name,value(name,presentation,text,minutes))`;
+
+  const resp = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (resp.status === 401 || resp.status === 403) {
+    const err = new Error(`YouTrack Access Token expired or unauthorized (HTTP ${resp.status}). Please update token in dashboard.`);
+    err.status = resp.status;
+    err.isAuthError = true;
+    throw err;
+  }
+
+  if (resp.status === 404) {
+    const err = new Error(`Issue ${cleanKey} not found in YouTrack.`);
+    err.status = 404;
+    throw err;
+  }
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`YouTrack error HTTP ${resp.status}: ${txt}`);
+  }
+
+  const issue = await resp.json();
+  const title = issue.summary || '';
+  let youTrackStatus = 'To Do';
+  let dueDate = 'Not set';
+
+  if (Array.isArray(issue.customFields)) {
+    for (const cf of issue.customFields) {
+      const cfName = (cf.name || '').trim().toLowerCase();
+      // Match State / Status / Stage
+      if (cfName === 'state' || cfName === 'status' || cfName === 'stage') {
+        const val = cf.value?.name || cf.value?.presentation || cf.value?.text || (typeof cf.value === 'string' ? cf.value : null);
+        if (val) youTrackStatus = String(val).trim();
+      }
+      // Match Due date
+      if (cfName.includes('due') || cfName === 'deadline' || cfName === 'target date') {
+        if (cf.value) {
+          dueDate = parseYouTrackDueDate(cf.value);
+        }
+      }
+    }
+  }
+
+  return {
+    ticket: issue.idReadable || cleanKey,
+    title,
+    youTrackStatus,
+    jiraStatus: youTrackStatus, // backward compatible
+    status: youTrackStatus,
+    dueDate,
+    url: `${cleanBaseUrl}/issue/${issue.idReadable || cleanKey}`
+  };
+}
+
+async function executeYouTrackCommand(issueKey, commandQuery, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = String(issueKey).trim().toUpperCase();
+
+  if (!token) {
+    throw new Error('YouTrack Access Token is missing or empty. Please enter your YouTrack token.');
+  }
+
+  const url = `${cleanBaseUrl}/api/commands`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      query: commandQuery,
+      issues: [{ idReadable: cleanKey }]
+    })
+  });
+
+  if (resp.status === 401 || resp.status === 403) {
+    const err = new Error(`YouTrack Access Token expired or unauthorized (HTTP ${resp.status}).`);
+    err.status = resp.status;
+    err.isAuthError = true;
+    throw err;
+  }
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    let msg = txt;
+    try {
+      const j = JSON.parse(txt);
+      msg = j.error_description || j.error || txt;
+    } catch (_) {}
+    throw new Error(`YouTrack command error: ${msg}`);
+  }
+
+  return true;
+}
+
+async function batchFetchYouTrackIssues(keyList, customToken) {
+  const CHUNK_SIZE = 15;
+  const youTrackMap = {};
+  let authErrorOccurred = null;
+
+  for (let i = 0; i < keyList.length; i += CHUNK_SIZE) {
+    const chunkKeys = keyList.slice(i, i + CHUNK_SIZE);
+    const promises = chunkKeys.map(async key => {
+      try {
+        const item = await fetchYouTrackIssue(key, customToken);
+        return { key, item };
+      } catch (err) {
+        if (err.isAuthError) authErrorOccurred = err;
+        console.warn(`[YouTrack] Error fetching ${key}:`, err.message);
+        return { key, error: err.message };
+      }
+    });
+
+    const chunkResults = await Promise.all(promises);
+    chunkResults.forEach(res => {
+      if (res.item) {
+        youTrackMap[res.key] = res.item;
+      }
+    });
+
+    if (authErrorOccurred) {
+      throw authErrorOccurred;
+    }
+  }
+
+  return youTrackMap;
 }
 
 // Hardcoded preset user accounts with strict role-based access
@@ -110,11 +442,11 @@ const USER_ACCOUNTS = {
 };
 
 let currentRequestApiKey = null;
-let lastKnownActiveApiKey = '';
+if (!lastKnownActiveApiKey) lastKnownActiveApiKey = loadComposioConfig() || '';
 let currentRequestUser = 'workspace';
 
 // Monthly Composio Free Allowance Tracker (100,000 free calls / month)
-const USAGE_FILE = process.env.VERCEL ? path.join('/tmp', 'composio_usage.json') : path.join(__dirname, 'composio_usage.json');
+const USAGE_FILE = path.join(os.tmpdir(), 'task_sync_composio_usage.json');
 const COMPOSIO_MONTHLY_FREE_ALLOWANCE = 100000;
 
 function getCurrentMonthKey() {
@@ -172,12 +504,38 @@ function recordComposioCall(username, count = 1) {
   saveComposioUsage(composioUsageStore);
 }
 
-// In-memory cache with 3-minute TTL (Prevents redundant Google Sheets calls on page reloads)
-let cache = {
-  data: null,
-  sheetNames: null,
-  timestamp: 0
-};
+// Cache with disk persistence & 3-minute TTL (Prevents redundant Google Sheets calls on page reloads)
+const CACHE_FILE = path.join(os.tmpdir(), 'task_sync_sheets_cache.json');
+
+function loadDiskCache() {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+      if (parsed && parsed.data && Object.keys(parsed.data).length > 0) {
+        return {
+          data: parsed.data,
+          sheetNames: parsed.sheetNames || Object.keys(parsed.data),
+          timestamp: parsed.timestamp || Date.now()
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read sheets_cache.json:', e.message);
+  }
+  return { data: null, sheetNames: null, timestamp: 0 };
+}
+
+function saveDiskCache(c) {
+  try {
+    if (c && c.data) {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(c, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.warn('Could not write sheets_cache.json:', e.message);
+  }
+}
+
+let cache = loadDiskCache();
 const CACHE_TTL_MS = 180000; // 3 minutes (180,000 ms)
 
 const STATUS_SHEETS = ['CLOSED'];
@@ -203,11 +561,17 @@ const STATUS_COLORS = {
   'In Progress (CMS)': { bg: '#d1fae5', text: '#065f46' },
   'In Review': { bg: '#fef3c7', text: '#92400e' },
   'BE InReview': { bg: '#fef3c7', text: '#92400e' },
+  'Ready for review': { bg: '#fef3c7', text: '#92400e' },
+  'Review': { bg: '#fef3c7', text: '#92400e' },
+  'Testing': { bg: '#fef3c7', text: '#92400e' },
   'To Pick Up': { bg: '#dbeafe', text: '#1e40af' },
   'To Do': { bg: '#dbeafe', text: '#1e40af' },
+  'Submitted': { bg: '#dbeafe', text: '#1e40af' },
   'To Do (Analyzing)': { bg: '#dbeafe', text: '#1e40af' },
   'Open': { bg: '#dbeafe', text: '#1e40af' },
   'Selected for Development': { bg: '#dbeafe', text: '#1e40af' },
+  'Fixed': { bg: '#d1fae5', text: '#065f46' },
+  'Verified': { bg: '#d1fae5', text: '#065f46' },
   'Closed': { bg: '#d1fae5', text: '#065f46' },
   'Done': { bg: '#d1fae5', text: '#065f46' },
   'POC': { bg: '#f3e8ff', text: '#6b21a8' },
@@ -215,6 +579,9 @@ const STATUS_COLORS = {
   'Escalated to L3': { bg: '#fee2e2', text: '#991b1b' },
   'Discuss First': { bg: '#fee2e2', text: '#991b1b' },
   'Backlog': { bg: '#f1f5f9', text: '#475569' },
+  "Won't fix": { bg: '#f1f5f9', text: '#475569' },
+  'Duplicate': { bg: '#f1f5f9', text: '#475569' },
+  'Incomplete': { bg: '#fee2e2', text: '#991b1b' },
   'FE Ready': { bg: '#e0e7ff', text: '#3730a3' }
 };
 
@@ -230,6 +597,7 @@ const INDIVIDUAL_SHEETS = {
 let KNOWN_STATUSES = new Set([
   'To Pick Up',
   'To Do',
+  'Submitted',
   'To Do (Analyzing)',
   'In Progress',
   'Dev Done',
@@ -238,10 +606,16 @@ let KNOWN_STATUSES = new Set([
   'BE Done (Verify)',
   'In Review',
   'BE InReview',
+  'Ready for review',
+  'Review',
+  'Testing',
+  'Fixed',
+  'Verified',
   'POC',
   'Discuss First',
   'Backlog',
   'Closed',
+  'Done',
   'FE Ready'
 ]);
 
@@ -258,18 +632,7 @@ function registerCustomStatus(status) {
   return true;
 }
 
-function parseJiraDueDate(rawDate) {
-  if (!rawDate || rawDate === 'null' || rawDate === 'None') return 'Not set';
-  const match = String(rawDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (match) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const day = parseInt(match[3], 10);
-    const month = months[parseInt(match[2], 10) - 1];
-    return `${day} ${month}`;
-  }
-  const str = String(rawDate).trim();
-  return str && str.toLowerCase() !== 'tbd' ? str : 'Not set';
-}
+const parseJiraDueDate = parseYouTrackDueDate;
 
 function formatToday() {
   const d = new Date();
@@ -515,7 +878,7 @@ async function ensureFeReadySheetExists(customApiKey) {
       data: [{
         range: 'FE Ready!A1:I1',
         majorDimension: 'ROWS',
-        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
+        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
       }]
     }, activeKey);
     console.log('[ensureFeReadySheetExists] headerRes result:', JSON.stringify(headerRes));
@@ -582,7 +945,7 @@ async function ensureClosedSheetExists(customApiKey) {
       data: [{
         range: 'CLOSED!A1:I1',
         majorDimension: 'ROWS',
-        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
+        values: [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']]
       }]
     }, activeKey);
 
@@ -785,6 +1148,7 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
       sheetNames,
       timestamp: Date.now()
     };
+    saveDiskCache(cache);
   }
 
   return { sheetNames, sheetData };
@@ -981,7 +1345,7 @@ if (process.env.VERCEL !== '1' && require.main === module) {
 async function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-composio-key, x-user-name, x-user-role');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-composio-key, x-user-name, x-user-role, x-youtrack-token');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -993,9 +1357,16 @@ async function handleRequest(req, res) {
   const incomingKey = req.headers['x-composio-key'];
   const resolvedKey = resolveApiKey(incomingKey);
   currentRequestApiKey = resolvedKey || null;
-  if (resolvedKey) lastKnownActiveApiKey = resolvedKey;
+  if (resolvedKey && resolvedKey.startsWith('ck_')) {
+    lastKnownActiveApiKey = resolvedKey;
+    saveComposioConfig(resolvedKey);
+  }
   const incomingUser = req.headers['x-user-name'];
   currentRequestUser = incomingUser ? incomingUser.trim().toLowerCase() : 'workspace';
+
+  // Dynamic user-provided YouTrack token from request headers
+  const incomingYtToken = req.headers['x-youtrack-token'];
+  currentRequestYouTrackToken = incomingYtToken ? incomingYtToken.trim() : null;
 
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
@@ -1009,11 +1380,105 @@ async function handleRequest(req, res) {
     }
   }
 
+  // GET /api/youtrack/status -> Get current live YouTrack token status
+  if (urlObj.pathname === '/api/youtrack/status' && req.method === 'GET') {
+    try {
+      const cfg = loadYouTrackConfig();
+      const token = currentRequestYouTrackToken || activeYouTrackToken || cfg.token;
+      const verifyRes = await verifyYouTrackToken(token);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        active: verifyRes.valid,
+        baseUrl: verifyRes.baseUrl || cfg.baseUrl || YOUTRACK_BASE_URL,
+        hasToken: !!token,
+        token: verifyRes.valid ? token : null,
+        maskedToken: token ? `${token.slice(0, 4)}••••${token.slice(-4)}` : null,
+        user: verifyRes.user || null,
+        error: verifyRes.error || null
+      }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // POST /api/youtrack/save-token -> Validate and save YouTrack token
+  if (urlObj.pathname === '/api/youtrack/save-token' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const token = (payload.token || '').trim();
+        const baseUrl = ((payload.baseUrl || '').trim() || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+        const force = !!payload.force;
+
+        if (!token) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'YouTrack Access Token is required.' }));
+          return;
+        }
+
+        const verifyRes = await verifyYouTrackToken(token, baseUrl);
+        if (!verifyRes.valid && !force) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: verifyRes.error, allowForce: true }));
+          return;
+        }
+
+        const cfg = loadYouTrackConfig();
+        cfg.token = token;
+        cfg.baseUrl = baseUrl;
+        cfg.lastUpdated = new Date().toISOString();
+        saveYouTrackConfig(cfg);
+        activeYouTrackToken = token;
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          message: verifyRes.valid ? 'YouTrack Access Token verified and saved!' : 'Token saved (unverified).',
+          active: verifyRes.valid,
+          baseUrl,
+          user: verifyRes.user || null
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/youtrack/verify-token -> Test a token without saving
+  if (urlObj.pathname === '/api/youtrack/verify-token' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const token = (payload.token || currentRequestYouTrackToken || activeYouTrackToken || '').trim();
+        const baseUrl = ((payload.baseUrl || '').trim() || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+        const verifyRes = await verifyYouTrackToken(token, baseUrl);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: verifyRes.valid,
+          ...verifyRes
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/auth/login -> Authenticate with hardcoded credentials and return user role
   if (urlObj.pathname === '/api/auth/login' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
         const username = (payload.username || '').trim().toLowerCase();
@@ -1026,9 +1491,36 @@ async function handleRequest(req, res) {
           return;
         }
 
+        // Strict YouTrack Bearer Token check on login
+        const incomingYtToken = (payload.youTrackToken || '').trim();
+        const effectiveYtToken = incomingYtToken || currentRequestYouTrackToken || activeYouTrackToken;
+        const ytCheck = await verifyYouTrackToken(effectiveYtToken);
+
+        if (!ytCheck.valid) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'YouTrack Bearer Token is required to sign in. Please provide a valid YouTrack token.',
+            youTrackRequired: true
+          }));
+          return;
+        }
+
+        if (incomingYtToken && ytCheck.valid) {
+          saveYouTrackConfig({ youtrack_token: incomingYtToken });
+        }
+
         const { password: _, ...safeUser } = user;
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, user: safeUser }));
+        res.end(JSON.stringify({
+          success: true,
+          user: safeUser,
+          youtrack: {
+            active: true,
+            user: ytCheck.user || null,
+            baseUrl: ytCheck.baseUrl || YOUTRACK_BASE_URL
+          }
+        }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Malformed request body' }));
@@ -1059,18 +1551,18 @@ async function handleRequest(req, res) {
           ? actualKey.slice(0, 4) + '••••••••' + actualKey.slice(-4)
           : 'ck_••••••••';
 
-        // Check if required toolkits (googlesheets, jira) are connected
-        let connections = { googlesheets: { active: false }, jira: { active: false }, allActive: false };
+        // Check if required toolkits (googlesheets, jira) are connected, and check YouTrack status
+        // Check if required toolkits (googlesheets) are connected, and check YouTrack status
+        let connections = { googlesheets: { active: false }, youtrack: { active: false }, allActive: false };
         try {
           const resConn = await manageComposioConnections(actualKey, [
-            { name: 'googlesheets', action: 'list' },
-            { name: 'jira', action: 'list' }
+            { name: 'googlesheets', action: 'list' }
           ]);
           const results = resConn?.data?.results || {};
           const sheetsActive = results.googlesheets?.status === 'active' || 
             (Array.isArray(results.googlesheets?.accounts) && results.googlesheets.accounts.some(a => a.status === 'active'));
-          const jiraActive = results.jira?.status === 'active' || 
-            (Array.isArray(results.jira?.accounts) && results.jira.accounts.some(a => a.status === 'active'));
+
+          const ytCheck = await verifyYouTrackToken(currentRequestYouTrackToken);
 
           connections = {
             googlesheets: {
@@ -1078,12 +1570,14 @@ async function handleRequest(req, res) {
               status: sheetsActive ? 'active' : (results.googlesheets?.status || 'not_connected'),
               accountEmail: results.googlesheets?.accounts?.find(a => a.status === 'active')?.user_info?.email || null
             },
-            jira: {
-              active: !!jiraActive,
-              status: jiraActive ? 'active' : (results.jira?.status || 'not_connected'),
-              siteUrl: results.jira?.accounts?.find(a => a.status === 'active')?.user_info?.sites?.[0]?.url || null
+            youtrack: {
+              active: !!ytCheck.valid,
+              status: ytCheck.valid ? 'active' : 'token_needed',
+              baseUrl: ytCheck.baseUrl || YOUTRACK_BASE_URL,
+              user: ytCheck.user || null,
+              error: ytCheck.error || null
             },
-            allActive: !!(sheetsActive && jiraActive)
+            allActive: !!(sheetsActive && ytCheck.valid)
           };
         } catch (connErr) {
           console.warn('Connection check error during verify:', connErr.message);
@@ -1092,7 +1586,7 @@ async function handleRequest(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
-          message: 'Composio API Key connected and verified successfully!',
+          message: 'API Key connected and verified successfully!',
           sealedToken,
           maskedKey,
           connections
@@ -1105,7 +1599,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // POST /api/composio/check-connections -> Check live connection statuses for Google Sheets & Jira
+  // POST /api/composio/check-connections -> Check live connection statuses for Google Sheets & YouTrack
   if (urlObj.pathname === '/api/composio/check-connections' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -1113,6 +1607,12 @@ async function handleRequest(req, res) {
       try {
         const payload = JSON.parse(body || '{}');
         const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']) || currentRequestApiKey || COMPOSIO_KEY;
+        if (apiKey && apiKey.startsWith('ck_')) {
+          lastKnownActiveApiKey = apiKey;
+          saveComposioConfig(apiKey);
+        }
+        const ytCheck = await verifyYouTrackToken(payload.youTrackToken || currentRequestYouTrackToken);
+        const resolvedYtToken = ytCheck.valid ? (payload.youTrackToken || currentRequestYouTrackToken || activeYouTrackToken || loadYouTrackConfig().token) : null;
 
         if (!apiKey) {
           const emptyStatus = { active: false, status: 'not_connected', connectedAccount: null };
@@ -1120,22 +1620,26 @@ async function handleRequest(req, res) {
           res.end(JSON.stringify({
             success: true,
             googlesheets: emptyStatus,
-            jira: emptyStatus,
+            youtrack: {
+              active: !!ytCheck.valid,
+              status: ytCheck.valid ? 'active' : 'token_needed',
+              baseUrl: ytCheck.baseUrl || YOUTRACK_BASE_URL,
+              token: resolvedYtToken,
+              user: ytCheck.user || null,
+              error: ytCheck.error || null
+            },
             allActive: false
           }));
           return;
         }
 
         const resConn = await manageComposioConnections(apiKey, [
-          { name: 'googlesheets', action: 'list' },
-          { name: 'jira', action: 'list' }
+          { name: 'googlesheets', action: 'list' }
         ]);
 
         const results = resConn?.data?.results || {};
         const sheetsActive = results.googlesheets?.status === 'active' || 
           (Array.isArray(results.googlesheets?.accounts) && results.googlesheets.accounts.some(a => a.status === 'active'));
-        const jiraActive = results.jira?.status === 'active' || 
-          (Array.isArray(results.jira?.accounts) && results.jira.accounts.some(a => a.status === 'active'));
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -1145,12 +1649,15 @@ async function handleRequest(req, res) {
             status: sheetsActive ? 'active' : (results.googlesheets?.status || 'not_connected'),
             connectedAccount: { email: results.googlesheets?.accounts?.find(a => a.status === 'active')?.user_info?.email || null }
           },
-          jira: {
-            active: !!jiraActive,
-            status: jiraActive ? 'active' : (results.jira?.status || 'not_connected'),
-            connectedAccount: { siteUrl: results.jira?.accounts?.find(a => a.status === 'active')?.user_info?.sites?.[0]?.url || null }
+          youtrack: {
+            active: !!ytCheck.valid,
+            status: ytCheck.valid ? 'active' : 'token_needed',
+            baseUrl: ytCheck.baseUrl || YOUTRACK_BASE_URL,
+            token: resolvedYtToken,
+            user: ytCheck.user || null,
+            error: ytCheck.error || null
           },
-          allActive: !!(sheetsActive && jiraActive)
+          allActive: !!(sheetsActive && ytCheck.valid)
         }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -1170,9 +1677,9 @@ async function handleRequest(req, res) {
         const toolkit = (payload.toolkit || '').toLowerCase();
         const apiKey = resolveApiKey(payload.apiKey || req.headers['x-composio-key']) || currentRequestApiKey || COMPOSIO_KEY;
 
-        if (!['googlesheets', 'jira'].includes(toolkit)) {
+        if (toolkit !== 'googlesheets') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: 'Invalid toolkit: must be googlesheets or jira' }));
+          res.end(JSON.stringify({ success: false, error: 'Invalid toolkit: only googlesheets is supported' }));
           return;
         }
 
@@ -1483,15 +1990,26 @@ async function handleRequest(req, res) {
       let wasCached = true;
 
       if (!isCacheValid) {
-        const apiKey = resolveApiKey(req.headers['x-composio-key']);
-        if (apiKey) {
-          ensureFeReadySheetExists(apiKey).catch(err => console.warn('[ensureFeReadySheetExists] background note:', err.message));
-          ensureTagColumnAcrossSheets(apiKey).catch(err => console.warn('[ensureTagColumnAcrossSheets] background note:', err.message));
+        try {
+          const apiKey = resolveApiKey(req.headers['x-composio-key']);
+          if (apiKey) {
+            ensureFeReadySheetExists(apiKey).catch(err => console.warn('[ensureFeReadySheetExists] background note:', err.message));
+            ensureTagColumnAcrossSheets(apiKey).catch(err => console.warn('[ensureTagColumnAcrossSheets] background note:', err.message));
+          }
+          const fetched = await fetchAllSheetsFromGoogle();
+          sheetNames = fetched.sheetNames;
+          sheetData = fetched.sheetData;
+          wasCached = false;
+        } catch (fetchErr) {
+          if (cache.data && Object.keys(cache.data).length > 0) {
+            console.warn('[api/sheets] Live Google Sheets fetch failed, serving cached data:', fetchErr.message);
+            sheetNames = cache.sheetNames;
+            sheetData = cache.data;
+            wasCached = true;
+          } else {
+            throw fetchErr;
+          }
         }
-        const fetched = await fetchAllSheetsFromGoogle();
-        sheetNames = fetched.sheetNames;
-        sheetData = fetched.sheetData;
-        wasCached = false;
       }
 
       // Everyone can view all tasks, PULSE, CLOSED, and all member sheets
@@ -1541,8 +2059,8 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // POST /api/jira/fetch-ticket -> Fetch ticket details from Jira
-  if (urlObj.pathname === '/api/jira/fetch-ticket' && req.method === 'POST') {
+  // POST /api/youtrack/fetch-ticket -> Fetch ticket details from YouTrack
+  if (urlObj.pathname === '/api/youtrack/fetch-ticket' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
@@ -1552,7 +2070,7 @@ async function handleRequest(req, res) {
           res.end(JSON.stringify({ success: false, error: 'Empty request body' }));
           return;
         }
-        const { ticket } = JSON.parse(body);
+        const { ticket, token: bodyToken } = JSON.parse(body);
         if (!ticket) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Ticket key is required' }));
@@ -1560,41 +2078,44 @@ async function handleRequest(req, res) {
         }
 
         const ticketKey = ticket.trim().toUpperCase();
-        console.log(`[Jira Lookup] Querying ${ticketKey}...`);
+        console.log(`[YouTrack Lookup] Querying ${ticketKey}...`);
 
-        const jiraRes = await executeComposioTool('JIRA_GET_ISSUE', {
-          issue_key: ticketKey,
-          fields: ['summary', 'status', 'duedate', 'assignee', 'priority']
-        });
-
-        const issueData = jiraRes?.data?.results?.[0]?.response?.data || {};
-        const fields = issueData.fields || {};
-
-        if (!fields.summary) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: 'Ticket not found or inaccessible in Jira' }));
-          return;
-        }
-
-        const formattedDueDate = parseJiraDueDate(fields.duedate);
+        const ytToken = bodyToken || currentRequestYouTrackToken || activeYouTrackToken;
+        const ytData = await fetchYouTrackIssue(ticketKey, ytToken);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
-          ticket: ticketKey,
-          title: fields.summary,
-          jiraStatus: fields.status?.name || 'To Do',
-          internalStatus: fields.status?.name || 'To Pick Up',
-          status: fields.status?.name || 'To Pick Up',
-          dueDate: formattedDueDate,
-          assignee: fields.assignee?.displayName || ''
+          source: 'youtrack',
+          ticket: ytData.ticket,
+          title: ytData.title,
+          trackerStatus: ytData.youTrackStatus,
+          youTrackStatus: ytData.youTrackStatus,
+          jiraStatus: ytData.youTrackStatus,
+          internalStatus: ytData.youTrackStatus,
+          status: ytData.youTrackStatus,
+          dueDate: ytData.dueDate,
+          url: ytData.url,
+          assignee: ''
         }));
       } catch (err) {
-        console.error('Jira fetch error:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: err.message }));
+        console.error('YouTrack fetch error:', err.message);
+        const statusCode = err.status || (err.isAuthError ? 401 : 500);
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: err.message,
+          isAuthError: !!err.isAuthError
+        }));
       }
     });
+    return;
+  }
+
+  // POST /api/jira/fetch-ticket -> Disabled (Jira removed, using YouTrack)
+  if (urlObj.pathname === '/api/jira/fetch-ticket') {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, error: 'Jira integration has been removed. Please use YouTrack.' }));
     return;
   }
 
@@ -1957,6 +2478,25 @@ async function handleRequest(req, res) {
           }
         }
 
+        // 1. Push Due Date update to YouTrack if real issue key
+        let youTrackSynced = false;
+        let youTrackError = null;
+        if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(ticketKey)) {
+          try {
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytIso = convertDateToYouTrackIso(dueDate || formattedDueDate);
+            if (!ytIso) {
+              await executeYouTrackCommand(ticketKey, 'Due Date No Due Date', ytToken);
+            } else {
+              await executeYouTrackCommand(ticketKey, `Due Date ${ytIso}`, ytToken);
+            }
+            youTrackSynced = true;
+          } catch (ytErr) {
+            console.warn(`[YouTrack Due Date Sync] Failed for ${ticketKey}:`, ytErr.message);
+            youTrackError = ytErr.message;
+          }
+        }
+
         // Col H is index 7 (Due Date) in both standard sheets and PLAN!
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
@@ -1978,6 +2518,15 @@ async function handleRequest(req, res) {
           }
         }
 
+        if (youTrackError) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: `YouTrack update failed: ${youTrackError}`
+          }));
+          return;
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
@@ -1985,10 +2534,127 @@ async function handleRequest(req, res) {
           ticket: ticketKey,
           dueDate: formattedDueDate,
           rowNumber: targetRow,
-          message: 'Due date updated and synced to Google Sheets!'
+          youTrackSynced,
+          message: youTrackSynced
+            ? `Due date updated in YouTrack & Google Sheets ("${formattedDueDate}")!`
+            : 'Due date updated and synced to Google Sheets!'
         }));
       } catch (err) {
         console.error('Error updating due date:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/update-youtrack-state -> Update YouTrack State (and sync to Google Sheets Col E)
+  if (urlObj.pathname === '/api/ticket/update-youtrack-state' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { assignee, ticket, state, rowNumber } = JSON.parse(body || '{}');
+        if (!assignee || !ticket || !state) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'assignee, ticket, and state are required' }));
+          return;
+        }
+
+        const tabName = assignee.trim().toUpperCase();
+        const ticketKey = ticket.trim().toUpperCase();
+        const newState = state.trim();
+
+        // 1. If real YouTrack ticket, push State update to YouTrack
+        let youTrackSynced = false;
+        let youTrackError = null;
+        if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(ticketKey)) {
+          try {
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            await executeYouTrackCommand(ticketKey, `State ${newState}`, ytToken);
+            youTrackSynced = true;
+          } catch (ytErr) {
+            console.warn(`[YouTrack State Sync] Failed for ${ticketKey}:`, ytErr.message);
+            youTrackError = ytErr.message;
+          }
+        }
+
+        if (youTrackError) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: `YouTrack update failed: ${youTrackError}`
+          }));
+          return;
+        }
+
+        // 2. Find row index in Google Sheet
+        let targetRow = parseInt(rowNumber, 10);
+        if (!targetRow || isNaN(targetRow)) {
+          const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+            spreadsheet_id: SPREADSHEET_ID,
+            range: `${tabName}!A1:I100`
+          });
+          const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
+          const foundIdx = rows.findIndex((r, idx) => {
+            if (idx === 0) return false;
+            const t1 = (r[1] || '').trim().toUpperCase();
+            const t0 = (r[0] || '').trim().toUpperCase();
+            return t1 === ticketKey || t0 === ticketKey;
+          });
+          targetRow = foundIdx > 0 ? (foundIdx + 1) : 2;
+        }
+
+        // Col E is index 4 (1-indexed col 5: YouTrack Status) in standard sheets
+        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+          spreadsheet_id: SPREADSHEET_ID,
+          valueInputOption: 'USER_ENTERED',
+          data: [{
+            range: `${tabName}!E${targetRow}`,
+            majorDimension: 'ROWS',
+            values: [[newState]]
+          }]
+        });
+
+        // Cell formatting
+        const colStyle = STATUS_COLORS[newState] || STATUS_COLORS['To Pick Up'];
+        if (colStyle) {
+          executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+            spreadsheet_id: SPREADSHEET_ID,
+            sheet_name: tabName,
+            range: `E${targetRow}`,
+            background_color: colStyle.bg,
+            text_color: colStyle.text,
+            bold: true,
+            horizontal_alignment: 'CENTER'
+          }).catch(() => {});
+        }
+
+        if (cache.data && cache.data[tabName]) {
+          const rIdx = targetRow - 1;
+          if (cache.data[tabName][rIdx]) {
+            cache.data[tabName][rIdx][4] = newState;
+          }
+          if (INDIVIDUAL_SHEETS[tabName]) {
+            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          assignee: tabName,
+          ticket: ticketKey,
+          state: newState,
+          rowNumber: targetRow,
+          youTrackSynced,
+          youTrackError,
+          message: youTrackSynced 
+            ? `YouTrack State updated to "${newState}" in YouTrack & Google Sheets!`
+            : (youTrackError ? `Updated in Google Sheets (YouTrack notice: ${youTrackError})` : 'State updated in Google Sheets!')
+        }));
+      } catch (err) {
+        console.error('Error updating YouTrack state:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -2085,7 +2751,7 @@ async function handleRequest(req, res) {
         // 4. Upsert row to toTab (prevent duplicate entries if already in destination tab)
         const newToRows = [...toRows];
         if (newToRows.length === 0 || newToRows[0][0] !== '#') {
-          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
         const existingToIdx = newToRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
         
@@ -2097,7 +2763,7 @@ async function handleRequest(req, res) {
           movedRow = [
             '',
             ticketKey,
-            ticketKey.includes('-') && !ticketKey.startsWith('PLAN-') ? `https://enveu.atlassian.net/browse/${ticketKey}` : '',
+            ticketKey.includes('-') && !ticketKey.startsWith('PLAN-') ? `https://enveu.youtrack.cloud/issue/${ticketKey}` : '',
             taskTitle,
             'To Do',
             'To Pick Up',
@@ -2233,7 +2899,7 @@ async function handleRequest(req, res) {
           if (found) {
             existingInfo = {
               ticketKey: found[1],
-              ticketUrl: found[2] || `https://enveu.atlassian.net/browse/${ticketKey}`,
+              ticketUrl: found[2] || `https://enveu.youtrack.cloud/issue/${ticketKey}`,
               title: found[3] || '',
               jiraStatus: found[4] || 'To Do',
               internalStatus: found[5] || 'To Pick Up',
@@ -2244,26 +2910,33 @@ async function handleRequest(req, res) {
           }
         }
 
-        if (!existingInfo) {
+        if (existingInfo) {
           try {
-            const jRes = await executeComposioTool('JIRA_GET_ISSUE', {
-              issue_key: ticketKey,
-              fields: ['summary', 'status', 'duedate']
-            });
-            const fields = jRes?.data?.results?.[0]?.response?.data?.fields || {};
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytRes = await fetchYouTrackIssue(ticketKey, ytToken);
+            if (ytRes.dueDate && ytRes.dueDate !== 'Not set' && ytRes.dueDate.toLowerCase() !== 'tbd') {
+              existingInfo.dueDate = ytRes.dueDate;
+            }
+            if (ytRes.youTrackStatus) existingInfo.jiraStatus = ytRes.youTrackStatus;
+            if (ytRes.title && !existingInfo.title) existingInfo.title = ytRes.title;
+          } catch (e) {}
+        } else {
+          try {
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytRes = await fetchYouTrackIssue(ticketKey, ytToken);
             existingInfo = {
               ticketKey,
-              ticketUrl: `https://enveu.atlassian.net/browse/${ticketKey}`,
-              title: fields.summary || `Ticket ${ticketKey}`,
-              jiraStatus: fields.status?.name || 'To Do',
+              ticketUrl: ytRes.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`,
+              title: ytRes.title || `Ticket ${ticketKey}`,
+              jiraStatus: ytRes.youTrackStatus || 'To Do',
               internalStatus: 'To Pick Up',
               notes: '',
-              dueDate: parseJiraDueDate(fields.duedate)
+              dueDate: ytRes.dueDate || 'Not set'
             };
           } catch (e) {
             existingInfo = {
               ticketKey,
-              ticketUrl: `https://enveu.atlassian.net/browse/${ticketKey}`,
+              ticketUrl: `https://enveu.youtrack.cloud/issue/${ticketKey}`,
               title: `Ticket ${ticketKey}`,
               jiraStatus: 'To Do',
               internalStatus: 'To Pick Up',
@@ -2286,7 +2959,7 @@ async function handleRequest(req, res) {
 
           let rows = sheetData[tabName] || [];
           if (rows.length === 0 || rows[0][0] !== '#') {
-            rows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+            rows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
           }
 
           const existingIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
@@ -2585,7 +3258,7 @@ async function handleRequest(req, res) {
         let closedRows = sheetData[closedTab] || [];
         if (closedRows.length === 0 || (closedRows[0][0] !== '#' && closedRows[0][0] !== 'SNo')) {
           await ensureClosedSheetExists();
-          closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+          closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         // Determine target member tabs to remove from
@@ -2841,7 +3514,7 @@ async function handleRequest(req, res) {
         const toRows = sheetData[destTab] || [];
         const newToRows = [...toRows];
         if (newToRows.length === 0 || (newToRows[0][0] !== '#' && newToRows[0][0] !== 'SNo')) {
-          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+          newToRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         const maxDestCols = Math.max(9, (newToRows[0] && newToRows[0].length) || 9, targetRow.length);
@@ -2968,7 +3641,7 @@ async function handleRequest(req, res) {
         let feReadyRows = sheetData[feReadyTab] || [];
 
         if (feReadyRows.length === 0 || (feReadyRows[0][0] !== '#' && feReadyRows[0][0] !== 'SNo')) {
-          feReadyRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'Jira Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+          feReadyRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
         // Search for ticket in source tab or all tabs
@@ -3060,32 +3733,31 @@ async function handleRequest(req, res) {
     return;
   }
 
-  // POST /api/jira/sync-all -> Batch sync all Jira tickets across all sheets
-  if (urlObj.pathname === '/api/jira/sync-all' && req.method === 'POST') {
+  // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets
+  if (urlObj.pathname === '/api/youtrack/sync-all' && req.method === 'POST') {
     try {
-      // Validate API key upfront — fail fast with a clear 401 if not available
+      // Validate Composio API key upfront for Google Sheets operations
       const syncApiKey = currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
       if (!syncApiKey || !syncApiKey.startsWith('ck_')) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Composio API Key is required. Please sign in and configure your key in the dashboard.' }));
+        res.end(JSON.stringify({ success: false, error: 'Composio API Key is required for Google Sheets. Please sign in and configure your key in the dashboard.' }));
         return;
       }
 
-      console.log('⚡ Starting Bulk Jira Sync for All Sheets...');
+      console.log('⚡ Starting Bulk YouTrack Sync for All Sheets...');
       
       // 1. Fetch live sheets
       const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle(syncApiKey);
       
-      // 2. Collect unique Jira tickets
+      // 2. Collect unique tickets
       const allTicketKeys = new Set();
       sheetNames.forEach(tab => {
-        if (tab === 'PLAN') return; // PLAN doesn't contain Jira tickets
+        if (tab === 'PLAN') return; // PLAN doesn't contain tracker tickets
         const rows = sheetData[tab] || [];
         const isPulse = tab === 'PULSE';
 
         rows.forEach((row, idx) => {
           if (idx === 0) return; // skip header
-          // In PULSE, ticket is in row[0]; in other sheets, ticket is in row[1]
           const targetStr = isPulse ? String(row[0] || '') : String(row[1] || '');
           const matches = targetStr.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
           if (matches) {
@@ -3095,7 +3767,7 @@ async function handleRequest(req, res) {
       });
 
       const keyList = Array.from(allTicketKeys);
-      console.log(`Found ${keyList.length} valid Jira tickets across all sheets:`, keyList);
+      console.log(`Found ${keyList.length} valid tickets across all sheets:`, keyList);
 
       if (keyList.length === 0) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3103,41 +3775,25 @@ async function handleRequest(req, res) {
         return;
       }
 
-      // 3. Query Jira in parallel chunks to keep latency minimal
-      const CHUNK_SIZE = 25;
-      const jiraMap = {};
-
-      for (let i = 0; i < keyList.length; i += CHUNK_SIZE) {
-        const chunkKeys = keyList.slice(i, i + CHUNK_SIZE);
-        const jiraTools = chunkKeys.map(k => ({
-          tool_slug: 'JIRA_GET_ISSUE',
-          arguments: {
-            issue_key: k,
-            fields: ['summary', 'status', 'duedate']
-          }
-        }));
-
-        try {
-          const jiraRes = await executeComposioBatch(jiraTools, syncApiKey);
-          if (jiraRes?.data?.results) {
-            jiraRes.data.results.forEach((r, idx) => {
-              const k = chunkKeys[idx];
-              const fields = r.response?.data?.fields || {};
-              if (fields.summary || fields.status) {
-                jiraMap[k] = {
-                  title: fields.summary || '',
-                  jiraStatus: fields.status?.name || 'To Do',
-                  dueDate: parseJiraDueDate(fields.duedate)
-                };
-              }
-            });
-          }
-        } catch (jErr) {
-          console.warn('[sync-all] Chunk Jira query warning:', jErr.message);
+      // 3. Query YouTrack using batch fetcher
+      const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+      let youTrackMap = {};
+      try {
+        youTrackMap = await batchFetchYouTrackIssues(keyList, ytToken);
+      } catch (ytErr) {
+        if (ytErr.isAuthError) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: ytErr.message,
+            isAuthError: true
+          }));
+          return;
         }
+        console.warn('YouTrack batch fetch warning:', ytErr.message);
       }
 
-      console.log(`Successfully fetched details for ${Object.keys(jiraMap).length} tickets from Jira.`);
+      console.log(`Successfully fetched details for ${Object.keys(youTrackMap).length} tickets from YouTrack.`);
 
       // 4. Update rows for each sheet tab and prepare batch writes
       const updateData = [];
@@ -3145,7 +3801,7 @@ async function handleRequest(req, res) {
       let updatedCount = 0;
 
       sheetNames.forEach(tab => {
-        if (tab === 'PLAN') return; // PLAN tab does not have Jira status
+        if (tab === 'PLAN') return; // PLAN tab does not have tracker status
         const rows = sheetData[tab] || [];
         if (rows.length <= 1) return;
 
@@ -3161,30 +3817,30 @@ async function handleRequest(req, res) {
             const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
             if (matches && matches.length > 0) {
               const mainKey = matches[0].toUpperCase();
-              if (jiraMap[mainKey]) {
-                const j = jiraMap[mainKey];
-                if (j.title) row[1] = j.title;
-                if (j.jiraStatus) row[2] = j.jiraStatus;
-                row[5] = `https://enveu.atlassian.net/browse/${mainKey}`;
+              if (youTrackMap[mainKey]) {
+                const item = youTrackMap[mainKey];
+                if (item.title) row[1] = item.title;
+                if (item.youTrackStatus) row[2] = item.youTrackStatus;
+                row[5] = item.url || `https://enveu.youtrack.cloud/issue/${mainKey}`;
                 hasTabChanges = true;
                 updatedCount++;
               }
             }
           } else {
-            // Standard layout: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date, Tag]
+            // Standard layout: [#, Ticket ID, Ticket Link, Title, Status, Internal Status, Action/Notes, Due Date, Tag]
             const ticketCell = String(row[1] || '').trim();
             const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
             if (matches && matches.length > 0) {
               const mainKey = matches[0].toUpperCase();
-              if (jiraMap[mainKey]) {
-                const j = jiraMap[mainKey];
-                if (j.title) row[3] = j.title;
-                if (j.jiraStatus) row[4] = j.jiraStatus;
-                if (!row[5]) row[5] = j.jiraStatus || 'To Pick Up';
-                if (j.dueDate && (!row[7] || row[7] === 'Not set' || row[7] === 'tbd')) {
-                  row[7] = j.dueDate;
+              if (youTrackMap[mainKey]) {
+                const item = youTrackMap[mainKey];
+                if (item.title) row[3] = item.title;
+                if (item.youTrackStatus) row[4] = item.youTrackStatus;
+                if (!row[5]) row[5] = item.youTrackStatus || 'To Pick Up';
+                if (item.dueDate && item.dueDate !== 'Not set' && item.dueDate.toLowerCase() !== 'tbd') {
+                  row[7] = item.dueDate;
                 }
-                row[2] = `https://enveu.atlassian.net/browse/${mainKey}`;
+                row[2] = item.url || `https://enveu.youtrack.cloud/issue/${mainKey}`;
                 hasTabChanges = true;
                 updatedCount++;
               }
@@ -3230,23 +3886,31 @@ async function handleRequest(req, res) {
         timestamp: Date.now()
       };
 
-      console.log(`✅ Bulk Sync Complete. Synchronized ${updatedCount} ticket rows with Jira & Google Sheets.`);
+      console.log(`✅ Bulk YouTrack Sync Complete. Synchronized ${updatedCount} ticket rows with YouTrack & Google Sheets.`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         success: true,
+        source: 'youtrack',
         count: updatedCount,
         sheetNames,
         data: sheetData
       }));
     } catch (err) {
-      console.error('Error in sync-all:', err);
+      console.error('Error in youtrack sync-all:', err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: false, error: err.message }));
     }
     return;
   }
 
-  // POST /api/add-ticket -> Add ticket to sheet & dashboard (8 columns)
+  // POST /api/jira/sync-all -> Disabled (Jira removed, using YouTrack)
+  if (urlObj.pathname === '/api/jira/sync-all') {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, error: 'Jira bulk sync has been removed. Please use YouTrack bulk sync (/api/youtrack/sync-all).' }));
+    return;
+  }
+
+  // POST /api/add-ticket -> Add ticket to sheet & dashboard (supports both YouTrack and Jira)
   if (urlObj.pathname === '/api/add-ticket' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -3257,7 +3921,9 @@ async function handleRequest(req, res) {
           ticket,
           assignee,
           title,
+          source,
           jiraStatus,
+          youTrackStatus,
           internalStatus,
           status,
           notes,
@@ -3292,30 +3958,30 @@ async function handleRequest(req, res) {
         }
 
         const ticketKey = ticket.trim().toUpperCase();
-        const ticketUrl = (ticketKey.startsWith('PLAN-') || ticketKey.startsWith('TASK-')) ? '' : `https://enveu.atlassian.net/browse/${ticketKey}`;
+        let trackerStatus = youTrackStatus || jiraStatus || '';
+        let ticketUrl = '';
 
-        // Query Jira to verify / fill missing fields if it's a real Jira ticket
+        // Query tracker if real ticket key
         if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-')) {
           try {
-            const jiraRes = await executeComposioTool('JIRA_GET_ISSUE', {
-              issue_key: ticketKey,
-              fields: ['summary', 'status', 'duedate', 'assignee']
-            });
-            const fields = jiraRes?.data?.results?.[0]?.response?.data?.fields || {};
-            if (fields.summary && !title) title = fields.summary;
-            if (fields.status?.name) jiraStatus = fields.status.name;
-            if (!dueDate || dueDate === 'Not set' || dueDate.toLowerCase() === 'tbd') {
-              dueDate = parseJiraDueDate(fields.duedate);
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytRes = await fetchYouTrackIssue(ticketKey, ytToken);
+            if (ytRes.title && !title) title = ytRes.title;
+            if (ytRes.youTrackStatus && !trackerStatus) trackerStatus = ytRes.youTrackStatus;
+            ticketUrl = ytRes.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`;
+            if (ytRes.dueDate && ytRes.dueDate !== 'Not set' && ytRes.dueDate.toLowerCase() !== 'tbd') {
+              dueDate = ytRes.dueDate;
             }
-          } catch (e) {
-            console.warn('Jira lookup exception:', e.message);
+          } catch (ytErr) {
+            console.warn(`[add-ticket] YouTrack fetch error for ${ticketKey}:`, ytErr.message);
+            ticketUrl = `https://enveu.youtrack.cloud/issue/${ticketKey}`;
           }
         }
 
         const finalTitle = title || `Ticket ${ticketKey}`;
-        const finalJiraStatus = jiraStatus || 'To Do';
+        const finalJiraStatus = trackerStatus || 'To Do';
         const finalInternalStatus = internalStatus || status || finalJiraStatus || 'To Pick Up';
-        const finalDueDate = parseJiraDueDate(dueDate);
+        const finalDueDate = parseYouTrackDueDate(dueDate);
         const finalNotes = notes || `Added on ${formatToday()}`;
         const finalTag = (payload.tag && payload.tag.toLowerCase().includes('support')) ? 'Support' : 'Product';
 
@@ -3348,6 +4014,11 @@ async function handleRequest(req, res) {
               targetRowNum = memberRows.length > 0 ? (memberRows.length + 1) : 2;
             }
 
+            let memberDueDate = finalDueDate;
+            if ((!memberDueDate || memberDueDate === 'Not set') && existingMemberIdx > 0 && memberRows[existingMemberIdx][7] && memberRows[existingMemberIdx][7] !== 'Not set') {
+              memberDueDate = memberRows[existingMemberIdx][7];
+            }
+
             const rowData = [
               targetIdx,
               ticketKey,
@@ -3356,7 +4027,7 @@ async function handleRequest(req, res) {
               finalJiraStatus,
               memberStatus,
               memberNotes,
-              finalDueDate,
+              memberDueDate,
               finalTag
             ];
 
@@ -3518,6 +4189,11 @@ async function handleRequest(req, res) {
           targetRowNum = currentRows.length > 0 ? (currentRows.length + 1) : 2;
         }
 
+        let rowDueDate = finalDueDate;
+        if ((!rowDueDate || rowDueDate === 'Not set') && isExisting && currentRows[existingIdx][7] && currentRows[existingIdx][7] !== 'Not set') {
+          rowDueDate = currentRows[existingIdx][7];
+        }
+
         let newRow;
         if (tabName === 'PLAN') {
           // Schema for PLAN: [S.No., Epic, Task, Region, Effort, Dependency / Remarks, Internal Status, Due Date, Tag]
@@ -3529,7 +4205,7 @@ async function handleRequest(req, res) {
             (payload.effort || '').trim(),
             (payload.notes || payload.remarks || payload.dependency || '').trim(),
             finalInternalStatus || 'Planned',
-            finalDueDate || 'Not set',
+            rowDueDate || 'Not set',
             finalTag
           ];
         } else {
@@ -3541,7 +4217,7 @@ async function handleRequest(req, res) {
             finalJiraStatus,
             finalInternalStatus,
             finalNotes,
-            finalDueDate,
+            rowDueDate,
             finalTag
           ];
         }

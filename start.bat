@@ -1,7 +1,7 @@
 @echo off
-title Team Task Sheet & Jira Sync Server
+title Team Task Sheet — YouTrack & Jira Sync Server
 echo ===================================================
-echo   Starting Team Task Sheet & Jira Sync Server...
+echo   Starting Team Task Sheet (YouTrack & Jira Sync)...
 echo ===================================================
 echo.
 cd /d "%~dp0"

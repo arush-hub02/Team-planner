@@ -472,20 +472,31 @@
       width: 28px;
       height: 28px;
       border-radius: 6px;
-      background: rgba(59, 130, 246, 0.2);
-      border: 1px solid rgba(59, 130, 246, 0.4);
-      color: #60a5fa;
+      background: rgba(168, 85, 247, 0.2);
+      border: 1px solid rgba(168, 85, 247, 0.45);
+      color: #c084fc;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       font-size: 13px;
       transition: all 0.2s ease;
+      padding: 0;
     }
     .ticket-fetch-btn:hover {
-      background: #2563eb;
+      background: #9333ea;
       color: white;
-      box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+    .ticket-fetch-btn.btn-fetch-yt {
+      background: rgba(168, 85, 247, 0.2);
+      border-color: rgba(168, 85, 247, 0.45);
+      color: #c084fc;
+    }
+    .ticket-fetch-btn.btn-fetch-yt:hover {
+      background: #9333ea;
+      color: white;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
     }
 
     .form-input, .form-select {
@@ -1914,6 +1925,11 @@
 
     .badge-slate { background: var(--st-slate-bg); color: var(--st-slate-text); border-color: var(--st-slate-border); }
     .badge-slate .status-dot { background: var(--st-slate-text); }
+
+    /* Internal Status Column Visibility (Hidden per user preference - preserved for easy re-enable) */
+    .col-internal-status {
+      display: none !important;
+    }
 
     /* Interactive Internal Status Select (Enhanced & High Contrast) */
     .status-select-wrap {
@@ -3985,6 +4001,17 @@
             </div>
           </div>
 
+          <div class="auth-field">
+            <label class="auth-label" for="loginYtToken">
+              YouTrack Bearer Token <span style="color: #ef4444;">*</span> <span style="font-size: 11px; color: #c084fc; font-weight: normal;">(Required)</span>
+            </label>
+            <div class="auth-input-wrap">
+              <input type="password" id="loginYtToken" class="auth-input" placeholder="perm:xxxx... or Bearer token" required autocomplete="off">
+              <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('loginYtToken', this)">👁️</button>
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Direct sync from https://enveu.youtrack.cloud</div>
+          </div>
+
           <button type="submit" id="btnLoginSubmit" class="btn-auth-primary">
             <span>Sign In to Dashboard</span>
             <span>→</span>
@@ -4055,21 +4082,34 @@
             </div>
           </div>
 
-          <!-- 3. Jira Cloud Connector -->
-          <div class="verification-row" id="readinessJiraRow">
+          <!-- 3. YouTrack Cloud Integration (Required) -->
+          <div class="verification-row" id="readinessYouTrackRow">
             <div class="verification-row-header">
               <div class="verification-row-info">
-                <span class="verification-row-icon">🎫</span>
+                <span class="verification-row-icon">⚡</span>
                 <div>
-                  <div class="verification-row-title">Jira Cloud Tool</div>
-                  <div class="verification-row-desc" id="readinessJiraDesc">Enables issue syncing & sprint transitions</div>
+                  <div class="verification-row-title">YouTrack Bearer Token (Required)</div>
+                  <div class="verification-row-desc" id="readinessYouTrackDesc">https://enveu.youtrack.cloud — Live State & Due Date sync</div>
                 </div>
               </div>
-              <span class="mcp-status-pill pill-pending" id="readinessJiraBadge">Checking...</span>
+              <span class="mcp-status-pill pill-pending" id="readinessYouTrackBadge">Checking...</span>
             </div>
-            <div id="readinessJiraAction" style="display: none; margin-top: 10px;">
-              <button type="button" class="btn-mcp-connect" id="btnReadinessConnectJira" onclick="connectReadinessMcp('jira')">
-                🔗 Connect Jira Cloud ↗
+
+            <!-- Inline Bearer Token Form -->
+            <div id="readinessYtInputBox" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-size: 11.5px; color: #bae6fd; margin-bottom: 8px;">
+                Enter your YouTrack Bearer / Access Token (<a href="https://enveu.youtrack.cloud/users/me?tab=account-security" target="_blank" rel="noopener noreferrer" style="color: #c084fc; text-decoration: underline;">YouTrack Profile → Account Security ↗</a>):
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="readinessYtTokenInput" class="auth-input" placeholder="perm:xxxx... or Bearer token" style="padding: 7px 10px; font-size: 12px; flex: 1;">
+                <button type="button" class="btn btn-primary" onclick="submitReadinessYtToken()" style="height: 34px; padding: 0 12px; font-size: 12px; background: #9333ea; border-color: #a855f7;">Save Token</button>
+              </div>
+              <div id="readinessYtError" style="color: #f87171; font-size: 11px; margin-top: 6px; display: none;"></div>
+            </div>
+
+            <div id="readinessYouTrackAction" style="display: none; margin-top: 8px;">
+              <button type="button" class="btn-mcp-connect" id="btnReadinessConnectYouTrack" onclick="openYouTrackModal()">
+                ⚙️ View / Update YouTrack Token
               </button>
             </div>
           </div>
@@ -4104,7 +4144,7 @@
           </div>
         </div>
         <div class="auth-subtitle">
-          To sync Jira tasks and Google Sheets under your personal authentication, please connect your Composio API key.
+          To sync YouTrack tasks and Google Sheets under your personal authentication, please connect your Composio API key.
         </div>
 
         <div class="composio-guide-box">
@@ -4126,6 +4166,19 @@
             </div>
           </div>
 
+          <div class="auth-field">
+            <label class="auth-label" for="composioYtTokenInput">
+              YouTrack Bearer Token <span style="color: #ef4444;">*</span> <span style="font-size: 11px; color: #c084fc; font-weight: normal;">(Required)</span>
+            </label>
+            <div class="auth-input-wrap">
+              <input type="password" id="composioYtTokenInput" class="auth-input" placeholder="perm:xxxx... or Bearer token" required autocomplete="off">
+              <button type="button" class="btn-eye-toggle" onclick="togglePasswordVisibility('composioYtTokenInput', this)">👁️</button>
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">
+              Personal token from <a href="https://enveu.youtrack.cloud/users/me?tab=account-security" target="_blank" rel="noopener noreferrer" style="color: #c084fc; text-decoration: underline;">YouTrack Profile → Account Security ↗</a>
+            </div>
+          </div>
+
           <button type="submit" id="btnVerifyComposio" class="btn-auth-primary" style="background: linear-gradient(135deg, #059669, #0284c7);">
             <span>Verify & Check MCP Integrations</span>
             <span>→</span>
@@ -4139,7 +4192,7 @@
           <span class="auth-brand-icon">🔌</span>
           <div>
             <div class="auth-title" style="font-size: 18.5px;">Connect Required MCP Tools</div>
-            <div style="font-size: 11.5px; color: #38bdf8; font-weight: 600;">Google Sheets & Jira Integration</div>
+            <div style="font-size: 11.5px; color: #38bdf8; font-weight: 600;">Google Sheets & YouTrack Integration</div>
           </div>
         </div>
         <div class="auth-subtitle" style="margin-bottom: 16px; font-size: 12.5px;">
@@ -4211,21 +4264,29 @@
               </button>
             </div>
 
-            <!-- Jira MCP Card -->
-            <div class="mcp-connect-card" id="mcpCardJira">
+            <!-- YouTrack Bearer Token Card -->
+            <div class="mcp-connect-card" id="mcpCardYouTrack">
               <div class="mcp-connect-header">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <span style="font-size: 20px;">🎫</span>
+                  <span style="font-size: 20px;">⚡</span>
                   <div>
-                    <strong style="color: #f8fafc; font-size: 13px;">Jira MCP</strong>
-                    <div style="font-size: 11px; color: #94a3b8;" id="mcpAccountInfoJira">Pulls live Jira status & due dates</div>
+                    <strong style="color: #f8fafc; font-size: 13px;">YouTrack Bearer Token <span style="color:#ef4444;">*</span></strong>
+                    <div style="font-size: 11px; color: #94a3b8;" id="mcpAccountInfoYouTrack">https://enveu.youtrack.cloud</div>
                   </div>
                 </div>
-                <span class="mcp-status-pill pill-disconnected" id="mcpBadgeJira">🔴 Not Connected</span>
+                <span class="mcp-status-pill pill-connected" id="mcpBadgeYouTrack">Checking...</span>
               </div>
-              <button type="button" class="btn-mcp-connect" id="btnConnectJira" onclick="initiateToolkitConnection('jira')">
-                🔗 Connect Jira ↗
-              </button>
+              <div style="margin-top: 10px; display: flex; gap: 8px;">
+                <input type="password" id="mcpYtTokenInput" class="auth-input" placeholder="perm:xxxx... or Bearer token" style="padding: 7px 10px; font-size: 12px; flex: 1;">
+                <button type="button" class="btn btn-primary" onclick="saveMcpYouTrackToken()" style="height: 34px; padding: 0 12px; font-size: 12px; background: #9333ea; border-color: #a855f7; white-space: nowrap;">
+                  💾 Save Token
+                </button>
+              </div>
+              <div style="margin-top: 6px; text-align: right;">
+                <button type="button" onclick="openYouTrackModal()" style="background: none; border: none; color: #c084fc; font-size: 11px; cursor: pointer; text-decoration: underline;">
+                  Advanced Server URL Settings ↗
+                </button>
+              </div>
             </div>
 
             <div class="mcp-helper-notice">
@@ -4265,14 +4326,17 @@
         <div class="header-subtitle">
           <span>Live 2-Way Sync Engine</span>
           <span id="serverStatusBadge" class="sync-status-pill status-online">
-            <span class="status-pulse"></span> Google Sheets & Jira Synced
+            <span class="status-pulse"></span> Google Sheets & YouTrack Synced
           </span>
           <span id="lastSyncedText" style="color: var(--text-muted); font-size: 12px;"></span>
         </div>
       </div>
       <div class="header-actions">
-        <button id="btnSyncAllJira" onclick="syncAllFromJira()" class="btn btn-primary" title="Bulk fetch all tickets from Jira and update Google Sheets + Dashboard">
-          ⚡ Sync All from Jira
+        <button id="btnYtStatus" onclick="openYouTrackModal()" class="btn btn-secondary" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" title="Configure or update YouTrack Access Token">
+          ⚙️ YouTrack: <span id="ytTokenBadgeText">Checking...</span>
+        </button>
+        <button id="btnSyncAllYouTrack" onclick="syncAllFromYouTrack()" class="btn btn-primary" title="Bulk fetch all tickets from YouTrack and update Google Sheets + Dashboard">
+          ⚡ Sync from YouTrack
         </button>
         <button onclick="fetchLiveSheets(true)" class="btn btn-secondary" title="Force re-fetch from Google Sheets">
           🔄 Refresh from Sheet
@@ -4305,8 +4369,8 @@
           <div class="form-group fg-ticket">
             <label>Ticket ID <span id="ticketReqStar" style="color: #f87171;">*</span></label>
             <div class="ticket-input-box">
-              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600 (Optional for PLAN)" oninput="checkTicketDuplicate()" onchange="autoFetchJira(); checkTicketDuplicate();">
-              <button type="button" onclick="autoFetchJira(); checkTicketDuplicate();" class="ticket-fetch-btn" title="Fetch details from Jira">
+              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600 (Optional for PLAN)" oninput="checkTicketDuplicate()" onchange="autoFetchYouTrack(); checkTicketDuplicate();">
+              <button type="button" onclick="autoFetchYouTrack(); checkTicketDuplicate();" class="ticket-fetch-btn btn-fetch-yt" title="Fetch details from YouTrack (⚡)">
                 ⚡
               </button>
             </div>
@@ -4344,7 +4408,7 @@
           </div>
           <div class="form-group fg-title">
             <label>Title / Description <span id="jiraIndicator" style="font-size: 11px; color: #38bdf8; display: none;"></span></label>
-            <input type="text" id="titleInput" class="form-input" placeholder="Title (auto-fills from Jira)">
+            <input type="text" id="titleInput" class="form-input" placeholder="Title (auto-fills from YouTrack)">
           </div>
           <div class="form-group fg-tag">
             <label>Tag</label>
@@ -4353,7 +4417,24 @@
               <option value="Support">🛠️ Support</option>
             </select>
           </div>
-          <div class="form-group fg-status">
+          <div class="form-group fg-status" id="youtrackStateGroup">
+            <label>YouTrack State</label>
+            <select id="jiraStatusInput" class="form-select">
+              <option value="To Do">🔵 To Do</option>
+              <option value="In Progress">🟢 In Progress</option>
+              <option value="In Progress (L1)">🟢 In Progress (L1)</option>
+              <option value="In Progress (L2)">🟢 In Progress (L2)</option>
+              <option value="In Progress (L3)">🟢 In Progress (L3)</option>
+              <option value="Escalated to L2">🟣 Escalated to L2</option>
+              <option value="Escalated to L3">🔴 Escalated to L3</option>
+              <option value="Verify">🟡 Verify</option>
+              <option value="Resolved">✅ Resolved</option>
+              <option value="Closed">⚪ Closed</option>
+              <option value="On hold">⏸️ On hold</option>
+            </select>
+          </div>
+          <!-- Internal Status (Hidden per user preference - preserved for easy re-enable) -->
+          <div class="form-group fg-status col-internal-status" style="display: none;">
             <label>Internal Status</label>
             <select id="internalStatusInput" class="form-select">
               <option value="To Pick Up">🔵 To Pick Up</option>
@@ -4368,7 +4449,6 @@
               <option value="Backlog">⚪ Backlog</option>
             </select>
           </div>
-          <input type="hidden" id="jiraStatusInput" value="To Do">
           <input type="hidden" id="dueDateInput" value="Not set">
           <div class="form-group fg-submit">
             <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center; min-width: 120px;">
@@ -4514,6 +4594,65 @@
 
   </div>
 
+  <!-- 🚀 YouTrack Settings & Token Modal -->
+  <div id="youtrackModal" class="modal-overlay" onclick="if(event.target === this) closeYouTrackModal()">
+    <div class="modal-card" style="width: 580px; max-width: 95%;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🚀</span>
+          <span>YouTrack Configuration & Access Token</span>
+        </div>
+        <button class="modal-close" onclick="closeYouTrackModal()" title="Close">✕</button>
+      </div>
+
+      <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+        Connect your YouTrack instance to enable real-time issue title, State, and Due Date syncing with Google Sheets.
+      </div>
+
+      <!-- Live Token Status Banner -->
+      <div id="ytStatusAlert" style="margin-bottom: 16px; padding: 12px 16px; border-radius: 9px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8;">
+        <span id="ytStatusAlertText">Checking YouTrack connection...</span>
+        <span id="ytStatusAlertBadge" style="font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.2);">Pending</span>
+      </div>
+
+      <form id="youtrackForm" onsubmit="handleSaveYouTrackToken(event)">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <label style="display: block; font-size: 12.5px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">
+              YouTrack Instance URL
+            </label>
+            <input type="url" id="ytBaseUrlInput" class="form-input" style="width: 100%; box-sizing: border-box;" placeholder="https://enveu.youtrack.cloud" value="https://enveu.youtrack.cloud" required>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 12.5px; font-weight: 600; color: #cbd5e1;">
+                Access Token / Bearer Token (AT)
+              </label>
+              <button type="button" onclick="toggleYtTokenVisibility()" style="background: none; border: none; color: #38bdf8; font-size: 11.5px; cursor: pointer; text-decoration: underline;">
+                Show / Hide
+              </button>
+            </div>
+            <input type="password" id="ytTokenInput" class="form-input" style="width: 100%; font-family: monospace; box-sizing: border-box;" placeholder="perm:... or Bearer access token" required>
+          </div>
+
+          <!-- Helper tip regarding token expiry / admin restriction -->
+          <div style="padding: 12px 14px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; font-size: 12px; color: #fde68a; line-height: 1.5;">
+            💡 <strong>Token Expired or Restricted?</strong><br>
+            If permanent tokens are restricted by your admin (<em>"Update Self"</em> permission), you can paste an active Access Token (AT) here anytime. Whenever it expires, simply paste the updated token here to resume syncing without losing any sheet data!
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeYouTrackModal()">Cancel</button>
+            <button type="submit" id="btnSaveYtToken" class="btn btn-primary" style="min-width: 160px;">
+              💾 Verify & Save Token
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Person-Specific Sheets Modal -->
   <div id="shareModal" class="modal-overlay" onclick="if(event.target === this) closeShareModal()">
     <div class="modal-card">
@@ -4642,7 +4781,7 @@
           <span style="font-size: 22px;">🔔</span>
           <div>
             <div style="font-size: 16px; font-weight: 700; color: #f1f5f9;">Notify Team via Microsoft Teams</div>
-            <div style="font-size: 11.5px; color: #94a3b8; font-weight: 400; margin-top: 2px;">Direct Teams Chat • Clickable Jira Hyperlinks via Clipboard Paste • Zero Bot Setup</div>
+            <div style="font-size: 11.5px; color: #94a3b8; font-weight: 400; margin-top: 2px;">Direct Teams Chat • Clickable YouTrack Hyperlinks via Clipboard Paste • Zero Bot Setup</div>
           </div>
         </div>
         <button class="modal-close" onclick="closeTeamsNotifyModal()" title="Close">✕</button>
@@ -4652,7 +4791,7 @@
       <div style="flex-shrink:0; margin: 10px 0 8px; padding: 9px 13px; border-radius: 9px; font-size: 11.5px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.28); display: flex; align-items: flex-start; gap: 10px;">
         <span style="font-size: 17px; line-height: 1;">💡</span>
         <div style="color: #cbd5e1; line-height: 1.45;">
-          <strong style="color: #a5b4fc;">Active Hyperlinks in Teams:</strong> Teams only renders live clickable links when pasted into the chat box. Clicking <strong style="color: #38bdf8;">"💬 Open in Teams"</strong> or <strong style="color: #38bdf8;">"📋 Copy with Link"</strong> automatically places rich formatting with live clickable Jira links onto your clipboard. In Teams, simply press <kbd style="background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); font-family: monospace; color: #38bdf8; font-weight: 700;">Ctrl+V</kbd> to paste & send!
+          <strong style="color: #a5b4fc;">Active Hyperlinks in Teams:</strong> Teams only renders live clickable links when pasted into the chat box. Clicking <strong style="color: #38bdf8;">"💬 Open in Teams"</strong> or <strong style="color: #38bdf8;">"📋 Copy with Link"</strong> automatically places rich formatting with live clickable YouTrack links onto your clipboard. In Teams, simply press <kbd style="background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); font-family: monospace; color: #38bdf8; font-weight: 700;">Ctrl+V</kbd> to paste & send!
         </div>
       </div>
 
@@ -4878,7 +5017,194 @@
       purgeInsecureLocalStorageKeys();
     }
 
-    // Intercept window.fetch to automatically include auth & Composio headers and normalize URLs
+    function getApiHeaders(customHeaders = {}) {
+      const headers = { ...customHeaders };
+      const compKey = getActiveComposioKey();
+      if (compKey) headers['x-composio-key'] = compKey;
+      const ytToken = getActiveYouTrackToken();
+      if (ytToken) headers['x-youtrack-token'] = ytToken;
+      if (currentUser && currentUser.username) headers['x-user-name'] = currentUser.username;
+      if (currentUser && currentUser.role) headers['x-user-role'] = currentUser.role;
+      return headers;
+    }
+
+    // ==========================================
+    // 🚀 YouTrack Client Token & State Management
+    // ==========================================
+    const DEFAULT_YOUTRACK_BASE_URL = 'https://enveu.youtrack.cloud';
+
+    function getActiveYouTrackToken() {
+      return (localStorage.getItem('youtrack_token') || '').trim();
+    }
+
+    function setActiveYouTrackToken(token) {
+      if (token) {
+        localStorage.setItem('youtrack_token', token.trim());
+      } else {
+        localStorage.removeItem('youtrack_token');
+      }
+    }
+
+    function getActiveYouTrackBaseUrl() {
+      return (localStorage.getItem('youtrack_base_url') || DEFAULT_YOUTRACK_BASE_URL).trim();
+    }
+
+    function setActiveYouTrackBaseUrl(url) {
+      if (url) {
+        localStorage.setItem('youtrack_base_url', url.trim());
+      }
+    }
+
+    function openYouTrackModal(promptMessage) {
+      const modal = document.getElementById('youtrackModal');
+      if (!modal) return;
+      modal.classList.add('active');
+      modal.style.display = 'flex';
+      document.body.classList.add('modal-open');
+
+      const urlInput = document.getElementById('ytBaseUrlInput');
+      const tokenInput = document.getElementById('ytTokenInput');
+      if (urlInput) urlInput.value = getActiveYouTrackBaseUrl();
+      if (tokenInput) tokenInput.value = getActiveYouTrackToken();
+
+      const alertText = document.getElementById('ytStatusAlertText');
+      const alertBadge = document.getElementById('ytStatusAlertBadge');
+      if (promptMessage && alertText) {
+        alertText.innerHTML = `⚠️ <strong>${promptMessage}</strong>`;
+        if (alertBadge) {
+          alertBadge.innerText = 'Action Needed';
+          alertBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          alertBadge.style.color = '#f87171';
+        }
+      } else {
+        checkYouTrackStatus();
+      }
+    }
+
+    function closeYouTrackModal() {
+      const modal = document.getElementById('youtrackModal');
+      if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+      }
+      document.body.classList.remove('modal-open');
+    }
+
+    function toggleYtTokenVisibility() {
+      const input = document.getElementById('ytTokenInput');
+      if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+      }
+    }
+
+    async function checkYouTrackStatus() {
+      const alertText = document.getElementById('ytStatusAlertText');
+      const alertBadge = document.getElementById('ytStatusAlertBadge');
+      const topBadge = document.getElementById('ytTokenBadgeText');
+      let token = getActiveYouTrackToken();
+
+      try {
+        const res = await fetch('/api/youtrack/status', {
+          headers: getApiHeaders()
+        });
+        const data = await res.json();
+        if (data.active) {
+          if (!token && data.token) {
+            token = data.token;
+            setActiveYouTrackToken(token);
+            const loginYtInput = document.getElementById('loginYtToken');
+            if (loginYtInput && !loginYtInput.value) loginYtInput.value = token;
+          }
+          const userStr = data.user ? (data.user.name || data.user.login) : 'Connected';
+          if (alertText) alertText.innerHTML = `🟢 <strong>Connected</strong> to YouTrack as <strong>${userStr}</strong>`;
+          if (alertBadge) {
+            alertBadge.innerText = 'Active';
+            alertBadge.style.background = 'rgba(34, 197, 94, 0.2)';
+            alertBadge.style.color = '#4ade80';
+          }
+          if (topBadge) {
+            topBadge.innerText = '🟢 ' + userStr;
+            topBadge.style.color = '#4ade80';
+          }
+          return true;
+        } else {
+          const errMsg = data.error || (token ? 'Token expired or invalid' : 'No YouTrack token configured');
+          if (alertText) alertText.innerHTML = `🔴 <strong>Disconnected:</strong> ${errMsg}`;
+          if (alertBadge) {
+            alertBadge.innerText = token ? 'Expired / Invalid' : 'Token Missing';
+            alertBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+            alertBadge.style.color = '#f87171';
+          }
+          if (topBadge) {
+            topBadge.innerText = token ? '🔴 Token Expired' : '⚠️ Token Needed';
+            topBadge.style.color = token ? '#f87171' : '#fbbf24';
+          }
+          return false;
+        }
+      } catch (e) {
+        if (topBadge) {
+          topBadge.innerText = token ? '⚠️ Server Check' : '⚠️ Token Needed';
+          topBadge.style.color = '#fbbf24';
+        }
+        return false;
+      }
+    }
+
+    async function handleSaveYouTrackToken(e) {
+      if (e) e.preventDefault();
+      const btn = document.getElementById('btnSaveYtToken');
+      const tokenInput = document.getElementById('ytTokenInput');
+      const urlInput = document.getElementById('ytBaseUrlInput');
+      const token = tokenInput ? tokenInput.value.trim() : '';
+      const baseUrl = urlInput ? urlInput.value.trim() : DEFAULT_YOUTRACK_BASE_URL;
+
+      if (!token) {
+        showToast('⚠️ Please enter your YouTrack Access Token.');
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Verifying Token...';
+      }
+
+      try {
+        const res = await fetch('/api/youtrack/save-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, baseUrl })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setActiveYouTrackToken(token);
+          setActiveYouTrackBaseUrl(baseUrl);
+          showToast(`✅ YouTrack Connected successfully! (${data.user ? data.user.name : ''})`);
+          await checkYouTrackStatus();
+          setTimeout(() => {
+            closeYouTrackModal();
+          }, 800);
+        } else {
+          showToast('❌ ' + (data.error || 'Verification failed. Please check token.'));
+          const alertText = document.getElementById('ytStatusAlertText');
+          const alertBadge = document.getElementById('ytStatusAlertBadge');
+          if (alertText) alertText.innerText = data.error || 'Verification failed';
+          if (alertBadge) {
+            alertBadge.innerText = 'Failed';
+            alertBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+            alertBadge.style.color = '#f87171';
+          }
+        }
+      } catch (err) {
+        showToast('❌ Failed to reach server: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = '💾 Verify & Save Token';
+        }
+      }
+    }
+
+    // Intercept window.fetch to automatically include auth, YouTrack & Composio headers and normalize URLs
     const originalFetch = window.fetch;
     window.fetch = function(url, init = {}) {
       let finalUrl = url;
@@ -4894,7 +5220,8 @@
         ...(init.headers || {}),
         'x-user-name': (currentUser && currentUser.username) || '',
         'x-user-role': (currentUser && currentUser.role) || '',
-        'x-composio-key': getActiveComposioKey() || ''
+        'x-composio-key': getActiveComposioKey() || '',
+        'x-youtrack-token': getActiveYouTrackToken() || ''
       };
       return originalFetch(finalUrl, init);
     };
@@ -4992,16 +5319,30 @@
 
       const uInput = document.getElementById('loginUsername');
       const pInput = document.getElementById('loginPassword');
+      const ytInput = document.getElementById('loginYtToken');
       if (uInput) uInput.disabled = false;
       if (pInput) pInput.disabled = false;
+      if (ytInput) {
+        ytInput.disabled = false;
+        if (!ytInput.value) ytInput.value = getActiveYouTrackToken();
+      }
     }
 
     async function handleLoginSubmit(e) {
       e.preventDefault();
       const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
+      const ytInput = document.getElementById('loginYtToken');
+      const youTrackToken = (ytInput ? ytInput.value.trim() : '') || getActiveYouTrackToken();
       const errorEl = document.getElementById('loginError');
       const btn = document.getElementById('btnLoginSubmit');
+
+      if (!youTrackToken) {
+        errorEl.innerText = 'YouTrack Bearer Token is required to sign in. Please enter your YouTrack Bearer Token.';
+        errorEl.style.display = 'block';
+        if (ytInput) ytInput.focus();
+        return;
+      }
 
       errorEl.style.display = 'none';
       btn.disabled = true;
@@ -5011,16 +5352,19 @@
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password, youTrackToken })
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
-          errorEl.innerText = data.error || 'Invalid credentials. Please check username and password.';
+          errorEl.innerText = data.error || 'Invalid credentials or YouTrack token. Please check and try again.';
           errorEl.style.display = 'block';
           btn.disabled = false;
           btn.innerHTML = '<span>Sign In to Dashboard</span><span>→</span>';
           return;
         }
+
+        // Save valid YouTrack token
+        setActiveYouTrackToken(youTrackToken);
 
         currentUser = {
           username: data.user.username,
@@ -5036,6 +5380,7 @@
         const pInput = document.getElementById('loginPassword');
         if (uInput) uInput.disabled = true;
         if (pInput) pInput.disabled = true;
+        if (ytInput) ytInput.disabled = true;
         btn.innerHTML = '<span>✅ Authenticated</span>';
 
         const successBanner = document.getElementById('loginSuccessBanner');
@@ -5074,6 +5419,7 @@
       const keyBadge = document.getElementById('readinessKeyBadge');
       const keyDesc = document.getElementById('readinessKeyDesc');
       const keyInputBox = document.getElementById('readinessKeyInputBox');
+      const sheetsBadge = document.getElementById('readinessSheetsBadge');
       const banner = document.getElementById('readinessStatusBanner');
       const bannerText = document.getElementById('readinessStatusText');
       const bannerSpinner = document.getElementById('readinessStatusSpinner');
@@ -5089,9 +5435,6 @@
           keyDesc.innerText = `Device key active (${masked || 'ck_••••••••'})`;
         }
         if (keyInputBox) keyInputBox.style.display = 'none';
-
-        // Proceed to check MCP connectors
-        checkReadinessConnectors();
       } else {
         if (keyBadge) {
           keyBadge.className = 'mcp-status-pill pill-disconnected';
@@ -5105,12 +5448,67 @@
           const input = document.getElementById('readinessKeyInput');
           if (input) input.focus();
         }
+        if (sheetsBadge) {
+          sheetsBadge.className = 'mcp-status-pill pill-disconnected';
+          sheetsBadge.innerText = '🔴 Composio Key Required';
+        }
+      }
 
+      // 2. Check YouTrack token status live
+      const ytInputBox = document.getElementById('readinessYtInputBox');
+      const ytBadge = document.getElementById('readinessYouTrackBadge');
+      const ytAction = document.getElementById('readinessYouTrackAction');
+      let localYtToken = getActiveYouTrackToken();
+
+      try {
+        const ytRes = await fetch('/api/youtrack/status', {
+          headers: getApiHeaders()
+        });
+        const ytData = await ytRes.json();
+        if (ytData.active) {
+          if (!localYtToken && ytData.token) {
+            localYtToken = ytData.token;
+            setActiveYouTrackToken(localYtToken);
+            const loginYtInput = document.getElementById('loginYtToken');
+            if (loginYtInput && !loginYtInput.value) loginYtInput.value = localYtToken;
+          }
+          if (ytBadge) {
+            ytBadge.className = 'mcp-status-pill pill-connected';
+            const ytUser = ytData.user?.name || ytData.user?.login || 'Active';
+            ytBadge.innerText = `🟢 Connected (${ytUser})`;
+          }
+          if (ytInputBox) ytInputBox.style.display = 'none';
+          if (ytAction) ytAction.style.display = 'block';
+        } else {
+          if (ytBadge) {
+            ytBadge.className = 'mcp-status-pill pill-disconnected';
+            ytBadge.innerText = '🔴 Bearer Token Required';
+          }
+          if (ytInputBox) ytInputBox.style.display = 'block';
+          if (ytAction) ytAction.style.display = 'none';
+        }
+      } catch (e) {
+        if (ytBadge) {
+          ytBadge.className = 'mcp-status-pill pill-disconnected';
+          ytBadge.innerText = localYtToken ? '⚠️ Status Check Failed' : '🔴 Bearer Token Required';
+        }
+      }
+
+      if (!hasConfiguredComposioKey() || !getActiveYouTrackToken()) {
         if (banner) {
           banner.className = 'verification-launch-banner banner-warning';
           if (bannerSpinner) bannerSpinner.style.display = 'none';
-          if (bannerText) bannerText.innerText = '⚠️ Please enter your Composio API key to check connectors.';
+          if (!hasConfiguredComposioKey() && !getActiveYouTrackToken()) {
+            banner.innerText = '⚠️ Please enter your Composio key and YouTrack Bearer token to proceed.';
+          } else if (!hasConfiguredComposioKey()) {
+            banner.innerText = '⚠️ Please enter your Composio key above to proceed.';
+          } else {
+            banner.innerText = '⚠️ YouTrack Bearer Token is required to access the dashboard.';
+          }
         }
+      } else {
+        // Both are configured, proceed to inspect live connectors!
+        checkReadinessConnectors();
       }
     }
 
@@ -5177,6 +5575,69 @@
       }
     }
 
+    // Submit YouTrack Bearer Token directly from the Readiness screen
+    async function submitReadinessYtToken() {
+      const input = document.getElementById('readinessYtTokenInput');
+      const errEl = document.getElementById('readinessYtError');
+      const token = input ? input.value.trim() : '';
+
+      if (!token) {
+        if (errEl) {
+          errEl.innerText = 'Please enter your YouTrack Bearer Token.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (errEl) errEl.style.display = 'none';
+      const ytBadge = document.getElementById('readinessYouTrackBadge');
+      if (ytBadge) {
+        ytBadge.className = 'mcp-status-pill pill-pending';
+        ytBadge.innerText = '🟡 Verifying token...';
+      }
+
+      try {
+        const res = await fetch('/api/youtrack/save-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token, baseUrl: 'https://enveu.youtrack.cloud' })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          if (errEl) {
+            errEl.innerText = data.error || 'Invalid YouTrack token. Please verify in YouTrack.';
+            errEl.style.display = 'block';
+          }
+          if (ytBadge) {
+            ytBadge.className = 'mcp-status-pill pill-disconnected';
+            ytBadge.innerText = '❌ Invalid Token';
+          }
+          return;
+        }
+
+        setActiveYouTrackToken(token);
+        showToast('⚡ YouTrack Bearer Token saved & active!');
+
+        if (ytBadge) {
+          ytBadge.className = 'mcp-status-pill pill-connected';
+          const ytUser = data.user?.name || data.user?.login || 'Active';
+          ytBadge.innerText = `🟢 Connected (${ytUser})`;
+        }
+        const inputBox = document.getElementById('readinessYtInputBox');
+        if (inputBox) inputBox.style.display = 'none';
+        const actionBox = document.getElementById('readinessYouTrackAction');
+        if (actionBox) actionBox.style.display = 'block';
+
+        // Re-check live connectors!
+        checkReadinessConnectors();
+      } catch (err) {
+        if (errEl) {
+          errEl.innerText = 'Error saving YouTrack token: ' + err.message;
+          errEl.style.display = 'block';
+        }
+      }
+    }
+
     async function checkReadinessConnectors(manual = false) {
       if (!hasConfiguredComposioKey()) {
         runLoginReadinessInspection();
@@ -5195,20 +5656,27 @@
 
       const sheetsBadge = document.getElementById('readinessSheetsBadge');
       const sheetsAction = document.getElementById('readinessSheetsAction');
-      const jiraBadge = document.getElementById('readinessJiraBadge');
-      const jiraAction = document.getElementById('readinessJiraAction');
+      const ytBadge = document.getElementById('readinessYouTrackBadge');
+      const ytAction = document.getElementById('readinessYouTrackAction');
+      const ytInputBox = document.getElementById('readinessYtInputBox');
 
       try {
         const res = await fetch('/api/composio/check-connections', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: getActiveComposioKey() })
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            apiKey: getActiveComposioKey(),
+            youTrackToken: getActiveYouTrackToken()
+          })
         });
         const data = await res.json();
 
         if (res.ok && data.success) {
+          if (data.youtrack && data.youtrack.active && data.youtrack.token && !getActiveYouTrackToken()) {
+            setActiveYouTrackToken(data.youtrack.token);
+          }
           const sheetsActive = !!(data.googlesheets && data.googlesheets.active);
-          const jiraActive = !!(data.jira && data.jira.active);
+          const ytActive = !!(data.youtrack && data.youtrack.active);
 
           // Google Sheets
           if (sheetsActive) {
@@ -5226,32 +5694,34 @@
             if (sheetsAction) sheetsAction.style.display = 'block';
           }
 
-          // Jira
-          if (jiraActive) {
-            if (jiraBadge) {
-              jiraBadge.className = 'mcp-status-pill pill-connected';
-              const email = data.jira.connectedAccount?.email || '';
-              jiraBadge.innerText = email ? `🟢 Connected (${email})` : '🟢 Connected (Active)';
+          // YouTrack Bearer Token (Strict Requirement)
+          if (ytActive) {
+            if (ytBadge) {
+              ytBadge.className = 'mcp-status-pill pill-connected';
+              const ytUser = data.youtrack.user?.name || data.youtrack.user?.login || 'Active';
+              ytBadge.innerText = `🟢 Connected (${ytUser})`;
             }
-            if (jiraAction) jiraAction.style.display = 'none';
+            if (ytInputBox) ytInputBox.style.display = 'none';
+            if (ytAction) ytAction.style.display = 'block';
           } else {
-            if (jiraBadge) {
-              jiraBadge.className = 'mcp-status-pill pill-disconnected';
-              jiraBadge.innerText = '🔴 Not Connected';
+            if (ytBadge) {
+              ytBadge.className = 'mcp-status-pill pill-disconnected';
+              ytBadge.innerText = '🔴 Bearer Token Required';
             }
-            if (jiraAction) jiraAction.style.display = 'block';
+            if (ytInputBox) ytInputBox.style.display = 'block';
+            if (ytAction) ytAction.style.display = 'none';
           }
 
           // Also update settings connection cards if open
           updateMcpConnectionCards(data);
 
-          // Are core systems connected? (Google Sheets + Jira are required)
-          if (sheetsActive && jiraActive) {
+          // MANDATORY GATE: Both Google Sheets AND YouTrack Bearer Token MUST be active!
+          if (sheetsActive && ytActive) {
             stopReadinessPolling();
             if (banner) {
               banner.className = 'verification-launch-banner banner-success';
               if (bannerSpinner) bannerSpinner.style.display = 'none';
-              if (bannerText) bannerText.innerHTML = '🚀 <strong>All systems connected!</strong> Launching dashboard...';
+              if (bannerText) bannerText.innerHTML = '🚀 <strong>Workspace ready!</strong> Launching dashboard...';
             }
 
             if (!autoLaunchTimeout) {
@@ -5269,7 +5739,11 @@
             if (banner) {
               banner.className = 'verification-launch-banner banner-warning';
               if (bannerSpinner) bannerSpinner.style.display = 'none';
-              if (bannerText) bannerText.innerText = '⚡ Connect missing tool(s) above. Dashboard will auto-launch once connected.';
+              if (!ytActive) {
+                if (bannerText) bannerText.innerText = '⚠️ YouTrack Bearer Token is required to access the dashboard.';
+              } else {
+                if (bannerText) bannerText.innerText = '⚡ Connect Google Sheets above. Dashboard will auto-launch once connected.';
+              }
             }
             startReadinessPolling();
           }
@@ -5287,19 +5761,10 @@
       }
     }
 
-    async function connectReadinessMcp(toolkit) {
-      let btn, badge, defaultText, label;
-      if (toolkit === 'googlesheets') {
-        btn = document.getElementById('btnReadinessConnectSheets');
-        badge = document.getElementById('readinessSheetsBadge');
-        defaultText = '🔗 Connect Google Sheets ↗';
-        label = 'Google Sheets';
-      } else {
-        btn = document.getElementById('btnReadinessConnectJira');
-        badge = document.getElementById('readinessJiraBadge');
-        defaultText = '🔗 Connect Jira Cloud ↗';
-        label = 'Jira Cloud';
-      }
+    async function connectReadinessMcp(toolkit = 'googlesheets') {
+      const btn = document.getElementById('btnReadinessConnectSheets');
+      const badge = document.getElementById('readinessSheetsBadge');
+      const defaultText = '🔗 Connect Google Sheets ↗';
 
       if (btn) {
         btn.disabled = true;
@@ -5316,7 +5781,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             apiKey: getActiveComposioKey(),
-            toolkit: toolkit
+            toolkit: 'googlesheets'
           })
         });
         const data = await res.json();
@@ -5330,7 +5795,7 @@
         }
 
         window.open(data.redirectUrl, '_blank', 'noopener,noreferrer');
-        showToast(`🔗 Opened ${label} auth tab. Authorize and return here!`);
+        showToast('🔗 Opened Google Sheets auth tab. Authorize and return here!');
         startReadinessPolling();
       } catch (err) {
         showToast('❌ Connection error: ' + err.message);
@@ -5379,9 +5844,14 @@
         autoLaunchTimeout = null;
       }
 
-      // STRICT VALIDATION: Never show dashboard unless key is present
+      // STRICT VALIDATION: Never show dashboard unless key and YouTrack Bearer Token are present
       if (!hasConfiguredComposioKey()) {
         showToast('⚠️ Composio key is required to enter dashboard.');
+        checkAuthSession();
+        return;
+      }
+      if (!getActiveYouTrackToken()) {
+        showToast('⚠️ YouTrack Bearer Token is required to enter dashboard.');
         checkAuthSession();
         return;
       }
@@ -5396,7 +5866,7 @@
       showToast(`🚀 Welcome, ${currentUser ? currentUser.name : 'Team'}! All systems active.`);
     }
 
-    function checkAuthSession() {
+    async function checkAuthSession() {
       stopMcpPolling();
       stopReadinessPolling();
       if (autoLaunchTimeout) {
@@ -5426,9 +5896,20 @@
         return;
       }
 
-      // Check if device key is configured
-      if (!hasConfiguredComposioKey()) {
-        // User logged in, but MISSING KEY: block dashboard and prompt for key on right panel!
+      // If YouTrack token is not in localStorage yet, probe server to auto-sync
+      if (!getActiveYouTrackToken()) {
+        try {
+          const ytRes = await fetch('/api/youtrack/status', { headers: getApiHeaders() });
+          const ytData = await ytRes.json();
+          if (ytData.active && ytData.token) {
+            setActiveYouTrackToken(ytData.token);
+          }
+        } catch (e) {}
+      }
+
+      // Check if device key and YouTrack token are configured
+      if (!hasConfiguredComposioKey() || !getActiveYouTrackToken()) {
+        // User logged in, but MISSING KEY or YouTrack token: block dashboard and prompt for credentials!
         document.documentElement.classList.remove('user-pre-authenticated');
         document.getElementById('dashboardContainer').style.display = 'none';
         document.getElementById('composioSetupOverlay').style.display = 'none';
@@ -5444,11 +5925,16 @@
         // Lock form inputs for current user, allow switching account via button or chips
         const uInput = document.getElementById('loginUsername');
         const pInput = document.getElementById('loginPassword');
+        const ytInput = document.getElementById('loginYtToken');
         if (uInput) {
           uInput.value = currentUser.username;
           uInput.disabled = true;
         }
         if (pInput) pInput.disabled = true;
+        if (ytInput) {
+          ytInput.value = getActiveYouTrackToken();
+          ytInput.disabled = true;
+        }
 
         const btn = document.getElementById('btnLoginSubmit');
         if (btn) btn.innerHTML = '<span>✅ Authenticated</span>';
@@ -5462,7 +5948,7 @@
 
         const sub = document.getElementById('readinessUserSub');
         if (sub) {
-          sub.innerText = `Logged in as ${currentUser.name}. Composio key required to proceed.`;
+          sub.innerText = `Logged in as ${currentUser.name}. YouTrack token & Composio key required to proceed.`;
         }
 
         // Run inspection to show key prompt
@@ -5470,7 +5956,7 @@
         return;
       }
 
-      // Authenticated AND Key is configured on device:
+      // Authenticated AND Key & YouTrack token are configured on device:
       // STAY AT DASHBOARD DIRECTLY! Zero flicker, zero re-login flash!
       document.documentElement.classList.add('user-pre-authenticated');
       document.getElementById('loginOverlay').style.display = 'none';
@@ -5514,33 +6000,30 @@
         }
       }
 
-      // Jira
-      const jiraBadge = document.getElementById('mcpBadgeJira');
-      const jiraBtn = document.getElementById('btnConnectJira');
-      const jiraInfo = document.getElementById('mcpAccountInfoJira');
+      // YouTrack Bearer Token
+      const ytBadge = document.getElementById('mcpBadgeYouTrack');
+      const ytBtn = document.getElementById('btnConnectYouTrack');
+      const ytInfo = document.getElementById('mcpAccountInfoYouTrack');
 
-      if (conn.jira && conn.jira.active) {
-        if (jiraBadge) {
-          jiraBadge.className = 'mcp-status-pill pill-connected';
-          jiraBadge.innerText = '🟢 Connected (Active)';
+      if (conn.youtrack && conn.youtrack.active) {
+        if (ytBadge) {
+          ytBadge.className = 'mcp-status-pill pill-connected';
+          const ytUser = conn.youtrack.user?.name || conn.youtrack.user?.login || 'Active';
+          ytBadge.innerText = `🟢 Connected (${ytUser})`;
         }
-        if (jiraBtn) {
-          jiraBtn.disabled = true;
-          jiraBtn.innerText = '✅ Jira Connected';
-          jiraBtn.style.opacity = '0.65';
+        if (ytBtn) {
+          ytBtn.innerText = '⚙️ View / Update Token';
         }
-        if (jiraInfo && conn.jira.connectedAccount?.siteUrl) {
-          jiraInfo.innerText = 'Site: ' + conn.jira.connectedAccount.siteUrl;
+        if (ytInfo && conn.youtrack.user?.login) {
+          ytInfo.innerText = 'User: ' + conn.youtrack.user.login;
         }
       } else {
-        if (jiraBadge) {
-          jiraBadge.className = 'mcp-status-pill pill-disconnected';
-          jiraBadge.innerText = '🔴 Not Connected';
+        if (ytBadge) {
+          ytBadge.className = 'mcp-status-pill pill-disconnected';
+          ytBadge.innerText = '🔴 Token Missing';
         }
-        if (jiraBtn) {
-          jiraBtn.disabled = false;
-          jiraBtn.innerText = '🔗 Connect Jira ↗';
-          jiraBtn.style.opacity = '1';
+        if (ytBtn) {
+          ytBtn.innerText = '⚙️ Enter Token';
         }
       }
 
@@ -5615,19 +6098,19 @@
         const ticket = ctx?.ticket || '[TICKET]';
         const title = ctx?.title || '[Ticket Title]';
         const assignee = ctx?.assignee || '[Assignee]';
-        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const ytLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.youtrack.cloud/issue/${ticket}` : '';
         const greeting = formatAssigneeMention(assignee);
         return `📅 *Action Required: Due Date Missing*
 
 ${greeting} — Hi!
 
-Your ticket is missing a due date and needs to be updated in Jira:
+Your ticket is missing a due date and needs to be updated:
 
 • *Ticket:* ${ticket}
 • *Title:* ${title}
-• *Assignee:* ${assignee}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+• *Assignee:* ${assignee}${ytLink ? `\n• *YouTrack Link:* ${ytLink}` : ''}
 
-Please update the due date in Jira at your earliest so we can track sprint commitments accurately.
+Please update the due date at your earliest so we can track commitments accurately.
 
 Thanks! 🙏`;
       },
@@ -5636,7 +6119,7 @@ Thanks! 🙏`;
         const title = ctx?.title || '[Ticket Title]';
         const assignee = ctx?.assignee || '[Assignee]';
         const status = ctx?.status || '[Current Status]';
-        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const ytLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.youtrack.cloud/issue/${ticket}` : '';
         const greeting = formatAssigneeMention(assignee);
         return `🔄 *Status Update Request*
 
@@ -5646,7 +6129,7 @@ Could you please provide an update on the following ticket?
 
 • *Ticket:* ${ticket}
 • *Title:* ${title}
-• *Current Status:* ${status}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+• *Current Status:* ${status}${ytLink ? `\n• *YouTrack Link:* ${ytLink}` : ''}
 
 Please update the internal status in the Team Task Sheet so everyone is aligned.
 
@@ -5656,7 +6139,7 @@ Thanks! 🚀`;
         const ticket = ctx?.ticket || '[TICKET]';
         const title = ctx?.title || '[Ticket Title]';
         const assignee = ctx?.assignee || '[Assignee]';
-        const jiraLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${ticket}` : '';
+        const ytLink = (ticket && !ticket.startsWith('[')) ? `https://enveu.youtrack.cloud/issue/${ticket}` : '';
         const greeting = formatAssigneeMention(assignee);
         return `🚧 *Ticket Blocked — Action Needed*
 
@@ -5666,7 +6149,7 @@ Your ticket appears to be blocked or stalled and needs attention:
 
 • *Ticket:* ${ticket}
 • *Title:* ${title}
-• *Assignee:* ${assignee}${jiraLink ? `\n• *Jira Link:* ${jiraLink}` : ''}
+• *Assignee:* ${assignee}${ytLink ? `\n• *YouTrack Link:* ${ytLink}` : ''}
 
 Please review and either unblock it, escalate, or update the status accordingly.
 
@@ -5680,7 +6163,7 @@ Hi team,
 
 Friendly reminder that our sprint review is approaching. Please ensure:
 
-✅ All completed tickets are marked as *Done* in Jira
+✅ All completed tickets are marked as *Done* in YouTrack
 ✅ Internal statuses are updated in the Team Task Sheet
 ✅ Any carry-over tickets are flagged with a note
 ✅ Due dates are set for next sprint commitments
@@ -5701,7 +6184,7 @@ This is a quick reminder to keep your task board up to date:
 • Update internal statuses for your tickets
 • Add due dates to any tickets missing them
 • Flag any blockers or dependencies
-• Close tickets that are done in Jira
+• Close tickets that are done in YouTrack
 
 A clean board helps the whole team stay in sync! 🎯
 
@@ -6041,8 +6524,7 @@ Thanks!`;
         const dueBadge = isNotSet
           ? `<span style="font-size:11px;padding:2px 7px;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:5px;white-space:nowrap;flex-shrink:0;">📅 No Due Date</span>`
           : `<span style="font-size:11px;padding:2px 7px;background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:5px;white-space:nowrap;flex-shrink:0;">📅 ${item.dueDate}</span>`;
-        const assigneeEmail = cleanTeamsEmailString(item.assigneeEmail || getAssigneeTeamsEmail(item.assignee));
-        const jiraUrl = (item.ticket && !item.ticket.startsWith('[')) ? `https://enveu.atlassian.net/browse/${item.ticket}` : '';
+        const ytUrl = (item.ticket && !item.ticket.startsWith('[')) ? `https://enveu.youtrack.cloud/issue/${item.ticket}` : '';
 
         html += `
           <div class="notify-ticket-card notify-card-active" id="ntcard-${key}"
@@ -6056,7 +6538,7 @@ Thanks!`;
                 <span style="font-size:14px;font-weight:700;color:#38bdf8;font-family:monospace;white-space:nowrap;flex-shrink:0;">${item.ticket}</span>
                 <span style="font-size:12.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;" title="${escapeHtml(item.title || '')}">${escapeHtml(item.title || 'No Title')}</span>
                 ${dueBadge}
-                ${jiraUrl ? `<a href="${jiraUrl}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px;color:#818cf8;text-decoration:underline;display:inline-flex;align-items:center;gap:3px;font-weight:600;white-space:nowrap;flex-shrink:0;" title="Open in Jira">🔗 Jira ↗</a>` : ''}
+                ${ytUrl ? `<a href="${ytUrl}" target="_blank" rel="noopener noreferrer" style="font-size:11.5px;color:#818cf8;text-decoration:underline;display:inline-flex;align-items:center;gap:3px;font-weight:600;white-space:nowrap;flex-shrink:0;" title="Open in YouTrack">🔗 YouTrack ↗</a>` : ''}
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                 ${item.isShared
@@ -6268,7 +6750,7 @@ Thanks!`;
           btnEl.classList.remove('btn-teams-copied');
         }, 2200);
       }
-      showToast(`📋 Copied message for @${item.assignee} with clickable Jira link! Paste into Teams (Ctrl+V).`);
+      showToast(`📋 Copied message for @${item.assignee} with clickable YouTrack link! Paste into Teams (Ctrl+V).`);
     }
 
     // Copy All Selected Messages (with rich HTML clickable links)
@@ -6297,7 +6779,7 @@ Thanks!`;
           btnEl.classList.remove('btn-teams-copied');
         }, 2200);
       }
-      showToast(`📋 Copied all ${tickets.length} messages with clickable Jira links!`);
+      showToast(`📋 Copied all ${tickets.length} messages with clickable YouTrack links!`);
     }
 
     // Open All in Teams (handles 1 ticket or multiple tickets seamlessly)
@@ -6485,6 +6967,23 @@ Thanks!`;
         return;
       }
 
+      const ytTokenInput = document.getElementById('composioYtTokenInput');
+      const ytToken = ytTokenInput ? ytTokenInput.value.trim() : '';
+      if (ytToken) {
+        setActiveYouTrackToken(ytToken);
+        try {
+          await fetch('/api/youtrack/save-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: ytToken })
+          });
+        } catch (e) {}
+      } else if (!getActiveYouTrackToken()) {
+        errorEl.innerText = 'YouTrack Bearer Token is required. Please enter your YouTrack token.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
       errorEl.style.display = 'none';
       btn.disabled = true;
       btn.innerHTML = '<span>Verifying key with Composio...</span>';
@@ -6504,7 +7003,7 @@ Thanks!`;
 
         saveComposioKey(data.sealedToken || key, data.maskedKey);
 
-        // If both Google Sheets & Jira MCP connections are active, proceed right into dashboard
+        // If both Google Sheets & YouTrack connections are active, proceed right into dashboard
         if (data.connections && data.connections.allActive) {
           showToast('✅ Composio key & MCP connections verified successfully!');
           checkAuthSession();
@@ -6516,9 +7015,11 @@ Thanks!`;
         document.getElementById('composioMcpConnectionsStep').style.display = 'block';
         const modalCard = document.getElementById('composioModalCard');
         if (modalCard) modalCard.classList.add('modal-step-connections');
+        const mcpYtInput = document.getElementById('mcpYtTokenInput');
+        if (mcpYtInput) mcpYtInput.value = getActiveYouTrackToken();
         updateMcpConnectionCards(data.connections || {});
         startMcpPolling();
-        showToast('⚠️ Key verified! Please authorize the required Google Sheets & Jira integrations.');
+        showToast('⚠️ Key verified! Please authorize the required Google Sheets tool.');
       } catch (err) {
         errorEl.innerText = 'Unable to verify Composio key: ' + err.message;
         errorEl.style.display = 'block';
@@ -6529,10 +7030,9 @@ Thanks!`;
     }
 
     async function initiateToolkitConnection(toolkit) {
-      const btnId = toolkit === 'googlesheets' ? 'btnConnectSheets' : 'btnConnectJira';
-      const badgeId = toolkit === 'googlesheets' ? 'mcpBadgeSheets' : 'mcpBadgeJira';
-      const btn = document.getElementById(btnId);
-      const badge = document.getElementById(badgeId);
+      if (toolkit !== 'googlesheets') return;
+      const btn = document.getElementById('btnConnectSheets');
+      const badge = document.getElementById('mcpBadgeSheets');
 
       if (btn) {
         btn.disabled = true;
@@ -6553,7 +7053,7 @@ Thanks!`;
           showToast('❌ Failed to get connection link: ' + (data.error || 'Unknown error'));
           if (btn) {
             btn.disabled = false;
-            btn.innerText = toolkit === 'googlesheets' ? '🔗 Connect Google Sheets ↗' : '🔗 Connect Jira ↗';
+            btn.innerText = '🔗 Connect Google Sheets ↗';
           }
           return;
         }
@@ -6564,7 +7064,7 @@ Thanks!`;
         }
 
         window.open(data.redirectUrl, '_blank', 'noopener,noreferrer');
-        showToast(`🔗 Opened ${toolkit === 'googlesheets' ? 'Google Sheets' : 'Jira'} authorization window. Return here once finished.`);
+        showToast('🔗 Opened Google Sheets authorization window. Return here once finished.');
         startMcpPolling();
       } catch (err) {
         showToast('❌ Connection error: ' + err.message);
@@ -6572,9 +7072,57 @@ Thanks!`;
         setTimeout(() => {
           if (btn && !btn.innerText.includes('Connected')) {
             btn.disabled = false;
-            btn.innerText = toolkit === 'googlesheets' ? '🔗 Connect Google Sheets ↗' : '🔗 Connect Jira ↗';
+            btn.innerText = '🔗 Connect Google Sheets ↗';
           }
         }, 3000);
+      }
+    }
+
+    async function saveMcpYouTrackToken() {
+      const input = document.getElementById('mcpYtTokenInput');
+      const badge = document.getElementById('mcpBadgeYouTrack');
+      const token = input ? input.value.trim() : '';
+      if (!token) {
+        showToast('⚠️ Please enter a YouTrack Bearer Token.');
+        return;
+      }
+      if (badge) {
+        badge.className = 'mcp-status-pill pill-pending';
+        badge.innerText = 'Testing token...';
+      }
+      try {
+        const res = await fetch('/api/youtrack/save-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setActiveYouTrackToken(token);
+          if (badge) {
+            const userStr = data.user ? (data.user.name || data.user.login) : 'Connected';
+            badge.className = 'mcp-status-pill pill-connected';
+            badge.innerText = `🟢 ${userStr}`;
+          }
+          const accountInfo = document.getElementById('mcpAccountInfoYouTrack');
+          if (accountInfo && data.user) {
+            accountInfo.innerText = `${data.user.name || data.user.login} (${data.user.email || 'active'})`;
+          }
+          showToast('✅ YouTrack Bearer Token saved and verified!');
+          checkMcpConnectionsStatus(false, true);
+        } else {
+          if (badge) {
+            badge.className = 'mcp-status-pill pill-disconnected';
+            badge.innerText = '🔴 Invalid Token';
+          }
+          showToast('❌ Invalid token: ' + (data.error || 'Check permissions'));
+        }
+      } catch (err) {
+        if (badge) {
+          badge.className = 'mcp-status-pill pill-disconnected';
+          badge.innerText = '🔴 Check Error';
+        }
+        showToast('❌ Failed to verify token: ' + err.message);
       }
     }
 
@@ -6660,6 +7208,8 @@ Thanks!`;
       document.getElementById('composioMcpConnectionsStep').style.display = 'none';
       const modalCard = document.getElementById('composioModalCard');
       if (modalCard) modalCard.classList.remove('modal-step-connections');
+      const ytInput = document.getElementById('composioYtTokenInput');
+      if (ytInput) ytInput.value = getActiveYouTrackToken();
     }
 
     function closeComposioOverlay() {
@@ -6744,6 +7294,9 @@ Thanks!`;
       if (step2) step2.style.display = 'block';
       const modalCard = document.getElementById('composioModalCard');
       if (modalCard) modalCard.classList.add('modal-step-connections');
+
+      const mcpYtInput = document.getElementById('mcpYtTokenInput');
+      if (mcpYtInput) mcpYtInput.value = getActiveYouTrackToken();
 
       // Fetch usage meter & check live tool statuses without auto-closing
       fetchComposioUsage();
@@ -7367,9 +7920,12 @@ Thanks!`;
       }).join('');
 
       let ticketCellHtml = '';
-      if (item.ticket && !item.ticket.startsWith('PLAN-') && !item.ticket.startsWith('TASK-') && item.link && item.link.startsWith('http')) {
+      if (item.ticket && !item.ticket.startsWith('PLAN-') && !item.ticket.startsWith('TASK-')) {
+        const ticketUrl = (item.link && item.link.startsWith('http') && !item.link.includes('atlassian.net')) 
+          ? item.link 
+          : `https://enveu.youtrack.cloud/issue/${item.ticket}`;
         ticketCellHtml = `
-          <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in Jira">
+          <a href="${ticketUrl}" target="_blank" rel="noopener noreferrer" class="ticket-link" title="Open ${item.ticket} in YouTrack">
             <span>${item.ticket}</span>
             <span class="ext-arrow">↗</span>
           </a>
@@ -7409,11 +7965,9 @@ Thanks!`;
         ${dynCellsHtml}
         ${!isPlanTab ? `
         <td style="text-align: center;">
-          <span class="status-badge ${getBadgeClass(item.jiraStatus)}">
-            <span class="status-dot"></span>${item.jiraStatus || 'To Do'}
-          </span>
+          ${createYouTrackStateSelectHtml(item.owner, item.ticket, item.jiraStatus, item.rowNumber)}
         </td>` : ''}
-        <td style="text-align: center;">
+        <td class="col-internal-status" style="text-align: center;">
           ${createInternalStatusSelectHtml(item.owner, item.ticket, item.internalStatus, item.rowNumber)}
         </td>
         <td class="notes-cell">${renderNotesCell(item.owner, item.ticket, item.notes || '', item.rowNumber, false, item.title)}</td>
@@ -8645,10 +9199,10 @@ Thanks!`;
                     Tag <span class="th-sort-icon" data-col="tag">↕</span>
                   </th>
                   ${dynHeadersAllHtml}
-                  <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
-                    Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
+                  <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by YouTrack Status">
+                    YouTrack Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
                   </th>
-                  <th class="sortable-th" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
+                  <th class="sortable-th col-internal-status" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
                     Internal Status (Editable) <span class="th-sort-icon" data-col="internalStatus">↕</span>
                   </th>
                   <th class="sortable-th" onclick="handleHeaderSort('notes')" style="min-width: 230px;" title="Click to sort by Action / Notes">
@@ -8779,10 +9333,10 @@ Thanks!`;
                     </th>
                     ${dynHeadersHtml}
                     ${!isPlan ? `
-                    <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by Jira Status">
-                      Jira Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
+                    <th class="sortable-th" onclick="handleHeaderSort('jiraStatus')" style="width: 155px; text-align: center;" title="Click to sort by YouTrack Status">
+                      YouTrack Status <span class="th-sort-icon" data-col="jiraStatus">↕</span>
                     </th>` : ''}
-                    <th class="sortable-th" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
+                    <th class="sortable-th col-internal-status" onclick="handleHeaderSort('internalStatus')" style="width: 185px; text-align: center;" title="Click to sort by Internal Status">
                       Internal Status (Editable) <span class="th-sort-icon" data-col="internalStatus">↕</span>
                     </th>
                     <th class="sortable-th" onclick="handleHeaderSort('notes')" style="min-width: 230px;" title="Click to sort by Action / Notes">
@@ -8977,6 +9531,65 @@ Thanks!`;
       `;
     }
 
+    const YOUTRACK_STATE_OPTIONS = [
+      'To Do',
+      'In Progress',
+      'In Progress (L1)',
+      'In Progress (L2)',
+      'In Progress (L3)',
+      'Escalated to L2',
+      'Escalated to L3',
+      'Escalated to L4',
+      'Verify',
+      'Waiting for customer',
+      'On hold',
+      'Resolved',
+      'Closed',
+      'Reopen'
+    ];
+
+    function createYouTrackStateSelectHtml(assignee, ticket, currentState, rowNumber) {
+      const cur = (currentState || 'To Do').trim();
+      const badgeClass = getBadgeClass(cur);
+      const isEditable = canUserEditTask(assignee) && ticket && !ticket.startsWith('PLAN-');
+
+      if (!isEditable) {
+        return `
+          <div class="status-select-wrap">
+            <span class="status-badge ${badgeClass}" style="${!canUserEditTask(assignee) ? 'cursor: not-allowed; opacity: 0.85;' : ''} padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;" title="YouTrack State: ${escapeHtml(cur)}">
+              <span class="status-dot"></span>${escapeHtml(cur)}
+            </span>
+          </div>
+        `;
+      }
+
+      if (cur && !YOUTRACK_STATE_OPTIONS.some(o => o.toLowerCase() === cur.toLowerCase())) {
+        YOUTRACK_STATE_OPTIONS.push(cur);
+      }
+
+      let optionsHtml = '';
+      YOUTRACK_STATE_OPTIONS.forEach(opt => {
+        const selected = opt.toLowerCase() === cur.toLowerCase() ? 'selected' : '';
+        optionsHtml += `<option value="${escapeHtml(opt)}" ${selected}>${escapeHtml(opt)}</option>`;
+      });
+      optionsHtml += `<option value="__custom__" style="color: #c084fc; font-weight: 700;">➕ Custom State...</option>`;
+
+      const safeCur = escapeHtml(cur);
+      const safeTicket = escapeHtml(ticket || '');
+      const safeAssignee = escapeHtml(assignee || '');
+
+      return `
+        <div class="status-select-wrap">
+          <select class="status-select ${badgeClass}" 
+                  data-current="${safeCur}"
+                  onchange="handleYouTrackStateChange('${safeAssignee}', '${safeTicket}', this.value, ${rowNumber}, this)" 
+                  title="Click to edit YouTrack State (2-way syncs to YouTrack & Google Sheets)">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }
+
     function createInternalStatusSelectHtml(assignee, ticket, currentStatus, rowNumber) {
       const cur = (currentStatus || 'To Pick Up').trim();
       const badgeClass = getBadgeClass(cur);
@@ -9155,9 +9768,9 @@ Thanks!`;
             const keys = (item.ticket || '').split(',').map(k => k.trim()).filter(Boolean);
             let ticketBadgesHtml = '';
             keys.forEach(k => {
-              const u = `https://enveu.atlassian.net/browse/${k}`;
+              const u = `https://enveu.youtrack.cloud/issue/${k}`;
               ticketBadgesHtml += `
-                <a href="${u}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="margin: 2px 0; display: inline-flex; align-items: center; gap: 4px;" title="Open ${k} in Jira">
+                <a href="${u}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="margin: 2px 0; display: inline-flex; align-items: center; gap: 4px;" title="Open ${k} in YouTrack">
                   <span>${k}</span>
                   <span class="ext-arrow">↗</span>
                 </a>
@@ -9170,9 +9783,11 @@ Thanks!`;
               ? `<span class="type-badge type-bug">🐛 Bug</span>`
               : `<span class="type-badge type-task">📋 Task</span>`;
 
-            const linkUrl = (item.link && item.link.trim().startsWith('http')) ? item.link.trim() : (keys.length > 0 ? `https://enveu.atlassian.net/browse/${keys[0]}` : '');
+            const linkUrl = (item.link && item.link.trim().startsWith('http') && !item.link.includes('atlassian.net')) 
+              ? item.link.trim() 
+              : (keys.length > 0 ? `https://enveu.youtrack.cloud/issue/${keys[0]}` : '');
             const linkHtml = linkUrl
-              ? `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="Open Jira Link"><span>Jira Link</span><span class="ext-arrow">↗</span></a>`
+              ? `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="Open YouTrack Link"><span>YouTrack Link</span><span class="ext-arrow">↗</span></a>`
               : `<span style="color: var(--text-muted); font-size: 12px;">-</span>`;
 
             const tr = document.createElement('tr');
@@ -9282,7 +9897,9 @@ Thanks!`;
             link = String(row[schema.linkColIdx]).trim();
           }
           if (!link && ticket && !ticket.startsWith('PLAN-') && !ticket.startsWith('TASK-')) {
-            link = `https://enveu.atlassian.net/browse/${ticket}`;
+            link = `https://enveu.youtrack.cloud/issue/${ticket}`;
+          } else if (link && link.includes('atlassian.net') && ticket) {
+            link = `https://enveu.youtrack.cloud/issue/${ticket}`;
           }
 
           // Extract Jira Status & Internal Status
@@ -9938,6 +10555,61 @@ Thanks!`;
       }
     }
 
+    // 2-Way Editable YouTrack State -> Syncs directly to YouTrack & Google Sheets
+    async function handleYouTrackStateChange(assignee, ticket, newState, rowNumber, selectElem) {
+      const prev = selectElem.getAttribute('data-current') || 'To Do';
+
+      if (newState === '__custom__') {
+        const customPrompt = prompt(`✨ Enter custom YouTrack State for ${ticket} (e.g. In Progress (L3), Verify):`);
+        if (!customPrompt || !customPrompt.trim()) {
+          selectElem.value = prev;
+          return;
+        }
+        newState = customPrompt.trim();
+        if (!YOUTRACK_STATE_OPTIONS.some(o => o.toLowerCase() === newState.toLowerCase())) {
+          YOUTRACK_STATE_OPTIONS.push(newState);
+        }
+        const opt = document.createElement('option');
+        opt.value = newState;
+        opt.text = newState;
+        opt.selected = true;
+        selectElem.insertBefore(opt, selectElem.lastElementChild);
+      }
+
+      if (newState.toLowerCase() === prev.toLowerCase()) return;
+
+      selectElem.setAttribute('data-current', newState);
+      selectElem.className = `status-select ${getBadgeClass(newState)}`;
+      showToast(`⏳ Updating YouTrack state to "${newState}" for ${ticket}...`);
+
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/update-youtrack-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignee, ticket, state: newState, rowNumber })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message || `✅ ${ticket} YouTrack State updated to "${newState}"!`);
+          const tabRows = sheetStore[assignee];
+          if (tabRows && tabRows[rowNumber - 1]) {
+            tabRows[rowNumber - 1][4] = newState;
+          }
+          populateTableData();
+        } else {
+          showToast('❌ Failed to update YouTrack State: ' + (json.error || 'Server error'));
+          selectElem.value = prev;
+          selectElem.className = `status-select ${getBadgeClass(prev)}`;
+          selectElem.setAttribute('data-current', prev);
+        }
+      } catch (err) {
+        showToast('❌ Could not reach sync server.');
+        selectElem.value = prev;
+        selectElem.className = `status-select ${getBadgeClass(prev)}`;
+        selectElem.setAttribute('data-current', prev);
+      }
+    }
+
     // Editable Internal Status -> Sync directly to Google Sheet
     async function handleStatusChange(assignee, ticket, newStatus, rowNumber, selectElem) {
       const prevStatus = selectElem.getAttribute('data-current') || 'To Pick Up';
@@ -10329,7 +11001,8 @@ Thanks!`;
 
       if (ticketBadge) {
         ticketBadge.innerText = ticket;
-        ticketBadge.href = `https://enveu.atlassian.net/browse/${ticket}`;
+        ticketBadge.href = `https://enveu.youtrack.cloud/issue/${ticket}`;
+        ticketBadge.title = `Open ${ticket} in YouTrack`;
       }
       if (assigneeBadge) {
         assigneeBadge.innerText = `👤 ${assignee}`;
@@ -10418,7 +11091,7 @@ Thanks!`;
           <span class="due-date-badge ${horizonInfo.badgeClass}" 
                 onclick="startInlineEditDueDate(this)" 
                 style="cursor: pointer;" 
-                title="Click to edit due date & sync to Google Sheets">
+                title="Click to edit due date (Note: YouTrack due date will override if present in YouTrack)">
             ${horizonInfo.badgeText}
           </span>
           <div class="due-date-picker-wrap" style="display: none;">
@@ -10534,15 +11207,17 @@ Thanks!`;
       }
     }
 
-    // Bulk Sync All from Jira
-    async function syncAllFromJira() {
-      const btn = document.getElementById('btnSyncAllJira');
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Syncing from Jira...';
+    // Bulk Sync All from YouTrack
+    async function syncAllFromYouTrack() {
+      const btn = document.getElementById('btnSyncAllYouTrack');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Syncing from YouTrack...';
+      }
 
-      showToast('⚡ Syncing all tickets with Jira & Google Sheets...');
+      showToast('⚡ Syncing all tickets with YouTrack & Google Sheets...');
       try {
-        const res = await fetch('http://localhost:3100/api/jira/sync-all', {
+        const res = await fetch('http://localhost:3100/api/youtrack/sync-all', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -10555,23 +11230,32 @@ Thanks!`;
             await fetchLiveSheets(true);
           }
           const count = json.count || 0;
-          showToast(`✅ Synced ${count} tickets with Jira & Google Sheets!`);
+          showToast(`✅ Synced ${count} tickets with YouTrack & Google Sheets!`);
         } else {
-          showToast('⚠️ Sync error: ' + (json.error || 'Check server'));
+          showToast('⚠️ YouTrack sync error: ' + (json.error || 'Check server / token'));
         }
       } catch (err) {
-        showToast('❌ Failed to contact Sync Server for bulk sync.');
+        showToast('❌ Failed to contact Sync Server for YouTrack sync.');
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = '⚡ Sync All from Jira';
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '⚡ Sync from YouTrack';
+        }
       }
+    }
+
+    // Bulk Sync All from YouTrack alias
+    async function syncAllFromJira() {
+      await syncAllFromYouTrack();
     }
 
     // Fetch 100% directly from Google Sheets
     async function fetchLiveSheets(force = false) {
-      const url = `http://localhost:3100/api/sheets${force ? '?force=true' : ''}`;
+      const url = `/api/sheets${force ? '?force=true' : ''}`;
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: getApiHeaders()
+        });
         const json = await res.json();
         if (json.success && json.data && Object.keys(json.data).length > 0) {
           if (json.statusOptions && Array.isArray(json.statusOptions)) {
@@ -10607,33 +11291,59 @@ Thanks!`;
       }
     }
 
-    async function autoFetchJira() {
+    // Dedicated YouTrack Ticket Fetch
+    async function autoFetchYouTrack() {
       const ticket = document.getElementById('ticketInput').value.trim();
-      if (!ticket) return;
+      if (!ticket) return false;
 
       const ind = document.getElementById('jiraIndicator');
       ind.style.display = 'inline';
-      ind.innerText = '⏳ Fetching Jira details...';
+      ind.style.color = '#c084fc';
+      ind.innerText = '⏳ Fetching YouTrack details...';
 
       try {
-        const res = await fetch('http://localhost:3100/api/jira/fetch-ticket', {
+        const res = await fetch('http://localhost:3100/api/youtrack/fetch-ticket', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ticket })
         });
         const data = await res.json();
         if (data.success) {
-          ind.innerText = '✅ Jira Issue Loaded';
+          ind.style.color = '#34d399';
+          ind.innerText = `✅ YouTrack Issue Loaded (${data.ticket})`;
           if (data.title) document.getElementById('titleInput').value = data.title;
-          if (data.jiraStatus) document.getElementById('jiraStatusInput').value = data.jiraStatus;
+          if (data.jiraStatus) {
+            const ytInput = document.getElementById('jiraStatusInput');
+            if (ytInput && ytInput.options) {
+              let matchFound = false;
+              for (let i = 0; i < ytInput.options.length; i++) {
+                if (ytInput.options[i].value.toLowerCase() === data.jiraStatus.toLowerCase()) {
+                  ytInput.selectedIndex = i;
+                  matchFound = true;
+                  break;
+                }
+              }
+              if (!matchFound) {
+                const opt = document.createElement('option');
+                opt.value = data.jiraStatus;
+                opt.text = data.jiraStatus;
+                opt.selected = true;
+                ytInput.appendChild(opt);
+              }
+            } else if (ytInput) {
+              ytInput.value = data.jiraStatus;
+            }
+          }
           document.getElementById('dueDateInput').value = data.dueDate || 'Not set';
-          
-          // Auto-select internal status
+
+          // Auto-select internal status (for preserved background data)
           const internalStatusSelect = document.getElementById('internalStatusInput');
-          for (let i = 0; i < internalStatusSelect.options.length; i++) {
-            if (internalStatusSelect.options[i].value.toLowerCase() === (data.internalStatus || data.jiraStatus || '').toLowerCase()) {
-              internalStatusSelect.selectedIndex = i;
-              break;
+          if (internalStatusSelect) {
+            for (let i = 0; i < internalStatusSelect.options.length; i++) {
+              if (internalStatusSelect.options[i].value.toLowerCase() === (data.internalStatus || data.jiraStatus || '').toLowerCase()) {
+                internalStatusSelect.selectedIndex = i;
+                break;
+              }
             }
           }
 
@@ -10643,21 +11353,33 @@ Thanks!`;
             const assigneeSelect = document.getElementById('assigneeInput');
             for (let i = 0; i < assigneeSelect.options.length; i++) {
               const optName = assigneeSelect.options[i].value.toLowerCase();
-              if (a.includes(optName)) {
+              if (a.includes(optName) || optName.includes(a)) {
                 assigneeSelect.selectedIndex = i;
                 break;
               }
             }
           }
-          showToast(`⚡ Loaded Jira issue: ${data.ticket}`);
+          showToast(`⚡ Loaded YouTrack issue: ${data.ticket}`);
+          return true;
         } else {
-          ind.innerText = '⚠️ ' + (data.error || 'Not found in Jira');
+          ind.style.color = '#f87171';
+          ind.innerText = '⚠️ ' + (data.error || 'Not found in YouTrack');
+          return false;
         }
       } catch (err) {
-        ind.innerText = '⚠️ Fetch failed';
+        ind.style.color = '#f87171';
+        ind.innerText = '⚠️ YouTrack fetch failed';
+        return false;
       } finally {
         checkTicketDuplicate();
       }
+    }
+
+    // Smart Fetch: fetches ticket details directly from YouTrack
+    async function smartFetchTicket() {
+      const ticket = document.getElementById('ticketInput').value.trim();
+      if (!ticket) return;
+      await autoFetchYouTrack();
     }
 
     // Real-Time Duplicate Ticket Detection across all Google Sheet tabs
@@ -11097,7 +11819,7 @@ Thanks!`;
     }
 
     // Initial load: 100% fetch directly from live Google Sheets API
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       const addSelect = document.getElementById('internalStatusInput');
       if (addSelect) {
         updateQuickAddStatusDropdown();
@@ -11116,7 +11838,8 @@ Thanks!`;
           }
         });
       }
-      checkAuthSession();
+      await checkAuthSession();
+      await checkYouTrackStatus();
     });
   </script>
 </body>
