@@ -6860,9 +6860,7 @@
         <button id="btnTeamsNotify" onclick="openTeamsNotifyModal()" class="btn btn-notify-teams" title="Send a Teams notification to the team (Admin only)" style="display: none;">
           🔔 Notify Team
         </button>
-        <button onclick="openShareModal()" class="btn btn-purple" title="View private Google Sheets for each team member">
-          👥 Person-Specific Sheets
-        </button>
+
         <a href="https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit?usp=sharing" target="_blank" class="btn btn-sheet" title="Open Google Sheet in new window">
           🔗 Open Master Sheet ↗
         </a>
@@ -7174,24 +7172,7 @@
     </div>
   </div>
 
-  <!-- Person-Specific Sheets Modal -->
-  <div id="shareModal" class="modal-overlay" onclick="if(event.target === this) closeShareModal()">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">
-          <span>👥 Person-Specific Private Google Sheets</span>
-        </div>
-        <button class="modal-close" onclick="closeShareModal()" title="Close">✕</button>
-      </div>
-      <div style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 18px; line-height: 1.5;">
-        Each team member has their own dedicated Google Sheet powered by <code>=IMPORTRANGE</code>. Share the direct link with that person — they will <strong>only see their own tasks</strong>, while all updates stream live in real-time from the master sheet!
-      </div>
-      <div id="modalSheetList"></div>
-      <div style="margin-top: 18px; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 9px; font-size: 12.5px; color: #93c5fd;">
-        💡 <strong>First-Time Setup Note:</strong> When opening each sheet for the first time, Google Sheets may show <code>#REF!</code> in cell A1. Simply hover over it and click <strong>"Allow Access"</strong> once. It will then stay linked permanently.
-      </div>
-    </div>
-  </div>
+  
 
   <!-- 🤝 Manage Shared Assignees & Roles Modal -->
   <div id="sharedAssigneeModal" class="modal-overlay" onclick="if(event.target === this) closeSharedModal()">
@@ -9832,39 +9813,6 @@ Thanks!`;
     }
 
     // Person-Specific Private Google Sheets (powered by IMPORTRANGE)
-    const INDIVIDUAL_SHEETS = {
-      "ARUSH": {
-        name: "Arush",
-        url: "https://docs.google.com/spreadsheets/d/1Rp5yw78lqoPAe4TSV5ANf3FMFiemlslcDh1D9ksSU8U/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "ARUSH!A1:H")'
-      },
-      "CHETNA": {
-        name: "Chetna",
-        url: "https://docs.google.com/spreadsheets/d/1e0WUUZPl11CeXP2V3K5uD6LWH1oHRrTzqEJ1f5SaSZ0/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "CHETNA!A1:H")'
-      },
-      "KRISHNA": {
-        name: "Krishna",
-        url: "https://docs.google.com/spreadsheets/d/1_sZ3DJxjORvnLRsT2IpYhA0ua4PbHOfg9c6yKuw1hW8/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "KRISHNA!A1:H")'
-      },
-      "MANISH": {
-        name: "Manish",
-        url: "https://docs.google.com/spreadsheets/d/1GccfNZV3De0fINvqKEgTHr6yOrm1L8AI1MiyU8AJjwc/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "MANISH!A1:H")'
-      },
-      "RAHUL": {
-        name: "Rahul",
-        url: "https://docs.google.com/spreadsheets/d/1GuT87vd_KT5KKq3To6AzDjC0zqpCohU7oceRq73SAPI/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "RAHUL!A1:H")'
-      },
-      "SONU": {
-        name: "Sonu",
-        url: "https://docs.google.com/spreadsheets/d/1d6sG7s-U1o3hSabm1NzqNA7VFHsbk6-1Ub93tw50YAQ/edit",
-        formula: '=IMPORTRANGE("https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit", "SONU!A1:H")'
-      }
-    };
-
     // State is 100% dynamically fetched from Google Sheets via sync server API
     let sheetStore = {};
     try {
@@ -11870,7 +11818,6 @@ Thanks!`;
                   <button class="btn btn-purple" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="openAddColumnModal('${name}')" title="Add dynamic column to this sheet in Google Sheets">
                     ✨ + Add Column
                   </button>
-                  <a href="https://docs.google.com/spreadsheets/d/1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY/edit" target="_blank" class="btn btn-sheet" style="font-size: 12px; padding: 0 12px; height: 32px;" title="Open Master Google Sheet in new window">📄 Open Master Sheet ↗</a>
                   <button class="btn btn-secondary" style="font-size: 12px; padding: 0 12px; height: 32px;" onclick="copyTable('table-${lower}')">📋 Copy Tab for Sheets</button>
                 </div>
               </div>
@@ -15950,41 +15897,7 @@ Thanks!`;
       setTimeout(() => toast.style.display = 'none', 3800);
     }
 
-    function openShareModal() {
-      const listContainer = document.getElementById('modalSheetList');
-      if (listContainer) {
-        let html = '';
-        Object.keys(INDIVIDUAL_SHEETS).forEach(key => {
-          const item = INDIVIDUAL_SHEETS[key];
-          html += `
-            <div class="sheet-list-item">
-              <div>
-                <strong style="color: #38bdf8; font-size: 14px;">${item.name}</strong>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                  Direct 2-Way Sync with Master Sheet (Editable F: Internal Status & G: Action Notes)
-                </div>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <button class="btn-copy" onclick="copySheetUrl('${item.url}', '${item.name}')">📋 Copy Link</button>
-                <a href="${item.url}" target="_blank" class="btn btn-sheet" style="font-size: 12px; padding: 5px 12px;">Open ↗</a>
-              </div>
-            </div>
-          `;
-        });
-        listContainer.innerHTML = html;
-      }
-      document.getElementById('shareModal').style.display = 'flex';
-    }
-
-    function closeShareModal() {
-      document.getElementById('shareModal').style.display = 'none';
-    }
-
-    function copySheetUrl(url, name) {
-      navigator.clipboard.writeText(url).then(() => {
-        showToast(`✅ Copied ${name}'s private sheet link!`);
-      });
-    }
+    
 
     // Initial load: 100% fetch directly from live Google Sheets API
     window.addEventListener('DOMContentLoaded', async () => {
