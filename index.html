@@ -859,6 +859,7 @@
       color: #34d399;
       box-shadow: 0 0 12px rgba(16, 185, 129, 0.28);
     }
+    .status-pill.pill-verify.active,
     .status-pill.pill-review.active {
       background: rgba(245, 158, 11, 0.2);
       border-color: rgba(245, 158, 11, 0.6);
@@ -877,17 +878,25 @@
       color: #6ee7b7;
       box-shadow: 0 0 12px rgba(16, 185, 129, 0.32);
     }
+    .status-pill.pill-escl2.active,
     .status-pill.pill-poc.active {
       background: rgba(168, 85, 247, 0.2);
       border-color: rgba(168, 85, 247, 0.6);
       color: #c084fc;
       box-shadow: 0 0 12px rgba(168, 85, 247, 0.28);
     }
+    .status-pill.pill-escl3.active,
     .status-pill.pill-discuss.active {
       background: rgba(239, 68, 68, 0.2);
       border-color: rgba(239, 68, 68, 0.6);
       color: #f87171;
       box-shadow: 0 0 12px rgba(239, 68, 68, 0.28);
+    }
+    .status-pill.pill-waiting.active {
+      background: rgba(249, 115, 22, 0.2);
+      border-color: rgba(249, 115, 22, 0.6);
+      color: #fb923c;
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.28);
     }
     .status-pill .pill-cnt {
       font-size: 10.5px;
@@ -4861,11 +4870,12 @@
         <div class="status-pills-bar" id="statusPillsBar">
           <button type="button" class="status-pill active" data-filter="ALL" onclick="setStatusFilter('ALL')" title="Show all tickets">All <span class="pill-cnt" id="kpi-filter-all"></span></button>
           <button type="button" class="status-pill pill-inprog" data-filter="IN_PROGRESS" onclick="toggleStatusFilter('IN_PROGRESS')" ondblclick="setStatusFilter('IN_PROGRESS')" title="Click to toggle, double-click for only In Progress">🟢 In Progress <span class="pill-cnt" id="kpi-in-prog">-</span></button>
-          <button type="button" class="status-pill pill-review" data-filter="IN_REVIEW" onclick="toggleStatusFilter('IN_REVIEW')" ondblclick="setStatusFilter('IN_REVIEW')" title="Click to toggle, double-click for only In Review">🟡 In Review <span class="pill-cnt" id="kpi-review">-</span></button>
+          <button type="button" class="status-pill pill-escl2" data-filter="ESCALATED_L2" onclick="toggleStatusFilter('ESCALATED_L2')" ondblclick="setStatusFilter('ESCALATED_L2')" title="Click to toggle, double-click for only Escalated to L2">🟣 Escalated to L2 <span class="pill-cnt" id="kpi-escl2">-</span></button>
+          <button type="button" class="status-pill pill-escl3" data-filter="ESCALATED_L3" onclick="toggleStatusFilter('ESCALATED_L3')" ondblclick="setStatusFilter('ESCALATED_L3')" title="Click to toggle, double-click for only Escalated to L3/L4">🔴 Escalated to L3 <span class="pill-cnt" id="kpi-escl3">-</span></button>
+          <button type="button" class="status-pill pill-waiting" data-filter="WAITING" onclick="toggleStatusFilter('WAITING')" ondblclick="setStatusFilter('WAITING')" title="Click to toggle, double-click for only Waiting for Customer / On Hold">⏳ Waiting for Customer <span class="pill-cnt" id="kpi-waiting">-</span></button>
+          <button type="button" class="status-pill pill-verify" data-filter="VERIFY" onclick="toggleStatusFilter('VERIFY')" ondblclick="setStatusFilter('VERIFY')" title="Click to toggle, double-click for only Verify">🟡 Verify <span class="pill-cnt" id="kpi-verify">-</span></button>
+          <button type="button" class="status-pill pill-done" data-filter="DONE" onclick="toggleStatusFilter('DONE')" ondblclick="setStatusFilter('DONE')" title="Click to toggle, double-click for only Resolved / Closed">✅ Resolved / Closed <span class="pill-cnt" id="kpi-done">-</span></button>
           <button type="button" class="status-pill pill-todo" data-filter="TODO" onclick="toggleStatusFilter('TODO')" ondblclick="setStatusFilter('TODO')" title="Click to toggle, double-click for only To Do">🔵 To Do <span class="pill-cnt" id="kpi-todo">-</span></button>
-          <button type="button" class="status-pill pill-done" data-filter="DONE" onclick="toggleStatusFilter('DONE')" ondblclick="setStatusFilter('DONE')" title="Click to toggle, double-click for only Done / Closed">✅ Done / Closed <span class="pill-cnt" id="kpi-done">-</span></button>
-          <button type="button" class="status-pill pill-poc" data-filter="POC" onclick="toggleStatusFilter('POC')" ondblclick="setStatusFilter('POC')" title="Click to toggle, double-click for only POC">🟣 POC <span class="pill-cnt" id="kpi-poc">-</span></button>
-          <button type="button" class="status-pill pill-discuss" data-filter="DISCUSS" onclick="toggleStatusFilter('DISCUSS')" ondblclick="setStatusFilter('DISCUSS')" title="Click to toggle, double-click for only Discuss">🔴 Discuss <span class="pill-cnt" id="kpi-discuss">-</span></button>
         </div>
 
         <!-- Detailed Multi-Select Dropdown -->
@@ -4909,8 +4919,8 @@
         <div class="sort-control-wrap">
           <span class="sort-label">Sort By:</span>
           <select id="sortSelect" class="sort-select" onchange="handleSortSelectChange(this.value)" title="Choose sort order across all sheets">
-            <option value="done_first">⭐ Done ➔ In Review ➔ In Progress ➔ To Do</option>
-            <option value="lifecycle">⚡ In Progress ➔ In Review ➔ To Do ➔ Done</option>
+            <option value="done_first">⭐ Resolved / Closed ➔ Verify ➔ Escalated ➔ In Progress ➔ To Do</option>
+            <option value="lifecycle">⚡ In Progress ➔ Escalated ➔ Waiting ➔ Verify ➔ Resolved / Closed</option>
             <option value="default">Default (# / Sheet Order)</option>
             <option value="due_date">📅 Due Date (Urgent / Earliest first)</option>
             <option value="ticket_asc">🏷️ Ticket ID (A-Z)</option>
@@ -7951,31 +7961,35 @@ Thanks!`;
     function getDoneFirstStatusRank(statusStr) {
       if (!statusStr) return 99;
       const s = statusStr.trim().toLowerCase();
-      // Rank 1: Done / Closed / BE Done / Dev Done
-      if (s.includes('done') || s.includes('closed')) return 1;
-      // Rank 2: In Review / Review / Verify / BE InReview / Code Review
-      if (s.includes('review') || s.includes('verify')) return 2;
-      // Rank 3: In Progress / Analyzing / WIP / POC / Discuss
-      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('poc') || s.includes('discuss')) return 3;
-      // Rank 4: To Do / Todo / To Pick Up / Open / Selected / Backlog
-      if (s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog')) return 4;
-      return 5;
+      // Rank 1: Resolved / Closed / Done
+      if (s === 'closed' || s === 'done' || s === 'resolved') return 1;
+      // Rank 2: Verify / In Review
+      if (s.includes('verify') || s.includes('review')) return 2;
+      // Rank 3: Escalated to L2 / L3 / L4 / Waiting for customer / On hold
+      if (s.includes('escalated') || s.includes('waiting for customer') || s.includes('on hold')) return 3;
+      // Rank 4: In Progress / In Progress (L1/L2/L3) / Analyzing / WIP / Dev Done
+      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('dev done') || s.includes('be done')) return 4;
+      // Rank 5: To Do / Todo / Open / Reopen / Backlog
+      if (s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog') || s.includes('reopen')) return 5;
+      return 6;
     }
 
     function getLifecycleStatusRank(statusStr) {
       if (!statusStr) return 99;
       const s = statusStr.trim().toLowerCase();
-      // Rank 1: In Progress / Analyzing / WIP
-      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip')) return 1;
-      // Rank 2: In Review / Verify
-      if (s.includes('review') || s.includes('verify')) return 2;
-      // Rank 3: To Do / Todo / To Pick Up / Open / Selected / Backlog
-      if (s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog')) return 3;
-      // Rank 4: POC / Discuss / Escalated
-      if (s.includes('poc') || s.includes('discuss') || s.includes('escalated')) return 4;
-      // Rank 5: Done / Closed
-      if (s.includes('done') || s.includes('closed')) return 5;
-      return 6;
+      // Rank 1: In Progress (L1/L2/L3) / Analyzing / WIP / Dev Done
+      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('dev done')) return 1;
+      // Rank 2: Escalated to L2 / L3 / L4
+      if (s.includes('escalated')) return 2;
+      // Rank 3: Waiting for customer / On hold
+      if (s.includes('waiting for customer') || s.includes('on hold')) return 3;
+      // Rank 4: Verify / In Review
+      if (s.includes('verify') || s.includes('review')) return 4;
+      // Rank 5: To Do / Reopen / Backlog
+      if (s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog') || s.includes('reopen')) return 5;
+      // Rank 6: Resolved / Closed / Done
+      if (s === 'closed' || s === 'done' || s === 'resolved') return 6;
+      return 7;
     }
 
     function parseTicketDueDate(dueDateStr) {
@@ -8521,15 +8535,16 @@ Thanks!`;
       // Check quick status bucket filters based solely on YouTrack status
       for (const bucket of activeFilterBuckets) {
         if (bucket === 'DONE' && (s === 'done' || s === 'closed' || s === 'resolved')) return true;
-        if (bucket === 'IN_REVIEW' && (s.includes('review') || s.includes('verify'))) return true;
+        if ((bucket === 'VERIFY' || bucket === 'IN_REVIEW') && (s.includes('verify') || s.includes('review'))) return true;
         if (bucket === 'IN_PROGRESS' && (
-          s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('be done') || s.includes('dev done') || s.includes('reopen')
+          s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('be done') || s.includes('dev done')
         )) return true;
+        if ((bucket === 'ESCALATED_L2' || bucket === 'POC') && (s.includes('escalated to l2') || s.includes('poc'))) return true;
+        if ((bucket === 'ESCALATED_L3' || bucket === 'DISCUSS') && (s.includes('escalated to l3') || s.includes('escalated to l4') || s.includes('discuss'))) return true;
+        if (bucket === 'WAITING' && (s.includes('waiting for customer') || s.includes('on hold'))) return true;
         if (bucket === 'TODO' && (
-          s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog')
+          s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog') || s.includes('reopen')
         )) return true;
-        if (bucket === 'POC' && (s.includes('poc') || s.includes('escalated to l2'))) return true;
-        if (bucket === 'DISCUSS' && (s.includes('discuss') || s.includes('escalated to l3') || s.includes('escalated to l4') || s.includes('waiting for customer') || s.includes('on hold'))) return true;
       }
 
       return false;
@@ -10428,11 +10443,14 @@ Thanks!`;
           indicator.style.display = 'inline-flex';
           let filterNames = [];
           if (activeFilterBuckets.has('IN_PROGRESS')) filterNames.push('In Progress');
-          if (activeFilterBuckets.has('IN_REVIEW')) filterNames.push('In Review');
+          if (activeFilterBuckets.has('ESCALATED_L2')) filterNames.push('Escalated to L2');
+          if (activeFilterBuckets.has('ESCALATED_L3')) filterNames.push('Escalated to L3');
+          if (activeFilterBuckets.has('WAITING')) filterNames.push('Waiting for Customer');
+          if (activeFilterBuckets.has('VERIFY') || activeFilterBuckets.has('IN_REVIEW')) filterNames.push('Verify');
+          if (activeFilterBuckets.has('DONE')) filterNames.push('Resolved / Closed');
           if (activeFilterBuckets.has('TODO')) filterNames.push('To Do');
-          if (activeFilterBuckets.has('DONE')) filterNames.push('Done');
-          if (activeFilterBuckets.has('POC')) filterNames.push('POC');
-          if (activeFilterBuckets.has('DISCUSS')) filterNames.push('Discuss');
+          if (activeFilterBuckets.has('POC')) filterNames.push('Escalated to L2');
+          if (activeFilterBuckets.has('DISCUSS')) filterNames.push('Escalated to L3');
           if (activeDetailedStatuses.size > 0) filterNames.push(`${activeDetailedStatuses.size} custom`);
           if (activeDeliveryHorizon === 'THIS_WEEK') filterNames.push('⚡ This Week');
           if (activeDeliveryHorizon === 'OVERDUE') filterNames.push('🚨 Overdue');
@@ -10460,7 +10478,7 @@ Thanks!`;
     }
 
     function updateKpis(items) {
-      let inProg = 0, review = 0, todo = 0, poc = 0, discuss = 0, done = 0, total = 0;
+      let inProg = 0, escl2 = 0, escl3 = 0, waiting = 0, verify = 0, done = 0, todo = 0, total = 0;
       const seenTickets = new Set();
       const rows = items || [];
 
@@ -10480,19 +10498,33 @@ Thanks!`;
           done++;
           return;
         }
-        if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('reopen')) inProg++;
-        else if (s.includes('review') || s.includes('verify')) review++;
-        else if (s.includes('poc') || s.includes('escalated to l2')) poc++;
-        else if (s.includes('discuss') || s.includes('escalated to l3') || s.includes('escalated to l4') || s.includes('waiting for customer') || s.includes('on hold')) discuss++;
-        else todo++;
+        if (s.includes('escalated to l2')) {
+          escl2++;
+        } else if (s.includes('escalated to l3') || s.includes('escalated to l4')) {
+          escl3++;
+        } else if (s.includes('waiting for customer') || s.includes('on hold')) {
+          waiting++;
+        } else if (s.includes('verify') || s.includes('review')) {
+          verify++;
+        } else if (s.includes('in progress') || s.includes('be done') || s.includes('dev done')) {
+          inProg++;
+        } else {
+          todo++;
+        }
       });
       if (document.getElementById('kpi-in-prog')) document.getElementById('kpi-in-prog').innerText = inProg;
-      if (document.getElementById('kpi-review')) document.getElementById('kpi-review').innerText = review;
-      if (document.getElementById('kpi-todo')) document.getElementById('kpi-todo').innerText = todo;
+      if (document.getElementById('kpi-escl2')) document.getElementById('kpi-escl2').innerText = escl2;
+      if (document.getElementById('kpi-escl3')) document.getElementById('kpi-escl3').innerText = escl3;
+      if (document.getElementById('kpi-waiting')) document.getElementById('kpi-waiting').innerText = waiting;
+      if (document.getElementById('kpi-verify')) document.getElementById('kpi-verify').innerText = verify;
       if (document.getElementById('kpi-done')) document.getElementById('kpi-done').innerText = done;
-      if (document.getElementById('kpi-poc')) document.getElementById('kpi-poc').innerText = poc;
-      if (document.getElementById('kpi-discuss')) document.getElementById('kpi-discuss').innerText = discuss;
+      if (document.getElementById('kpi-todo')) document.getElementById('kpi-todo').innerText = todo;
       if (document.getElementById('kpi-filter-all')) document.getElementById('kpi-filter-all').innerText = total;
+
+      // Legacy fallback
+      if (document.getElementById('kpi-review')) document.getElementById('kpi-review').innerText = verify;
+      if (document.getElementById('kpi-poc')) document.getElementById('kpi-poc').innerText = escl2;
+      if (document.getElementById('kpi-discuss')) document.getElementById('kpi-discuss').innerText = escl3 + waiting;
     }
 
     function handleSearch() {
