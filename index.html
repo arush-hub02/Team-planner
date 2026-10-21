@@ -4764,17 +4764,19 @@
           <div class="form-group fg-status" id="youtrackStateGroup">
             <label>YouTrack State</label>
             <select id="jiraStatusInput" class="form-select">
-              <option value="To Do">🔵 To Do</option>
-              <option value="In Progress">🟢 In Progress</option>
               <option value="In Progress (L1)">🟢 In Progress (L1)</option>
               <option value="In Progress (L2)">🟢 In Progress (L2)</option>
               <option value="In Progress (L3)">🟢 In Progress (L3)</option>
               <option value="Escalated to L2">🟣 Escalated to L2</option>
               <option value="Escalated to L3">🔴 Escalated to L3</option>
+              <option value="Escalated to L4">🔴 Escalated to L4</option>
+              <option value="Waiting for customer">⏳ Waiting for customer</option>
               <option value="Verify">🟡 Verify</option>
+              <option value="On hold">⏸️ On hold</option>
               <option value="Resolved">✅ Resolved</option>
               <option value="Closed">⚪ Closed</option>
-              <option value="On hold">⏸️ On hold</option>
+              <option value="Invalid">❌ Invalid</option>
+              <option value="Reopen">🔄 Reopen</option>
             </select>
           </div>
           <!-- Internal Status (Hidden per user preference - preserved for easy re-enable) -->
@@ -4795,12 +4797,7 @@
           </div>
           <div class="form-group fg-duedate" id="quickAddDueDateGroup">
             <label>Due Date</label>
-            <div class="custom-datepicker-trigger-btn" id="quickAddDueDateBtn" onclick="openCustomDatePicker(this, { targetInputId: 'dueDateInput', onSelect: updateQuickAddDueDateDisplay }, event)" tabindex="0" role="button" aria-haspopup="dialog" title="Pick due date (no time needed)">
-              <span class="cdp-trigger-icon">📅</span>
-              <span id="quickAddDueDateText" class="cdp-trigger-val">Not set</span>
-              <button type="button" class="cdp-trigger-clear" id="quickAddClearBtn" onclick="clearQuickAddDueDate(event)" title="Clear due date" style="display: none;">✕</button>
-            </div>
-            <input type="hidden" id="dueDateInput" value="Not set">
+            <input type="text" id="dueDateInput" class="form-input" placeholder="e.g. 25 Oct" value="Not set" style="width: 110px;">
           </div>
           <div class="form-group fg-submit">
             <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center; min-width: 120px;">
@@ -9340,13 +9337,15 @@ Thanks!`;
     function getBadgeClass(status) {
       if (!status) return 'badge-blue';
       const s = status.toLowerCase();
-      if (s === 'closed') return 'badge-green';
+      if (s === 'closed' || s === 'resolved') return 'badge-green';
       if (s.includes('fe ready')) return 'badge-indigo';
-      if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('done')) return 'badge-green';
-      if (s.includes('review') || s.includes('verify')) return 'badge-yellow';
-      if (s.includes('poc') || s.includes('escalated to l2')) return 'badge-purple';
-      if (s.includes('discuss') || s.includes('escalated to l3')) return 'badge-red';
-      if (s.includes('backlog')) return 'badge-slate';
+      if (s.includes('in progress')) return 'badge-blue';
+      if (s.includes('verify')) return 'badge-yellow';
+      if (s.includes('escalated to l2')) return 'badge-purple';
+      if (s.includes('escalated to l3') || s.includes('escalated to l4')) return 'badge-red';
+      if (s.includes('waiting for customer') || s.includes('on hold')) return 'badge-yellow';
+      if (s.includes('invalid') || s.includes('backlog')) return 'badge-slate';
+      if (s.includes('reopen')) return 'badge-indigo';
       return 'badge-blue';
     }
 
@@ -9892,24 +9891,23 @@ Thanks!`;
     }
 
     const YOUTRACK_STATE_OPTIONS = [
-      'To Do',
-      'In Progress',
-      'In Progress (L1)',
-      'In Progress (L2)',
       'In Progress (L3)',
+      'Invalid',
+      'Closed',
+      'Resolved',
+      'In Progress (L1)',
       'Escalated to L2',
+      'In Progress (L2)',
       'Escalated to L3',
       'Escalated to L4',
-      'Verify',
+      'Reopen',
       'Waiting for customer',
-      'On hold',
-      'Resolved',
-      'Closed',
-      'Reopen'
+      'Verify',
+      'On hold'
     ];
 
     function createYouTrackStateSelectHtml(assignee, ticket, currentState, rowNumber) {
-      const cur = (currentState || 'To Do').trim();
+      const cur = (currentState || 'In Progress (L1)').trim();
       const badgeClass = getBadgeClass(cur);
       const isEditable = canUserEditTask(assignee) && ticket && !ticket.startsWith('PLAN-');
 
@@ -9923,16 +9921,17 @@ Thanks!`;
         `;
       }
 
-      if (cur && !YOUTRACK_STATE_OPTIONS.some(o => o.toLowerCase() === cur.toLowerCase())) {
-        YOUTRACK_STATE_OPTIONS.push(cur);
-      }
-
       let optionsHtml = '';
+      let matchedCurrent = false;
       YOUTRACK_STATE_OPTIONS.forEach(opt => {
         const selected = opt.toLowerCase() === cur.toLowerCase() ? 'selected' : '';
+        if (selected) matchedCurrent = true;
         optionsHtml += `<option value="${escapeHtml(opt)}" ${selected}>${escapeHtml(opt)}</option>`;
       });
-      optionsHtml += `<option value="__custom__" style="color: #c084fc; font-weight: 700;">➕ Custom State...</option>`;
+
+      if (!matchedCurrent && cur) {
+        optionsHtml = `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)}</option>` + optionsHtml;
+      }
 
       const safeCur = escapeHtml(cur);
       const safeTicket = escapeHtml(ticket || '');
@@ -9943,12 +9942,14 @@ Thanks!`;
           <select class="status-select ${badgeClass}" 
                   data-current="${safeCur}"
                   onchange="handleYouTrackStateChange('${safeAssignee}', '${safeTicket}', this.value, ${rowNumber}, this)" 
-                  title="Click to edit YouTrack State (2-way syncs to YouTrack & Google Sheets)">
+                  title="Change YouTrack Status (Direct 2-Way Sync)">
             ${optionsHtml}
           </select>
         </div>
       `;
     }
+
+
 
     function createInternalStatusSelectHtml(assignee, ticket, currentStatus, rowNumber) {
       const cur = (currentStatus || 'To Pick Up').trim();
@@ -11459,401 +11460,95 @@ Thanks!`;
       return `
         <div class="due-date-cell-wrap" data-owner="${safeOwner}" data-ticket="${safeTicket}" data-row="${rowNumber}" data-val="${currentVal}" style="display: inline-block;">
           <span class="due-date-badge ${horizonInfo.badgeClass}" 
-                onclick="openCustomDatePickerForCell(this, event)" 
+                onclick="startInlineEditDueDate(this)" 
                 style="cursor: pointer;" 
-                title="Click to pick due date with custom date picker (no time needed)">
+                title="Click to edit due date">
             ${horizonInfo.badgeText}
           </span>
+          <div class="due-date-picker-wrap" style="display: none;">
+            <input type="text" class="due-date-input" value="${currentVal}" placeholder="e.g. 15 Oct or YYYY-MM-DD" 
+                   onkeydown="handleDueDateKeydown(event, this)" 
+                   onblur="handleDueDateBlur(this)" 
+                   style="width: 105px; font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--accent); background: var(--bg-card); color: var(--text-main); text-align: center;">
+          </div>
         </div>
       `;
     }
 
-    // =========================================================================
-    // 📅 CUSTOM DUE DATE PICKER CONTROLLER (Pure Date, No Time Needed)
-    // =========================================================================
-    let cdpState = {
-      isOpen: false,
-      triggerElem: null,
-      targetInputId: null,
-      onSelect: null,
-      selectedDate: null, // Date object or null
-      viewingYear: new Date().getFullYear(),
-      viewingMonth: new Date().getMonth() // 0-11
-    };
-
-    const CDP_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const CDP_MONTH_SHORTS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const CDP_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    function cdpFormatDate(dateObj) {
-      if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) return 'Not set';
-      const day = dateObj.getDate();
-      const month = CDP_MONTH_SHORTS[dateObj.getMonth()];
-      const year = dateObj.getFullYear();
-      const currentYear = new Date().getFullYear();
-      if (year !== currentYear) {
-        return `${day} ${month} ${year}`;
-      }
-      return `${day} ${month}`;
-    }
-
-    function cdpFormatDateFull(dateObj) {
-      if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) return 'Not set';
-      const dayName = CDP_DAY_NAMES[dateObj.getDay()];
-      const day = dateObj.getDate();
-      const month = CDP_MONTH_SHORTS[dateObj.getMonth()];
-      const year = dateObj.getFullYear();
-      return `${dayName}, ${day} ${month} ${year}`;
-    }
-
-    function cdpPopulateYearSelect() {
-      const yearSelect = document.getElementById('cdpYearSelect');
-      if (!yearSelect) return;
-      const currentYear = new Date().getFullYear();
-      let html = '';
-      for (let y = currentYear - 2; y <= currentYear + 5; y++) {
-        html += `<option value="${y}">${y}</option>`;
-      }
-      yearSelect.innerHTML = html;
-    }
-
-    function openCustomDatePicker(triggerElem, options = {}, event = null) {
-      if (event) {
-        event.stopPropagation();
-      }
-      const popover = document.getElementById('customDatePickerPopover');
-      if (!popover) return;
-
-      // Toggle close if already open on this same trigger
-      if (cdpState.isOpen && cdpState.triggerElem === triggerElem) {
-        closeCustomDatePicker();
-        return;
-      }
-
-      cdpPopulateYearSelect();
-
-      // Determine starting date
-      let parsedDate = null;
-      if (options.initialValue) {
-        parsedDate = parseTicketDueDate(options.initialValue);
-      } else if (options.targetInputId) {
-        const inp = document.getElementById(options.targetInputId);
-        if (inp && inp.value && inp.value !== 'Not set') {
-          parsedDate = parseTicketDueDate(inp.value);
-        }
-      }
-
-      const today = new Date();
-      if (parsedDate && !isNaN(parsedDate.getTime())) {
-        cdpState.selectedDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 12, 0, 0);
-        cdpState.viewingYear = parsedDate.getFullYear();
-        cdpState.viewingMonth = parsedDate.getMonth();
-      } else {
-        cdpState.selectedDate = null;
-        cdpState.viewingYear = today.getFullYear();
-        cdpState.viewingMonth = today.getMonth();
-      }
-
-      cdpState.triggerElem = triggerElem;
-      cdpState.targetInputId = options.targetInputId || null;
-      cdpState.onSelect = options.onSelect || null;
-      cdpState.isOpen = true;
-
-      cdpRenderCalendar();
-
-      popover.style.display = 'block';
-      positionCustomDatePicker(triggerElem);
-    }
-
-    function closeCustomDatePicker(event = null) {
-      if (event) {
-        event.stopPropagation();
-      }
-      const popover = document.getElementById('customDatePickerPopover');
-      if (popover) popover.style.display = 'none';
-      cdpState.isOpen = false;
-      cdpState.triggerElem = null;
-      cdpState.onSelect = null;
-      cdpState.targetInputId = null;
-    }
-
-    function positionCustomDatePicker(triggerElem) {
-      const popover = document.getElementById('customDatePickerPopover');
-      if (!popover || !triggerElem) return;
-
-      const rect = triggerElem.getBoundingClientRect();
-      const popoverWidth = 320;
-      const popoverHeight = 360;
-      const margin = 8;
-
-      let left = rect.left;
-      if (left + popoverWidth > window.innerWidth - margin) {
-        left = window.innerWidth - popoverWidth - margin;
-      }
-      if (left < margin) left = margin;
-
-      let top = rect.bottom + margin;
-      if (top + popoverHeight > window.innerHeight - margin) {
-        if (rect.top - popoverHeight - margin > 0) {
-          top = rect.top - popoverHeight - margin;
-        } else {
-          top = Math.max(margin, window.innerHeight - popoverHeight - margin);
-        }
-      }
-
-      popover.style.position = 'fixed';
-      popover.style.left = `${Math.round(left)}px`;
-      popover.style.top = `${Math.round(top)}px`;
-    }
-
-    function cdpRenderCalendar() {
-      const monthSelect = document.getElementById('cdpMonthSelect');
-      const yearSelect = document.getElementById('cdpYearSelect');
-      const grid = document.getElementById('cdpDaysGrid');
-      const preview = document.getElementById('cdpPreviewValue');
-      if (!grid) return;
-
-      if (monthSelect) monthSelect.value = String(cdpState.viewingMonth);
-      if (yearSelect) yearSelect.value = String(cdpState.viewingYear);
-
-      const today = new Date();
-      const y = cdpState.viewingYear;
-      const m = cdpState.viewingMonth;
-
-      const firstDay = new Date(y, m, 1);
-      // Monday = 0, Sunday = 6
-      const startDay = (firstDay.getDay() + 6) % 7;
-      const daysInMonth = new Date(y, m + 1, 0).getDate();
-      const daysInPrevMonth = new Date(y, m, 0).getDate();
-
-      let html = '';
-
-      // Previous month padding
-      for (let i = startDay - 1; i >= 0; i--) {
-        const prevD = daysInPrevMonth - i;
-        const prevM = m === 0 ? 11 : m - 1;
-        const prevY = m === 0 ? y - 1 : y;
-        html += `<button type="button" class="cdp-day cdp-other-month" onclick="cdpSelectDay(${prevY}, ${prevM}, ${prevD}, true, event)">${prevD}</button>`;
-      }
-
-      // Current month days
-      for (let d = 1; d <= daysInMonth; d++) {
-        const isToday = (d === today.getDate() && m === today.getMonth() && y === today.getFullYear());
-        const isSelected = (cdpState.selectedDate &&
-          d === cdpState.selectedDate.getDate() &&
-          m === cdpState.selectedDate.getMonth() &&
-          y === cdpState.selectedDate.getFullYear());
-
-        let cls = 'cdp-day';
-        if (isToday) cls += ' is-today';
-        if (isSelected) cls += ' is-selected';
-
-        html += `<button type="button" class="${cls}" onclick="cdpSelectDay(${y}, ${m}, ${d}, true, event)" title="${d} ${CDP_MONTH_SHORTS[m]} ${y}">${d}</button>`;
-      }
-
-      // Next month padding to fill multiple of 7
-      const totalRendered = startDay + daysInMonth;
-      const remainder = totalRendered % 7;
-      const nextDays = remainder === 0 ? 0 : 7 - remainder;
-      for (let d = 1; d <= nextDays; d++) {
-        const nextM = m === 11 ? 0 : m + 1;
-        const nextY = m === 11 ? y + 1 : y;
-        html += `<button type="button" class="cdp-day cdp-other-month" onclick="cdpSelectDay(${nextY}, ${nextM}, ${d}, true, event)">${d}</button>`;
-      }
-
-      grid.innerHTML = html;
-
-      if (preview) {
-        preview.innerText = cdpState.selectedDate ? cdpFormatDateFull(cdpState.selectedDate) : 'Not set';
-      }
-    }
-
-    function cdpNavMonth(dir, event = null) {
-      if (event) event.stopPropagation();
-      cdpState.viewingMonth += dir;
-      if (cdpState.viewingMonth < 0) {
-        cdpState.viewingMonth = 11;
-        cdpState.viewingYear--;
-      } else if (cdpState.viewingMonth > 11) {
-        cdpState.viewingMonth = 0;
-        cdpState.viewingYear++;
-      }
-      cdpRenderCalendar();
-    }
-
-    function cdpHandleMonthSelect(val, event = null) {
-      if (event) event.stopPropagation();
-      cdpState.viewingMonth = parseInt(val, 10);
-      cdpRenderCalendar();
-    }
-
-    function cdpHandleYearSelect(val, event = null) {
-      if (event) event.stopPropagation();
-      cdpState.viewingYear = parseInt(val, 10);
-      cdpRenderCalendar();
-    }
-
-    function cdpSelectDay(y, m, d, autoApply = false, event = null) {
-      if (event) event.stopPropagation();
-      cdpState.selectedDate = new Date(y, m, d, 12, 0, 0);
-      cdpState.viewingYear = y;
-      cdpState.viewingMonth = m;
-      cdpRenderCalendar();
-      if (autoApply) {
-        cdpConfirmSelection(event);
-      }
-    }
-
-    function cdpConfirmSelection(event = null) {
-      if (event) event.stopPropagation();
-      const formatted = cdpFormatDate(cdpState.selectedDate);
-      const selDate = cdpState.selectedDate;
-      const onSelectCb = cdpState.onSelect;
-      const targetInputId = cdpState.targetInputId;
-
-      if (targetInputId) {
-        const inp = document.getElementById(targetInputId);
-        if (inp) inp.value = formatted;
-      }
-
-      closeCustomDatePicker();
-
-      if (typeof onSelectCb === 'function') {
-        onSelectCb(formatted, selDate);
-      }
-    }
-
-    function cdpClearDate(event = null) {
-      if (event) event.stopPropagation();
-      cdpState.selectedDate = null;
-      const onSelectCb = cdpState.onSelect;
-      const targetInputId = cdpState.targetInputId;
-
-      if (targetInputId) {
-        const inp = document.getElementById(targetInputId);
-        if (inp) inp.value = 'Not set';
-      }
-
-      closeCustomDatePicker();
-
-      if (typeof onSelectCb === 'function') {
-        onSelectCb('Not set', null);
-      }
-    }
-
-    function cdpApplyPreset(preset, event = null) {
-      if (event) event.stopPropagation();
-      const today = new Date();
-      let target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
-
-      if (preset === 'today') {
-        // target is today
-      } else if (preset === 'tomorrow') {
-        target.setDate(target.getDate() + 1);
-      } else if (preset === 'this-friday') {
-        const day = target.getDay(); // 0: Sun, 1: Mon, ... 5: Fri, 6: Sat
-        let daysUntilFri = 5 - day;
-        if (daysUntilFri <= 0) daysUntilFri += 7; // if Fri, Sat, Sun -> next Fri
-        target.setDate(target.getDate() + daysUntilFri);
-      } else if (preset === 'next-monday') {
-        const day = target.getDay(); // 0: Sun, 1: Mon
-        let daysUntilMon = (8 - day) % 7;
-        if (daysUntilMon === 0) daysUntilMon = 7;
-        target.setDate(target.getDate() + daysUntilMon);
-      }
-
-      cdpSelectDay(target.getFullYear(), target.getMonth(), target.getDate(), true, event);
-    }
-
-    function openCustomDatePickerForCell(elem, event) {
-      if (event) {
-        event.stopPropagation();
-      }
+    function startInlineEditDueDate(elem) {
       if (!elem) return;
       const wrap = elem.closest('.due-date-cell-wrap');
       if (!wrap) return;
+      const badge = wrap.querySelector('.due-date-badge');
+      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
+      const input = wrap.querySelector('.due-date-input');
+      if (!badge || !pickerWrap || !input) return;
+      badge.style.display = 'none';
+      pickerWrap.style.display = 'inline-block';
+      input.focus();
+      input.select();
+    }
+
+    async function handleDueDateBlur(inputElem) {
+      if (!inputElem) return;
+      const wrap = inputElem.closest('.due-date-cell-wrap');
+      if (!wrap) return;
+      const badge = wrap.querySelector('.due-date-badge');
+      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
       const owner = wrap.getAttribute('data-owner');
       const ticket = wrap.getAttribute('data-ticket');
       const rowNumber = parseInt(wrap.getAttribute('data-row'), 10);
-      const currentVal = wrap.getAttribute('data-val') || 'Not set';
+      const oldVal = wrap.getAttribute('data-val') || 'Not set';
+      const newVal = inputElem.value.trim() || 'Not set';
 
-      openCustomDatePicker(elem, {
-        initialValue: currentVal,
-        onSelect: async (selectedFormattedDate) => {
-          if (!selectedFormattedDate) selectedFormattedDate = 'Not set';
-          if (selectedFormattedDate.toLowerCase() === currentVal.toLowerCase()) return;
+      pickerWrap.style.display = 'none';
+      badge.style.display = 'inline-block';
 
-          elem.innerText = '⏳ Syncing...';
-          try {
-            const res = await fetch('/api/ticket/update-due-date', {
-              method: 'POST',
-              headers: getApiHeaders({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ assignee: owner, ticket, dueDate: selectedFormattedDate, rowNumber })
-            });
-            const data = await res.json();
-            if (data.success) {
-              showToast(`✅ ${ticket} Due date updated to "${data.dueDate}" in Google Sheets!`);
-              wrap.setAttribute('data-val', data.dueDate);
-              const tabRows = sheetStore[owner];
-              if (tabRows && tabRows[rowNumber - 1]) {
-                tabRows[rowNumber - 1][7] = data.dueDate;
-              }
-              populateTableData();
-            } else {
-              showToast('❌ Failed to update due date: ' + (data.error || 'Server error'));
-              populateTableData();
-            }
-          } catch (err) {
-            showToast('❌ Could not reach sync server: ' + err.message);
-            populateTableData();
+      if (newVal.toLowerCase() === oldVal.toLowerCase()) return;
+
+      badge.innerText = '⏳ Syncing...';
+      try {
+        const res = await fetch('http://localhost:3100/api/ticket/update-due-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignee: owner, ticket, dueDate: newVal, rowNumber })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`✅ ${ticket} Due date updated to "${data.dueDate}" in Google Sheets!`);
+          wrap.setAttribute('data-val', data.dueDate);
+          const tabRows = sheetStore[owner];
+          if (tabRows && tabRows[rowNumber - 1]) {
+            tabRows[rowNumber - 1][7] = data.dueDate;
           }
-        }
-      }, event);
-    }
-
-    function updateQuickAddDueDateDisplay(val) {
-      const textEl = document.getElementById('quickAddDueDateText');
-      const clearBtn = document.getElementById('quickAddClearBtn');
-      const triggerBtn = document.getElementById('quickAddDueDateBtn');
-      const inputEl = document.getElementById('dueDateInput');
-      const str = (val && val !== 'Not set' && val.toLowerCase() !== 'tbd') ? val : 'Not set';
-      if (textEl) textEl.innerText = str;
-      if (inputEl) inputEl.value = str;
-      if (clearBtn) clearBtn.style.display = (str !== 'Not set') ? 'inline-flex' : 'none';
-      if (triggerBtn) {
-        if (str !== 'Not set') {
-          triggerBtn.classList.add('has-value');
+          populateTableData();
         } else {
-          triggerBtn.classList.remove('has-value');
+          showToast('❌ Failed to update due date: ' + (data.error || 'Server error'));
+          populateTableData();
+        }
+      } catch (err) {
+        showToast('❌ Could not reach sync server: ' + err.message);
+        populateTableData();
+      }
+    }
+
+    function handleDueDateKeydown(event, inputElem) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        inputElem.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        const wrap = inputElem.closest('.due-date-cell-wrap');
+        if (wrap) {
+          const badge = wrap.querySelector('.due-date-badge');
+          const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
+          const oldVal = wrap.getAttribute('data-val') || '';
+          inputElem.value = oldVal;
+          if (pickerWrap) pickerWrap.style.display = 'none';
+          if (badge) badge.style.display = 'inline-block';
         }
       }
     }
-
-    function clearQuickAddDueDate(e) {
-      if (e) e.stopPropagation();
-      updateQuickAddDueDateDisplay('Not set');
-    }
-
-    // Dismiss custom date picker on click outside or Escape key
-    document.addEventListener('click', function(e) {
-      const popover = document.getElementById('customDatePickerPopover');
-      if (!popover || popover.style.display === 'none') return;
-      if (popover.contains(e.target)) return;
-      if (cdpState.triggerElem && (cdpState.triggerElem === e.target || cdpState.triggerElem.contains(e.target))) return;
-      closeCustomDatePicker();
-    });
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && cdpState.isOpen) {
-        closeCustomDatePicker();
-      }
-    });
-
-    window.addEventListener('resize', function() {
-      if (cdpState.isOpen && cdpState.triggerElem) {
-        positionCustomDatePicker(cdpState.triggerElem);
-      }
-    });
 
     // Sync PULSE sheet directly from Chetna's sheet to Master & Dashboard
     async function syncPulseNow() {
@@ -12009,7 +11704,6 @@ Thanks!`;
             }
           }
           document.getElementById('dueDateInput').value = data.dueDate || 'Not set';
-          updateQuickAddDueDateDisplay(data.dueDate || 'Not set');
 
           // Auto-select internal status (for preserved background data)
           const internalStatusSelect = document.getElementById('internalStatusInput');
@@ -12383,9 +12077,8 @@ Thanks!`;
           document.getElementById('titleInput').value = '';
           if (document.getElementById('epicInput')) document.getElementById('epicInput').value = '';
           if (document.getElementById('tagInput')) document.getElementById('tagInput').value = 'Product';
-          if (document.getElementById('jiraStatusInput')) document.getElementById('jiraStatusInput').value = 'To Do';
+          if (document.getElementById('jiraStatusInput')) document.getElementById('jiraStatusInput').value = 'In Progress (L1)';
           if (document.getElementById('dueDateInput')) document.getElementById('dueDateInput').value = 'Not set';
-          updateQuickAddDueDateDisplay('Not set');
           document.getElementById('jiraIndicator').style.display = 'none';
           document.getElementById('ticketDuplicateBanner').style.display = 'none';
           await fetchLiveSheets(true);
@@ -12521,81 +12214,5 @@ Thanks!`;
       await checkYouTrackStatus();
     });
   </script>
-  <!-- 📅 Custom Due Date Picker Popover (No time needed, top-level fixed) -->
-  <div id="customDatePickerPopover" class="custom-datepicker-popover" style="display: none;" role="dialog" aria-modal="true" aria-label="Due Date Picker">
-    <!-- Header: Month/Year navigation & selector -->
-    <div class="cdp-header">
-      <div class="cdp-nav-group">
-        <button type="button" class="cdp-nav-btn" id="cdpPrevMonthBtn" onclick="cdpNavMonth(-1, event)" title="Previous month" aria-label="Previous month">
-          ‹
-        </button>
-        <div class="cdp-month-year-wrap">
-          <select class="cdp-select cdp-select-month" id="cdpMonthSelect" onchange="cdpHandleMonthSelect(this.value, event)">
-            <option value="0">January</option>
-            <option value="1">February</option>
-            <option value="2">March</option>
-            <option value="3">April</option>
-            <option value="4">May</option>
-            <option value="5">June</option>
-            <option value="6">July</option>
-            <option value="7">August</option>
-            <option value="8">September</option>
-            <option value="9">October</option>
-            <option value="10">November</option>
-            <option value="11">December</option>
-          </select>
-          <select class="cdp-select cdp-select-year" id="cdpYearSelect" onchange="cdpHandleYearSelect(this.value, event)">
-            <!-- Populated dynamically -->
-          </select>
-        </div>
-        <button type="button" class="cdp-nav-btn" id="cdpNextMonthBtn" onclick="cdpNavMonth(1, event)" title="Next month" aria-label="Next month">
-          ›
-        </button>
-      </div>
-    </div>
-
-    <!-- Quick Presets -->
-    <div class="cdp-presets-row">
-      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('today', event)">⚡ Today</button>
-      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('tomorrow', event)">🌅 Tomorrow</button>
-      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('this-friday', event)">📅 Fri</button>
-      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('next-monday', event)">⏭️ Next Mon</button>
-    </div>
-
-    <!-- Weekday Labels -->
-    <div class="cdp-weekdays-row">
-      <span class="cdp-weekday">Mo</span>
-      <span class="cdp-weekday">Tu</span>
-      <span class="cdp-weekday">We</span>
-      <span class="cdp-weekday">Th</span>
-      <span class="cdp-weekday">Fr</span>
-      <span class="cdp-weekday cdp-weekend">Sa</span>
-      <span class="cdp-weekday cdp-weekend">Su</span>
-    </div>
-
-    <!-- Days Grid -->
-    <div class="cdp-days-grid" id="cdpDaysGrid">
-      <!-- Populated by cdpRenderCalendar() -->
-    </div>
-
-    <!-- Footer with Selected Preview & Action Buttons -->
-    <div class="cdp-footer">
-      <div class="cdp-footer-preview">
-        <span class="cdp-preview-label">Due:</span>
-        <span class="cdp-preview-value" id="cdpPreviewValue">Not set</span>
-      </div>
-      <div class="cdp-footer-actions">
-        <button type="button" class="cdp-btn-clear" onclick="cdpClearDate(event)" title="Set due date to Not set">
-          Clear
-        </button>
-        <button type="button" class="cdp-btn-cancel" onclick="closeCustomDatePicker(event)">
-          Cancel
-        </button>
-        <button type="button" class="cdp-btn-apply" id="cdpApplyBtn" onclick="cdpConfirmSelection(event)">
-          Apply
-        </button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
