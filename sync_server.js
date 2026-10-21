@@ -553,6 +553,20 @@ function isNonPersonSheet(name) {
 // Color map for status formatting in Google Sheets
 const STATUS_COLORS = {
   'In Progress': { bg: '#d1fae5', text: '#065f46' },
+  'In-Progress': { bg: '#d1fae5', text: '#065f46' },
+  'In Progress (L1)': { bg: '#d1fae5', text: '#065f46' },
+  'In Progress (L2)': { bg: '#d1fae5', text: '#065f46' },
+  'In Progress (L3)': { bg: '#d1fae5', text: '#065f46' },
+  'Escalated to L2': { bg: '#f3e8ff', text: '#6b21a8' },
+  'Escalated to L3': { bg: '#fee2e2', text: '#991b1b' },
+  'Escalated to L4': { bg: '#fee2e2', text: '#991b1b' },
+  'Waiting for customer': { bg: '#fef3c7', text: '#92400e' },
+  'On hold': { bg: '#fef3c7', text: '#92400e' },
+  'Verify': { bg: '#fef3c7', text: '#92400e' },
+  'Under Review': { bg: '#fef3c7', text: '#92400e' },
+  'Resolved': { bg: '#d1fae5', text: '#065f46' },
+  'Invalid': { bg: '#f1f5f9', text: '#475569' },
+  'Reopen': { bg: '#e0e7ff', text: '#3730a3' },
   'In Progress (L2)': { bg: '#d1fae5', text: '#065f46' },
   'Dev Done': { bg: '#d1fae5', text: '#065f46' },
   'BE Done': { bg: '#d1fae5', text: '#065f46' },
@@ -2605,12 +2619,16 @@ async function handleRequest(req, res) {
           targetRow = foundIdx > 0 ? (foundIdx + 1) : 2;
         }
 
-        // Col E is index 4 (1-indexed col 5: YouTrack Status) in standard sheets
+        // Col E is index 4 (1-indexed col 5: YouTrack Status) in standard sheets; Col C is index 2 in PULSE
+        const isPulseTab = tabName === 'PULSE';
+        const colLetter = isPulseTab ? 'C' : 'E';
+        const colIdx = isPulseTab ? 2 : 4;
+
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
-            range: `${tabName}!E${targetRow}`,
+            range: `${tabName}!${colLetter}${targetRow}`,
             majorDimension: 'ROWS',
             values: [[newState]]
           }]
@@ -2622,7 +2640,7 @@ async function handleRequest(req, res) {
           executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
             spreadsheet_id: SPREADSHEET_ID,
             sheet_name: tabName,
-            range: `E${targetRow}`,
+            range: `${colLetter}${targetRow}`,
             background_color: colStyle.bg,
             text_color: colStyle.text,
             bold: true,
@@ -2633,7 +2651,7 @@ async function handleRequest(req, res) {
         if (cache.data && cache.data[tabName]) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
-            cache.data[tabName][rIdx][4] = newState;
+            cache.data[tabName][rIdx][colIdx] = newState;
           }
           if (INDIVIDUAL_SHEETS[tabName]) {
             pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});

@@ -4722,7 +4722,7 @@
           <div class="form-group fg-ticket">
             <label>Ticket ID <span id="ticketReqStar" style="color: #f87171;">*</span></label>
             <div class="ticket-input-box">
-              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600 (Optional for PLAN)" oninput="checkTicketDuplicate()" onchange="autoFetchYouTrack(); checkTicketDuplicate();">
+              <input type="text" id="ticketInput" class="form-input" placeholder="e.g. SES-873, EN-1600 (Optional for PLAN)" oninput="updateQuickAddYouTrackStates(this.value); checkTicketDuplicate();" onchange="autoFetchYouTrack(); checkTicketDuplicate();">
               <button type="button" onclick="autoFetchYouTrack(); checkTicketDuplicate();" class="ticket-fetch-btn btn-fetch-yt" title="Fetch details from YouTrack (⚡)">
                 ⚡
               </button>
@@ -4735,7 +4735,7 @@
                 🤝 Shared
               </button>
             </div>
-            <select id="assigneeInput" class="form-select" onchange="handleAssigneeSelectChange(); checkTicketDuplicate()">
+            <select id="assigneeInput" class="form-select" onchange="handleAssigneeSelectChange(); updateQuickAddYouTrackStates(document.getElementById('ticketInput').value); checkTicketDuplicate()">
               <!-- Dynamically populated from Google Sheet tabs -->
             </select>
           </div>
@@ -9352,15 +9352,16 @@ Thanks!`;
     function getBadgeClass(status) {
       if (!status) return 'badge-blue';
       const s = status.toLowerCase();
-      if (s === 'closed' || s === 'resolved') return 'badge-green';
+      if (s === 'closed' || s === 'resolved' || s === 'done') return 'badge-green';
       if (s.includes('fe ready')) return 'badge-indigo';
-      if (s.includes('in progress')) return 'badge-blue';
-      if (s.includes('verify')) return 'badge-yellow';
+      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress')) return 'badge-blue';
+      if (s.includes('verify') || s.includes('review')) return 'badge-yellow';
+      if (s.includes('dev done') || s.includes('be done')) return 'badge-indigo';
       if (s.includes('escalated to l2')) return 'badge-purple';
       if (s.includes('escalated to l3') || s.includes('escalated to l4')) return 'badge-red';
       if (s.includes('waiting for customer') || s.includes('on hold')) return 'badge-yellow';
       if (s.includes('invalid') || s.includes('backlog')) return 'badge-slate';
-      if (s.includes('reopen')) return 'badge-indigo';
+      if (s.includes('reopen') || s.includes('open')) return 'badge-indigo';
       return 'badge-blue';
     }
 
@@ -9905,24 +9906,95 @@ Thanks!`;
       `;
     }
 
-    const YOUTRACK_STATE_OPTIONS = [
-      'In Progress (L3)',
-      'Invalid',
-      'Closed',
-      'Resolved',
-      'In Progress (L1)',
-      'Escalated to L2',
-      'In Progress (L2)',
-      'Escalated to L3',
-      'Escalated to L4',
-      'Reopen',
-      'Waiting for customer',
-      'Verify',
-      'On hold'
-    ];
+    // Project-specific YouTrack state definitions for PULSE, SES, and EN
+    const YOUTRACK_PROJECT_STATES = {
+      PULSE: [
+        'To Do',
+        'In-Progress',
+        'In Review',
+        'Done'
+      ],
+      SES: [
+        'To Do',
+        'In Progress',
+        'Under Review',
+        'Dev Done',
+        'Verify',
+        'Done',
+        'Open',
+        'Invalid'
+      ],
+      EN: [
+        'In Progress (L1)',
+        'In Progress (L2)',
+        'In Progress (L3)',
+        'Escalated to L2',
+        'Escalated to L3',
+        'Escalated to L4',
+        'Waiting for customer',
+        'Verify',
+        'On hold',
+        'Resolved',
+        'Closed',
+        'Invalid',
+        'Reopen'
+      ]
+    };
+
+    function getProjectForTicket(ticketKey, sheetName) {
+      if (sheetName && sheetName.trim().toUpperCase() === 'PULSE') return 'PULSE';
+      const k = (ticketKey || '').trim().toUpperCase();
+      if (!k) return null;
+      if (k.startsWith('PULSE-')) return 'PULSE';
+      if (k.startsWith('SES-')) return 'SES';
+      if (k.startsWith('EN-')) return 'EN';
+      if (k.includes(',')) {
+        const parts = k.split(',').map(p => p.trim());
+        for (const p of parts) {
+          if (p.startsWith('PULSE-')) return 'PULSE';
+          if (p.startsWith('SES-')) return 'SES';
+          if (p.startsWith('EN-')) return 'EN';
+        }
+      }
+      return null;
+    }
+
+    function getYouTrackStatesForTicket(ticketKey, sheetName) {
+      const proj = getProjectForTicket(ticketKey, sheetName);
+      if (proj && YOUTRACK_PROJECT_STATES[proj]) {
+        return YOUTRACK_PROJECT_STATES[proj];
+      }
+      return YOUTRACK_STATE_OPTIONS;
+    }
+
+    function getStatusEmoji(status) {
+      if (!status) return '🎯';
+      const s = status.toLowerCase();
+      if (s === 'closed' || s === 'resolved' || s === 'done') return '✅';
+      if (s.includes('in progress') || s.includes('in-progress') || s.includes('progress')) return '🟢';
+      if (s.includes('verify')) return '🟡';
+      if (s.includes('dev done') || s.includes('be done')) return '💻';
+      if (s.includes('review')) return '🔍';
+      if (s.includes('escalated to l2')) return '🟣';
+      if (s.includes('escalated to l3') || s.includes('escalated to l4')) return '🔴';
+      if (s.includes('waiting for customer')) return '⏳';
+      if (s.includes('on hold')) return '⏸️';
+      if (s.includes('invalid')) return '❌';
+      if (s.includes('reopen') || s.includes('open')) return '🔄';
+      if (s.includes('to do') || s.includes('todo')) return '🔵';
+      return '🎯';
+    }
+
+    const YOUTRACK_STATE_OPTIONS = Array.from(new Set([
+      ...YOUTRACK_PROJECT_STATES.EN,
+      ...YOUTRACK_PROJECT_STATES.SES,
+      ...YOUTRACK_PROJECT_STATES.PULSE
+    ]));
 
     function createYouTrackStateSelectHtml(assignee, ticket, currentState, rowNumber) {
-      const cur = (currentState || 'In Progress (L1)').trim();
+      const proj = getProjectForTicket(ticket, assignee);
+      const defaultState = proj === 'SES' ? 'To Do' : (proj === 'PULSE' ? 'To Do' : 'In Progress (L1)');
+      const cur = (currentState || defaultState).trim();
       const badgeClass = getBadgeClass(cur);
       const isEditable = canUserEditTask(assignee) && ticket && !ticket.startsWith('PLAN-');
 
@@ -9936,28 +10008,70 @@ Thanks!`;
         `;
       }
 
+      const states = getYouTrackStatesForTicket(ticket, assignee);
       let optionsHtml = '';
       let matchedCurrent = false;
-      YOUTRACK_STATE_OPTIONS.forEach(opt => {
+      states.forEach(opt => {
         const selected = opt.toLowerCase() === cur.toLowerCase() ? 'selected' : '';
         if (selected) matchedCurrent = true;
-        optionsHtml += `<option value="${escapeHtml(opt)}" ${selected}>${escapeHtml(opt)}</option>`;
+        optionsHtml += `<option value="${escapeHtml(opt)}" ${selected}>${getStatusEmoji(opt)} ${escapeHtml(opt)}</option>`;
       });
 
       if (!matchedCurrent && cur) {
-        optionsHtml = `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)}</option>` + optionsHtml;
+        optionsHtml = `<option value="${escapeHtml(cur)}" selected>${getStatusEmoji(cur)} ${escapeHtml(cur)}</option>` + optionsHtml;
       }
 
       const safeCur = escapeHtml(cur);
       const safeTicket = escapeHtml(ticket || '');
       const safeAssignee = escapeHtml(assignee || '');
+      const projLabel = proj ? `${proj} State` : 'YouTrack State';
 
       return `
         <div class="status-select-wrap">
           <select class="status-select ${badgeClass}" 
                   data-current="${safeCur}"
                   onchange="handleYouTrackStateChange('${safeAssignee}', '${safeTicket}', this.value, ${rowNumber}, this)" 
-                  title="Change YouTrack Status (Direct 2-Way Sync)">
+                  title="Change ${projLabel} (Direct 2-Way Sync)">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }
+
+    function createPulseStateSelectHtml(ticket, currentState, rowNumber, isEditable) {
+      const cur = (currentState || 'To Do').trim();
+      const badgeClass = getBadgeClass(cur);
+
+      if (!isEditable) {
+        return `
+          <span class="status-badge ${badgeClass}">
+            <span class="status-dot"></span>${escapeHtml(cur)}
+          </span>
+        `;
+      }
+
+      const states = YOUTRACK_PROJECT_STATES.PULSE;
+      let optionsHtml = '';
+      let matchedCurrent = false;
+      states.forEach(opt => {
+        const selected = opt.toLowerCase() === cur.toLowerCase() ? 'selected' : '';
+        if (selected) matchedCurrent = true;
+        optionsHtml += `<option value="${escapeHtml(opt)}" ${selected}>${getStatusEmoji(opt)} ${escapeHtml(opt)}</option>`;
+      });
+
+      if (!matchedCurrent && cur) {
+        optionsHtml = `<option value="${escapeHtml(cur)}" selected>${getStatusEmoji(cur)} ${escapeHtml(cur)}</option>` + optionsHtml;
+      }
+
+      const safeCur = escapeHtml(cur);
+      const safeTicket = escapeHtml(ticket || '');
+
+      return `
+        <div class="status-select-wrap" style="display: inline-block;">
+          <select class="status-select ${badgeClass}" 
+                  data-current="${safeCur}"
+                  onchange="handleYouTrackStateChange('PULSE', '${safeTicket}', this.value, ${rowNumber}, this)" 
+                  title="Change PULSE Status">
             ${optionsHtml}
           </select>
         </div>
@@ -10172,9 +10286,7 @@ Thanks!`;
               <td><div style="display: flex; flex-direction: column; gap: 2px;">${ticketBadgesHtml || item.ticket || ''}</div></td>
               <td class="task-title-cell" style="vertical-align: middle; text-align: left;">${renderTitleCell('PULSE', item.ticket, item.title, item.originalIndex + 1, 1, canUserEditTask('PULSE'))}</td>
               <td style="text-align: center;">
-                <span class="status-badge ${statusClass}">
-                  <span class="status-dot"></span>${item.status || 'Todo'}
-                </span>
+                ${createPulseStateSelectHtml(item.ticket, item.status, item.originalIndex + 1, canUserEditTask('PULSE'))}
               </td>
               <td style="text-align: center;">
                 <span class="member-pill" style="font-size: 11.5px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
@@ -11692,6 +11804,35 @@ Thanks!`;
       }
     }
 
+    function updateQuickAddYouTrackStates(ticketKey) {
+      const select = document.getElementById('jiraStatusInput');
+      if (!select) return;
+      const currentVal = select.value;
+      const targetSheet = (document.getElementById('assigneeInput') ? document.getElementById('assigneeInput').value : currentActiveTab);
+      const states = getYouTrackStatesForTicket(ticketKey, targetSheet);
+
+      select.innerHTML = '';
+      let matchFound = false;
+      states.forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st;
+        opt.textContent = `${getStatusEmoji(st)} ${st}`;
+        if (st.toLowerCase() === (currentVal || '').toLowerCase()) {
+          opt.selected = true;
+          matchFound = true;
+        }
+        select.appendChild(opt);
+      });
+
+      if (!matchFound && currentVal) {
+        const extra = document.createElement('option');
+        extra.value = currentVal;
+        extra.textContent = `${getStatusEmoji(currentVal)} ${currentVal}`;
+        extra.selected = true;
+        select.insertBefore(extra, select.firstChild);
+      }
+    }
+
     // Dedicated YouTrack Ticket Fetch
     async function autoFetchYouTrack() {
       const ticket = document.getElementById('ticketInput').value.trim();
@@ -11713,6 +11854,8 @@ Thanks!`;
           ind.style.color = '#34d399';
           ind.innerText = `✅ YouTrack Issue Loaded (${data.ticket})`;
           if (data.title) document.getElementById('titleInput').value = data.title;
+          
+          updateQuickAddYouTrackStates(data.ticket || ticket);
           if (data.jiraStatus) {
             const ytInput = document.getElementById('jiraStatusInput');
             if (ytInput && ytInput.options) {
@@ -11727,7 +11870,7 @@ Thanks!`;
               if (!matchFound) {
                 const opt = document.createElement('option');
                 opt.value = data.jiraStatus;
-                opt.text = data.jiraStatus;
+                opt.text = `${getStatusEmoji(data.jiraStatus)} ${data.jiraStatus}`;
                 opt.selected = true;
                 ytInput.appendChild(opt);
               }
