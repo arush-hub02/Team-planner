@@ -19,6 +19,8 @@ composio_usage.json
 composio_config.json
 sheets_cache.json
 youtrack_config.json
+comments.json
+data/
 
 # OS Files
 .DS_Store

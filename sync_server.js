@@ -13,6 +13,62 @@ const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY || '';
 const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || 'task-sync-v2-device-seal-key-default-2026';
 const CIPHER_KEY = crypto.createHash('sha256').update(ENCRYPTION_SECRET).digest();
 
+// Polyfill global fetch using Node.js built-in https for Node < 18
+if (typeof global.fetch !== 'function') {
+  global.fetch = function fetchPolyfill(url, options = {}, redirectCount = 0) {
+    return new Promise((resolve, reject) => {
+      if (redirectCount > 5) {
+        return reject(new Error('Too many redirects'));
+      }
+      const parsedUrl = new URL(url);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const client = isHttps ? https : http;
+      const headers = { ...(options.headers || {}) };
+      const body = options.body;
+      if (body && !headers['Content-Length'] && !headers['content-length']) {
+        headers['Content-Length'] = Buffer.byteLength(body);
+      }
+      const req = client.request({
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: options.method || 'GET',
+        headers
+      }, res => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          const nextUrl = new URL(res.headers.location, url).href;
+          return resolve(fetchPolyfill(nextUrl, options, redirectCount + 1));
+        }
+        let chunks = [];
+        res.on('data', chunk => chunks.push(chunk));
+        res.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          const text = buffer.toString('utf8');
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            statusText: res.statusMessage,
+            headers: res.headers,
+            text: async () => text,
+            json: async () => {
+              try {
+                return JSON.parse(text);
+              } catch (e) {
+                return text;
+              }
+            }
+          });
+        });
+      });
+      req.on('error', reject);
+      if (body) req.write(body);
+      req.end();
+    });
+  };
+}
+
+
+
 function sealApiKey(plainApiKey) {
   if (!plainApiKey || typeof plainApiKey !== 'string') return null;
   try {
@@ -250,7 +306,7 @@ async function fetchYouTrackIssue(issueKey, customToken) {
 
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
   const cleanKey = issueKey.trim().toUpperCase();
-  const url = `${cleanBaseUrl}/api/issues/${encodeURIComponent(cleanKey)}?fields=idReadable,summary,resolved,customFields(name,value(name,presentation,text,minutes))`;
+  const url = `${cleanBaseUrl}/api/issues/${encodeURIComponent(cleanKey)}?fields=idReadable,summary,resolved,customFields(name,value(name,presentation,text,minutes)),comments(id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType))`;
 
   const resp = await fetch(url, {
     method: 'GET',
@@ -300,6 +356,27 @@ async function fetchYouTrackIssue(issueKey, customToken) {
     }
   }
 
+  const comments = Array.isArray(issue.comments) ? issue.comments.map(c => {
+    let avatar = c.author?.avatarUrl || '';
+    if (avatar && !avatar.startsWith('http')) {
+      avatar = `${cleanBaseUrl}${avatar}`;
+    }
+    return {
+      id: c.id || `c-${c.created || Date.now()}`,
+      text: c.text || '',
+      created: c.created || Date.now(),
+      author: {
+        name: c.author?.name || c.author?.login || 'User',
+        login: c.author?.login || 'user',
+        avatarUrl: avatar
+      },
+      attachments: Array.isArray(c.attachments) ? c.attachments.map(a => ({
+        name: a.name || 'attachment',
+        url: a.url ? (a.url.startsWith('http') ? a.url : `${cleanBaseUrl}${a.url}`) : ''
+      })) : []
+    };
+  }) : [];
+
   return {
     ticket: issue.idReadable || cleanKey,
     title,
@@ -307,8 +384,374 @@ async function fetchYouTrackIssue(issueKey, customToken) {
     jiraStatus: youTrackStatus, // backward compatible
     status: youTrackStatus,
     dueDate,
-    url: `${cleanBaseUrl}/issue/${issue.idReadable || cleanKey}`
+    url: `${cleanBaseUrl}/issue/${issue.idReadable || cleanKey}`,
+    comments
   };
+}
+
+
+// ==========================================
+// 💬 Comment System Backend Engine (Node 16 Compatible https.request)
+// ==========================================
+const COMMENTS_STORE_PATH = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'comments.json')
+  : path.join(__dirname, 'data', 'comments.json');
+let cachedMentionUsers = null;
+let lastMentionUsersFetch = 0;
+
+function loadLocalComments() {
+  try {
+    if (fs.existsSync(COMMENTS_STORE_PATH)) {
+      return JSON.parse(fs.readFileSync(COMMENTS_STORE_PATH, 'utf8'));
+    }
+  } catch (e) {
+    console.warn('[loadLocalComments] Error reading comments.json:', e.message);
+  }
+  return {};
+}
+
+function saveLocalComments(commentsMap) {
+  try {
+    const dir = path.dirname(COMMENTS_STORE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(COMMENTS_STORE_PATH, JSON.stringify(commentsMap, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[saveLocalComments] Error writing comments.json:', e.message);
+  }
+}
+
+function httpsYouTrackRequest({ method = 'GET', apiPath, body = null, token, timeout = 15000 }) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? Buffer.from(JSON.stringify(body)) : null;
+    const req = https.request({
+      hostname: 'enveu.youtrack.cloud',
+      path: '/api' + apiPath,
+      method,
+      timeout,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        ...(payload ? {
+          'Content-Type': 'application/json',
+          'Content-Length': payload.length
+        } : {})
+      }
+    }, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: json });
+        } catch (e) {
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, text: data });
+        }
+      });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`YouTrack request timed out (${timeout}ms): ${apiPath}`));
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function fetchYouTrackComments(issueKey, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  if (!token) return [];
+
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = String(issueKey).trim().toUpperCase();
+  const apiPath = `/issues/${encodeURIComponent(cleanKey)}/comments?fields=id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType)&$top=100`;
+
+  try {
+    const resp = await httpsYouTrackRequest({ method: 'GET', apiPath, token });
+    if (!resp.ok) {
+      console.warn(`[YouTrack Comments] HTTP ${resp.status} for ${cleanKey}`);
+      return [];
+    }
+
+    const rawComments = resp.data;
+    if (!Array.isArray(rawComments)) return [];
+
+    return rawComments.map(c => {
+      let avatar = c.author?.avatarUrl || '';
+      if (avatar && !avatar.startsWith('http')) {
+        avatar = `${cleanBaseUrl}${avatar}`;
+      }
+      return {
+        id: c.id || `c-${c.created || Date.now()}`,
+        text: c.text || '',
+        created: c.created || Date.now(),
+        author: {
+          name: c.author?.name || c.author?.login || 'User',
+          login: c.author?.login || '',
+          avatarUrl: avatar
+        },
+        attachments: Array.isArray(c.attachments) ? c.attachments.map(a => ({
+          name: a.name || 'attachment',
+          url: a.url && !a.url.startsWith('http') ? `${cleanBaseUrl}${a.url}` : a.url,
+          mimeType: a.mimeType || ''
+        })) : []
+      };
+    });
+  } catch (err) {
+    console.warn(`[YouTrack Comments] Fetch error for ${cleanKey}:`, err.message);
+    return [];
+  }
+}
+
+async function postYouTrackComment(issueKey, text, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  if (!token) throw new Error('YouTrack Access Token is missing.');
+
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = String(issueKey).trim().toUpperCase();
+  const apiPath = `/issues/${encodeURIComponent(cleanKey)}/comments?fields=id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType)`;
+
+  // In YouTrack, user mentions MUST use @<login> (e.g. @arushdeep.gupta@enveu.com or @abhinav.rajput)
+  // Convert any @Name or @@Name into @login for all known users
+  let commentPayloadText = (text || '').trim();
+  try {
+    const mentionUsers = await getMentionableUsers();
+    const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+    sorted.forEach(u => {
+      if (u.name && u.login) {
+        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`@{1,2}(${escapedName})(?![a-zA-Z0-9_])`, 'gi');
+        commentPayloadText = commentPayloadText.replace(reg, `@${u.login}`);
+      }
+    });
+  } catch (e) {
+    console.warn('[postYouTrackComment] Mentions normalization note:', e.message);
+  }
+
+  const resp = await httpsYouTrackRequest({
+    method: 'POST',
+    apiPath,
+    body: { text: commentPayloadText },
+    token
+  });
+
+  if (!resp.ok) {
+    const errText = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data || resp.text);
+    throw new Error(`YouTrack error HTTP ${resp.status}: ${errText}`);
+  }
+
+  const c = resp.data;
+  let avatar = c.author?.avatarUrl || '';
+  if (avatar && !avatar.startsWith('http')) {
+    avatar = `${cleanBaseUrl}${avatar}`;
+  }
+  return {
+    id: c.id || `c-${c.created || Date.now()}`,
+    text: c.text || text,
+    created: c.created || Date.now(),
+    author: {
+      name: c.author?.name || c.author?.login || 'User',
+      login: c.author?.login || '',
+      avatarUrl: avatar
+    },
+    attachments: Array.isArray(c.attachments) ? c.attachments : []
+  };
+}
+
+async function updateYouTrackComment(issueKey, commentId, text, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  if (!token) throw new Error('YouTrack Access Token is missing.');
+
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = String(issueKey).trim().toUpperCase();
+  const cleanCommentId = String(commentId).trim();
+  const apiPath = `/issues/${encodeURIComponent(cleanKey)}/comments/${encodeURIComponent(cleanCommentId)}?fields=id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType)`;
+
+  let commentPayloadText = (text || '').trim();
+  try {
+    const mentionUsers = await getMentionableUsers();
+    const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+    sorted.forEach(u => {
+      if (u.name && u.login) {
+        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`@{1,2}(${escapedName})(?![a-zA-Z0-9_])`, 'gi');
+        commentPayloadText = commentPayloadText.replace(reg, `@${u.login}`);
+      }
+    });
+  } catch (e) {
+    console.warn('[updateYouTrackComment] Mentions normalization note:', e.message);
+  }
+
+  const resp = await httpsYouTrackRequest({
+    method: 'POST',
+    apiPath,
+    body: { text: commentPayloadText },
+    token
+  });
+
+  if (!resp.ok) {
+    const errText = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data || resp.text);
+    throw new Error(`YouTrack error HTTP ${resp.status}: ${errText}`);
+  }
+
+  const c = resp.data;
+  let avatar = c.author?.avatarUrl || '';
+  if (avatar && !avatar.startsWith('http')) {
+    avatar = `${cleanBaseUrl}${avatar}`;
+  }
+  return {
+    id: c.id || cleanCommentId,
+    text: c.text || text,
+    created: c.created || Date.now(),
+    author: {
+      name: c.author?.name || c.author?.login || 'User',
+      login: c.author?.login || '',
+      avatarUrl: avatar
+    },
+    attachments: Array.isArray(c.attachments) ? c.attachments : []
+  };
+}
+
+async function deleteYouTrackComment(issueKey, commentId, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  if (!token) throw new Error('YouTrack Access Token is missing.');
+
+  const cleanKey = String(issueKey).trim().toUpperCase();
+  const cleanCommentId = String(commentId).trim();
+  const apiPath = `/issues/${encodeURIComponent(cleanKey)}/comments/${encodeURIComponent(cleanCommentId)}`;
+
+  const resp = await httpsYouTrackRequest({
+    method: 'DELETE',
+    apiPath,
+    token
+  });
+
+  if (!resp.ok && resp.status !== 404) {
+    const errText = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data || resp.text);
+    throw new Error(`YouTrack delete error HTTP ${resp.status}: ${errText}`);
+  }
+  return true;
+}
+
+async function syncLatestCommentToSheet(ticketKey, latestComment, assignee, rowNumber) {
+  if (!assignee || typeof executeComposioTool !== 'function') return null;
+  try {
+    const tabName = assignee.trim().toUpperCase();
+    const isPulseTab = tabName === 'PULSE';
+    const colLetter = isPulseTab ? 'C' : 'G';
+    const colIdx = isPulseTab ? 2 : 6;
+
+    let summaryForSheet = '';
+    if (latestComment && latestComment.text) {
+      const cleanSnippet = (latestComment.text || '')
+        .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const dateStr = new Date(latestComment.created || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      summaryForSheet = `[${latestComment.author?.name || 'Team'} • ${dateStr}]: ${cleanSnippet.slice(0, 160)}`;
+    }
+
+    let targetRow = parseInt(rowNumber, 10);
+    if (!targetRow || isNaN(targetRow)) {
+      const currentRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+        spreadsheet_id: SPREADSHEET_ID,
+        range: `${tabName}!A1:I100`
+      });
+      const rows = currentRes?.data?.results?.[0]?.response?.data?.values || [];
+      const foundIdx = rows.findIndex((r, idx) => {
+        if (idx === 0) return false;
+        const t1 = (r[1] || '').trim().toUpperCase();
+        const t0 = (r[0] || '').trim().toUpperCase();
+        return t1 === ticketKey || t0 === ticketKey;
+      });
+      targetRow = foundIdx > 0 ? (foundIdx + 1) : 2;
+    }
+
+    await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+      spreadsheet_id: SPREADSHEET_ID,
+      valueInputOption: 'USER_ENTERED',
+      data: [{
+        range: `${tabName}!${colLetter}${targetRow}`,
+        majorDimension: 'ROWS',
+        values: [[summaryForSheet]]
+      }]
+    });
+
+    if (cache.data && cache.data[tabName]) {
+      const rIdx = targetRow - 1;
+      if (cache.data[tabName][rIdx]) {
+        cache.data[tabName][rIdx][colIdx] = summaryForSheet;
+      }
+    }
+    return summaryForSheet;
+  } catch (err) {
+    console.warn(`[syncLatestCommentToSheet Note] ${err.message}`);
+    return null;
+  }
+}
+
+async function getMentionableUsers() {
+  const now = Date.now();
+  if (cachedMentionUsers && (now - lastMentionUsersFetch < 300000)) {
+    return cachedMentionUsers;
+  }
+
+  const teamList = [
+    { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', role: 'Team Lead' },
+    { name: 'Chetna', login: 'chetna@enveu.com', role: 'Frontend Engineer' },
+    { name: 'Krishna', login: 'krishna@enveu.com', role: 'Frontend Engineer' },
+    { name: 'Manish', login: 'manish@enveu.com', role: 'Fullstack Engineer' },
+    { name: 'Rahul', login: 'rahul@enveu.com', role: 'Frontend Engineer' },
+    { name: 'Sonu', login: 'sonu@enveu.com', role: 'Frontend Engineer' },
+    { name: 'Abhinav Rajput', login: 'abhinav.rajput', role: 'Engineering Manager' },
+    { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', role: 'QA / Product' },
+    { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', role: 'Product Manager' }
+  ];
+
+  let ytUsers = [];
+  try {
+    const cfg = loadYouTrackConfig();
+    const token = (currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+    if (token) {
+      const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+      const resp = await httpsYouTrackRequest({
+        method: 'GET',
+        apiPath: '/users?fields=id,login,name,avatarUrl&$top=200',
+        token
+      });
+      if (resp.ok && Array.isArray(resp.data)) {
+        ytUsers = resp.data.map(u => ({
+          name: u.name || u.login,
+          login: u.login,
+          avatarUrl: u.avatarUrl && !u.avatarUrl.startsWith('http') ? `${cleanBaseUrl}${u.avatarUrl}` : (u.avatarUrl || '')
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('[getMentionableUsers] YouTrack users fetch note:', e.message);
+  }
+
+  // Merge unique by login
+  const map = new Map();
+  teamList.forEach(u => map.set(u.login.toLowerCase(), { ...u, isTeam: true }));
+  ytUsers.forEach(u => {
+    const key = u.login.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { ...u, isTeam: false });
+    } else {
+      const existing = map.get(key);
+      if (u.avatarUrl) existing.avatarUrl = u.avatarUrl;
+    }
+  });
+
+  cachedMentionUsers = Array.from(map.values());
+  lastMentionUsersFetch = now;
+  return cachedMentionUsers;
 }
 
 async function executeYouTrackCommand(issueKey, commandQuery, customToken) {
@@ -1388,7 +1831,12 @@ async function handleRequest(req, res) {
   if (urlObj.pathname === '/' || urlObj.pathname === '/index.html') {
     const htmlPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(htmlPath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       fs.createReadStream(htmlPath).pipe(res);
       return;
     }
@@ -2329,6 +2777,547 @@ async function handleRequest(req, res) {
         res.end(JSON.stringify({ success: true, ticket, tag: validTag, assignee: tabName, rowNumber: targetRow }));
       } catch (err) {
         console.error('Error updating tag:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  
+  // Serve static files from uploads directory
+  if (urlObj.pathname.startsWith('/uploads/')) {
+    const filename = path.basename(urlObj.pathname);
+    const filePath = path.join(__dirname, 'uploads', filename);
+    if (fs.existsSync(filePath)) {
+      const ext = path.extname(filename).toLowerCase();
+      const mimeTypes = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml'
+      };
+      res.writeHead(200, {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=86400'
+      });
+      fs.createReadStream(filePath).pipe(res);
+      return;
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Image not found');
+      return;
+    }
+  }
+
+  // POST /api/upload-image -> Upload and save image for comments
+  if (urlObj.pathname === '/api/upload-image' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { dataBase64, filename } = JSON.parse(body || '{}');
+        if (!dataBase64) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'dataBase64 is required' }));
+          return;
+        }
+
+        const uploadsDir = path.join(__dirname, 'uploads');
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+        const matches = dataBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        let ext = '.png';
+        let buffer;
+        if (matches) {
+          const mime = matches[1];
+          if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+          else if (mime.includes('webp')) ext = '.webp';
+          else if (mime.includes('gif')) ext = '.gif';
+          buffer = Buffer.from(matches[2], 'base64');
+        } else {
+          buffer = Buffer.from(dataBase64, 'base64');
+        }
+
+        const safeBaseName = (filename || 'img').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+        const uniqueName = `${safeBaseName}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}${ext}`;
+        const filePath = path.join(uploadsDir, uniqueName);
+        fs.writeFileSync(filePath, buffer);
+
+        const fileUrl = `http://localhost:3100/uploads/${uniqueName}`;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, url: fileUrl, filename: uniqueName }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // GET /api/users/mentionable -> List of team members & YouTrack users for @mention
+  if (urlObj.pathname === '/api/users/mentionable' && req.method === 'GET') {
+    getMentionableUsers().then(users => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, users }));
+    }).catch(err => {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    });
+    return;
+  }
+
+  // GET /api/ticket/comments -> Load complete comment section for a ticket
+  if (urlObj.pathname === '/api/ticket/comments' && req.method === 'GET') {
+    const ticketParam = (urlObj.searchParams.get('ticket') || '').trim();
+    if (!ticketParam) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'ticket parameter required' }));
+      return;
+    }
+
+    const tKey = ticketParam.toUpperCase();
+    const isRealYt = !tKey.startsWith('PLAN-') && !tKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(tKey);
+
+    (async () => {
+      try {
+        const localStore = loadLocalComments();
+        const localComments = localStore[tKey] || [];
+
+        let ytComments = [];
+        if (isRealYt) {
+          ytComments = await fetchYouTrackComments(tKey);
+        }
+
+        // Merge comments: YouTrack comments + any local additions not in YT
+        const commentMap = new Map();
+        ytComments.forEach(c => commentMap.set(String(c.id), c));
+        localComments.forEach(c => {
+          const idStr = String(c.id);
+          if (!commentMap.has(idStr)) {
+            commentMap.set(idStr, c);
+          } else {
+            const ytItem = commentMap.get(idStr);
+            if (c.pinned) {
+              ytItem.pinned = true;
+              ytItem.pinnedAt = c.pinnedAt;
+              ytItem.pinnedBy = c.pinnedBy;
+            }
+            if (c.deleted) {
+              ytItem.deleted = true;
+              ytItem.deletedAt = c.deletedAt;
+              ytItem.deletedBy = c.deletedBy;
+            }
+            if (c.isEdited) {
+              ytItem.isEdited = true;
+              ytItem.updated = c.updated;
+              if (c.text) ytItem.text = c.text;
+            }
+          }
+        });
+
+        const merged = Array.from(commentMap.values()).sort((a, b) => a.created - b.created);
+
+        // Update local cache
+        localStore[tKey] = merged;
+        saveLocalComments(localStore);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          ticket: tKey,
+          source: isRealYt ? 'youtrack' : 'local',
+          totalCount: merged.filter(c => !c.deleted).length,
+          comments: merged
+        }));
+      } catch (err) {
+        console.error(`Error loading comments for ${tKey}:`, err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    })();
+    return;
+  }
+
+  // GET /api/ticket/comments/batch -> Fetch latest comments dictionary for all tickets
+  if (urlObj.pathname === '/api/ticket/comments/batch' && req.method === 'GET') {
+    try {
+      const localStore = loadLocalComments();
+      const batch = {};
+      Object.keys(localStore).forEach(tKey => {
+        const list = (localStore[tKey] || []).filter(c => !c.deleted);
+        if (list.length > 0) {
+          const latest = list[list.length - 1];
+          batch[tKey] = {
+            author: latest.author?.name || latest.author?.login || 'User',
+            text: latest.text || '',
+            created: latest.created || Date.now(),
+            count: list.length
+          };
+        } else {
+          batch[tKey] = {
+            author: '',
+            text: '',
+            created: Date.now(),
+            count: 0
+          };
+        }
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, batch }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // POST /api/ticket/add-comment -> Post comment to YouTrack, local store, & sync latest to Google Sheets
+  if (urlObj.pathname === '/api/ticket/add-comment' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, text, authorName, authorLogin, assignee, rowNumber } = JSON.parse(body || '{}');
+        if (!ticket || !text || !text.trim()) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket and text are required' }));
+          return;
+        }
+
+        const tKey = ticket.trim().toUpperCase();
+        const commentText = text.trim();
+        const isRealYt = !tKey.startsWith('PLAN-') && !tKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(tKey);
+
+        let createdComment = null;
+        let youTrackSynced = false;
+        let youTrackError = null;
+
+        // 1. Post to YouTrack if real issue key
+        if (isRealYt) {
+          try {
+            createdComment = await postYouTrackComment(tKey, commentText);
+            youTrackSynced = true;
+          } catch (ytErr) {
+            console.warn(`[YouTrack Comment Post Error] ${tKey}:`, ytErr.message);
+            youTrackError = ytErr.message;
+          }
+        }
+
+        if (!createdComment) {
+          createdComment = {
+            id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            text: commentText,
+            created: Date.now(),
+            author: {
+              name: authorName || 'Team Member',
+              login: authorLogin || 'user',
+              avatarUrl: ''
+            },
+            attachments: []
+          };
+        }
+
+        // 2. Save in local comments store
+        const localStore = loadLocalComments();
+        if (!localStore[tKey]) localStore[tKey] = [];
+        localStore[tKey].push(createdComment);
+        saveLocalComments(localStore);
+
+        // 3. Sync compact latest comment to Google Sheets Col G (Col C for PULSE)
+        const latestSummary = await syncLatestCommentToSheet(tKey, createdComment, assignee, rowNumber);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          comment: createdComment,
+          latestSummary,
+          youTrackSynced,
+          youTrackError,
+          totalCount: localStore[tKey].filter(c => !c.deleted).length
+        }));
+      } catch (err) {
+        console.error('Error adding comment:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/edit-comment -> Update existing comment text in YouTrack, local store, & sync latest if applicable
+  if (urlObj.pathname === '/api/ticket/edit-comment' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, commentId, text, assignee, rowNumber } = JSON.parse(body || '{}');
+        if (!ticket || !commentId || !text || !text.trim()) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket, commentId, and text are required' }));
+          return;
+        }
+
+        const tKey = ticket.trim().toUpperCase();
+        const cleanText = text.trim();
+        const isRealYt = !tKey.startsWith('PLAN-') && !tKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(tKey);
+        const isLocalId = String(commentId).startsWith('local-');
+
+        let youTrackSynced = false;
+        let youTrackError = null;
+
+        // 1. Update in YouTrack if real YouTrack ticket and not local ID
+        if (isRealYt && !isLocalId) {
+          try {
+            await updateYouTrackComment(tKey, commentId, cleanText);
+            youTrackSynced = true;
+          } catch (ytErr) {
+            console.warn(`[YouTrack Comment Edit Error] ${tKey} ${commentId}:`, ytErr.message);
+            youTrackError = ytErr.message;
+          }
+        }
+
+        // 2. Update in local comments store
+        const localStore = loadLocalComments();
+        const list = localStore[tKey] || [];
+        let updatedComment = null;
+
+        for (let i = 0; i < list.length; i++) {
+          if (String(list[i].id) === String(commentId)) {
+            list[i].text = cleanText;
+            list[i].isEdited = true;
+            list[i].updated = Date.now();
+            updatedComment = list[i];
+            break;
+          }
+        }
+
+        if (!updatedComment) {
+          updatedComment = {
+            id: commentId,
+            text: cleanText,
+            created: Date.now(),
+            updated: Date.now(),
+            isEdited: true,
+            author: { name: 'Team Member', login: 'user' }
+          };
+          list.push(updatedComment);
+        }
+
+        localStore[tKey] = list;
+        saveLocalComments(localStore);
+
+        // 3. If this was the latest active comment, update Google Sheets
+        const activeList = list.filter(c => !c.deleted);
+        let latestSummary = null;
+        if (activeList.length > 0 && String(activeList[activeList.length - 1].id) === String(commentId)) {
+          latestSummary = await syncLatestCommentToSheet(tKey, updatedComment, assignee, rowNumber);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          comment: updatedComment,
+          latestSummary,
+          youTrackSynced,
+          youTrackError
+        }));
+      } catch (err) {
+        console.error('Error editing comment:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/pin-comment -> Pin or unpin a comment to the top of the thread
+  if (urlObj.pathname === '/api/ticket/pin-comment' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, commentId, pinned, userName } = JSON.parse(body || '{}');
+        if (!ticket || !commentId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket and commentId required' }));
+          return;
+        }
+
+        const tKey = ticket.trim().toUpperCase();
+        const localStore = loadLocalComments();
+        const list = localStore[tKey] || [];
+        let found = null;
+
+        for (let i = 0; i < list.length; i++) {
+          if (String(list[i].id) === String(commentId)) {
+            list[i].pinned = !!pinned;
+            list[i].pinnedAt = pinned ? Date.now() : null;
+            list[i].pinnedBy = pinned ? (userName || 'Team Member') : null;
+            found = list[i];
+            break;
+          }
+        }
+
+        if (!found) {
+          found = {
+            id: commentId,
+            pinned: !!pinned,
+            pinnedAt: pinned ? Date.now() : null,
+            pinnedBy: pinned ? (userName || 'Team Member') : null
+          };
+          list.push(found);
+        }
+
+        localStore[tKey] = list;
+        saveLocalComments(localStore);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, pinned: !!pinned, comment: found }));
+      } catch (err) {
+        console.error('Error toggling pin:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/delete-comment -> Soft delete (Trash) or Permanent delete comment
+  if (urlObj.pathname === '/api/ticket/delete-comment' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, commentId, permanent = false, userName, assignee, rowNumber } = JSON.parse(body || '{}');
+        if (!ticket || !commentId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket and commentId required' }));
+          return;
+        }
+
+        const tKey = ticket.trim().toUpperCase();
+        const isRealYt = !tKey.startsWith('PLAN-') && !tKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(tKey);
+        const isLocalId = String(commentId).startsWith('local-');
+
+        let youTrackDeleted = false;
+        let youTrackError = null;
+
+        const localStore = loadLocalComments();
+        let list = localStore[tKey] || [];
+
+        if (permanent) {
+          // Permanent deletion from YouTrack & localStore
+          if (isRealYt && !isLocalId) {
+            try {
+              await deleteYouTrackComment(tKey, commentId);
+              youTrackDeleted = true;
+            } catch (ytErr) {
+              console.warn(`[YouTrack Comment Permanent Delete Error] ${tKey} ${commentId}:`, ytErr.message);
+              youTrackError = ytErr.message;
+            }
+          }
+          list = list.filter(c => String(c.id) !== String(commentId));
+        } else {
+          // Soft deletion (Move to trash)
+          let found = false;
+          for (let i = 0; i < list.length; i++) {
+            if (String(list[i].id) === String(commentId)) {
+              list[i].deleted = true;
+              list[i].deletedAt = Date.now();
+              list[i].deletedBy = userName || 'Team Member';
+              list[i].pinned = false; // automatically unpin if moved to trash
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            list.push({
+              id: commentId,
+              deleted: true,
+              deletedAt: Date.now(),
+              deletedBy: userName || 'Team Member'
+            });
+          }
+        }
+
+        localStore[tKey] = list;
+        saveLocalComments(localStore);
+
+        // Update Google Sheets with the latest active (non-deleted) comment
+        const activeList = list.filter(c => !c.deleted);
+        const newLatest = activeList.length > 0 ? activeList[activeList.length - 1] : null;
+        const latestSummary = await syncLatestCommentToSheet(tKey, newLatest, assignee, rowNumber);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          permanent: !!permanent,
+          activeCount: activeList.length,
+          latestSummary,
+          youTrackDeleted,
+          youTrackError
+        }));
+      } catch (err) {
+        console.error('Error deleting comment:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/ticket/restore-comment -> Restore a soft-deleted comment from Trash
+  if (urlObj.pathname === '/api/ticket/restore-comment' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { ticket, commentId, assignee, rowNumber } = JSON.parse(body || '{}');
+        if (!ticket || !commentId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket and commentId required' }));
+          return;
+        }
+
+        const tKey = ticket.trim().toUpperCase();
+        const localStore = loadLocalComments();
+        const list = localStore[tKey] || [];
+        let restored = null;
+
+        for (let i = 0; i < list.length; i++) {
+          if (String(list[i].id) === String(commentId)) {
+            list[i].deleted = false;
+            list[i].restoredAt = Date.now();
+            delete list[i].deletedAt;
+            delete list[i].deletedBy;
+            restored = list[i];
+            break;
+          }
+        }
+
+        localStore[tKey] = list;
+        saveLocalComments(localStore);
+
+        // If this restored comment is now the latest active comment, update Google Sheets Col G
+        const activeList = list.filter(c => !c.deleted);
+        const newLatest = activeList.length > 0 ? activeList[activeList.length - 1] : null;
+        let latestSummary = null;
+        if (newLatest && String(newLatest.id) === String(commentId)) {
+          latestSummary = await syncLatestCommentToSheet(tKey, newLatest, assignee, rowNumber);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          comment: restored,
+          latestSummary,
+          activeCount: activeList.length
+        }));
+      } catch (err) {
+        console.error('Error restoring comment:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -3751,6 +4740,195 @@ async function handleRequest(req, res) {
     return;
   }
 
+let activeYouTrackSyncPromise = null;
+
+async function executeYouTrackBulkSync(syncApiKey, ytToken) {
+  console.log('⚡ Starting Bulk YouTrack Sync for All Sheets...');
+  
+  // 1. Fetch live sheets
+  const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle(syncApiKey);
+  
+  // 2. Collect unique tickets
+  const allTicketKeys = new Set();
+  sheetNames.forEach(tab => {
+    if (tab === 'PLAN') return; // PLAN doesn't contain tracker tickets
+    const rows = sheetData[tab] || [];
+    const isPulse = tab === 'PULSE';
+
+    rows.forEach((row, idx) => {
+      if (idx === 0) return; // skip header
+      const targetStr = isPulse ? String(row[0] || '') : String(row[1] || '');
+      const matches = targetStr.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
+      if (matches) {
+        matches.forEach(m => allTicketKeys.add(m.trim().toUpperCase()));
+      }
+    });
+  });
+
+  const keyList = Array.from(allTicketKeys);
+  console.log(`Found ${keyList.length} valid tickets across all sheets:`, keyList);
+
+  if (keyList.length === 0) {
+    return { success: true, count: 0, message: 'No tickets to sync', data: sheetData, sheetNames, commentsBatch: {} };
+  }
+
+  // 3. Query YouTrack using batch fetcher
+  let youTrackMap = {};
+  try {
+    youTrackMap = await batchFetchYouTrackIssues(keyList, ytToken);
+  } catch (ytErr) {
+    if (ytErr.isAuthError) {
+      const err = new Error(ytErr.message);
+      err.isAuthError = true;
+      throw err;
+    }
+    console.warn('YouTrack batch fetch warning:', ytErr.message);
+  }
+
+  console.log(`Successfully fetched details for ${Object.keys(youTrackMap).length} tickets from YouTrack.`);
+
+  // 3.5. Override comments store with latest comments from YouTrack & construct commentsBatch
+  const localCommentsStore = loadLocalComments();
+  const commentsBatch = {};
+
+  Object.keys(youTrackMap).forEach(key => {
+    const item = youTrackMap[key];
+    if (item && Array.isArray(item.comments) && item.comments.length > 0) {
+      localCommentsStore[key] = item.comments;
+      const latest = item.comments[item.comments.length - 1];
+      commentsBatch[key] = {
+        author: latest.author?.name || latest.author?.login || 'User',
+        text: latest.text || '',
+        created: latest.created || Date.now(),
+        count: item.comments.length
+      };
+    } else {
+      localCommentsStore[key] = [];
+      commentsBatch[key] = {
+        author: '',
+        text: '',
+        created: Date.now(),
+        count: 0
+      };
+    }
+  });
+  saveLocalComments(localCommentsStore);
+
+  // 4. Update rows for each sheet tab and prepare batch writes
+  const updateData = [];
+  const updatedMemberTabs = [];
+  let updatedCount = 0;
+
+  sheetNames.forEach(tab => {
+    if (tab === 'PLAN') return; // PLAN tab does not have tracker status
+    const rows = sheetData[tab] || [];
+    if (rows.length <= 1) return;
+
+    let hasTabChanges = false;
+    const isPulse = tab === 'PULSE';
+
+    rows.forEach((row, rIdx) => {
+      if (rIdx === 0) return;
+
+      if (isPulse) {
+        // PULSE layout: [Ticket Number, Title, Status, Assignee, Type, Link, Remarks]
+        const ticketCell = String(row[0] || '').trim();
+        const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
+        if (matches && matches.length > 0) {
+          const mainKey = matches[0].toUpperCase();
+          if (youTrackMap[mainKey]) {
+            const item = youTrackMap[mainKey];
+            if (item.title) row[1] = item.title;
+            if (item.youTrackStatus) row[2] = item.youTrackStatus;
+            row[5] = item.url || `https://enveu.youtrack.cloud/issue/${mainKey}`;
+
+            // Override Remarks (Col G / index 6) with last YouTrack comment if present
+            if (commentsBatch[mainKey] && commentsBatch[mainKey].count > 0 && commentsBatch[mainKey].text) {
+              row[6] = commentsBatch[mainKey].text;
+            } else if (commentsBatch[mainKey] && commentsBatch[mainKey].count === 0) {
+              row[6] = '';
+            }
+
+            hasTabChanges = true;
+            updatedCount++;
+          }
+        }
+      } else {
+        // Standard Member Sheet layout: [Link, Ticket, Title, Tag, YouTrack Status, Internal Status, Action/Notes, Due Date]
+        const ticketKey = String(row[1] || '').trim().toUpperCase();
+        if (youTrackMap[ticketKey]) {
+          const item = youTrackMap[ticketKey];
+          if (item.title) row[2] = item.title;
+          if (item.tag) row[3] = item.tag;
+          if (item.youTrackStatus) row[4] = item.youTrackStatus;
+          row[0] = item.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`;
+
+          // Override Action / Notes (Col G / index 6) with last YouTrack comment if present
+          if (commentsBatch[ticketKey] && commentsBatch[ticketKey].count > 0 && commentsBatch[ticketKey].text) {
+            row[6] = commentsBatch[ticketKey].text;
+          } else if (commentsBatch[ticketKey] && commentsBatch[ticketKey].count === 0) {
+            row[6] = '';
+          }
+
+          hasTabChanges = true;
+          updatedCount++;
+        }
+      }
+    });
+
+    if (hasTabChanges) {
+      updateData.push({
+        range: `${tab}!A2:G${rows.length}`,
+        values: rows.slice(1).map(r => [
+          r[0] || '',
+          r[1] || '',
+          r[2] || '',
+          r[3] || '',
+          r[4] || '',
+          r[5] || '',
+          r[6] || ''
+        ])
+      });
+
+      if (!isPulse && tab !== 'ALL' && tab !== 'MASTER') {
+        updatedMemberTabs.push(tab);
+      }
+    }
+  });
+
+  // 5. Batch write to Master Google Sheet
+  if (updateData.length > 0) {
+    console.log(`Writing batch updates to Master Google Sheet for ${updateData.length} tabs...`);
+    await composioCall('GOOGLESHEETS_BATCH_UPDATE_VALUES', {
+      spreadsheet_id: SPREADSHEET_ID,
+      value_input_option: 'RAW',
+      data: updateData
+    }, syncApiKey);
+  }
+
+  // 6. Push updates to individual member sheets in background
+  updatedMemberTabs.forEach(tab => {
+    pushMasterToIndividualSheet(tab, sheetData[tab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${tab}:`, e.message));
+  });
+
+  // 7. Update cache immediately
+  cache = {
+    data: sheetData,
+    sheetNames,
+    timestamp: Date.now()
+  };
+
+  console.log(`✅ Bulk YouTrack Sync Complete. Synchronized ${updatedCount} ticket rows with YouTrack & Google Sheets.`);
+  return {
+    success: true,
+    source: 'youtrack',
+    count: updatedCount,
+    sheetNames,
+    data: sheetData,
+    commentsBatch
+  };
+}
+
   // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets
   if (urlObj.pathname === '/api/youtrack/sync-all' && req.method === 'POST') {
     try {
@@ -3762,161 +4940,27 @@ async function handleRequest(req, res) {
         return;
       }
 
-      console.log('⚡ Starting Bulk YouTrack Sync for All Sheets...');
-      
-      // 1. Fetch live sheets
-      const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle(syncApiKey);
-      
-      // 2. Collect unique tickets
-      const allTicketKeys = new Set();
-      sheetNames.forEach(tab => {
-        if (tab === 'PLAN') return; // PLAN doesn't contain tracker tickets
-        const rows = sheetData[tab] || [];
-        const isPulse = tab === 'PULSE';
+      const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
 
-        rows.forEach((row, idx) => {
-          if (idx === 0) return; // skip header
-          const targetStr = isPulse ? String(row[0] || '') : String(row[1] || '');
-          const matches = targetStr.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
-          if (matches) {
-            matches.forEach(m => allTicketKeys.add(m.trim().toUpperCase()));
-          }
-        });
-      });
-
-      const keyList = Array.from(allTicketKeys);
-      console.log(`Found ${keyList.length} valid tickets across all sheets:`, keyList);
-
-      if (keyList.length === 0) {
+      // Deduplicate: If another sync is already running in background, join it without creating parallel requests
+      if (activeYouTrackSyncPromise) {
+        console.log('⚡ Bulk YouTrack Sync already in progress. Joining running background sync...');
+        const result = await activeYouTrackSyncPromise;
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, count: 0, message: 'No tickets to sync', data: sheetData }));
+        res.end(JSON.stringify(result));
         return;
       }
 
-      // 3. Query YouTrack using batch fetcher
-      const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
-      let youTrackMap = {};
-      try {
-        youTrackMap = await batchFetchYouTrackIssues(keyList, ytToken);
-      } catch (ytErr) {
-        if (ytErr.isAuthError) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            success: false,
-            error: ytErr.message,
-            isAuthError: true
-          }));
-          return;
-        }
-        console.warn('YouTrack batch fetch warning:', ytErr.message);
-      }
-
-      console.log(`Successfully fetched details for ${Object.keys(youTrackMap).length} tickets from YouTrack.`);
-
-      // 4. Update rows for each sheet tab and prepare batch writes
-      const updateData = [];
-      const updatedMemberTabs = [];
-      let updatedCount = 0;
-
-      sheetNames.forEach(tab => {
-        if (tab === 'PLAN') return; // PLAN tab does not have tracker status
-        const rows = sheetData[tab] || [];
-        if (rows.length <= 1) return;
-
-        let hasTabChanges = false;
-        const isPulse = tab === 'PULSE';
-
-        rows.forEach((row, rIdx) => {
-          if (rIdx === 0) return;
-
-          if (isPulse) {
-            // PULSE layout: [Ticket Number, Title, Status, Assignee, Type, Link, Remarks]
-            const ticketCell = String(row[0] || '').trim();
-            const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
-            if (matches && matches.length > 0) {
-              const mainKey = matches[0].toUpperCase();
-              if (youTrackMap[mainKey]) {
-                const item = youTrackMap[mainKey];
-                if (item.title) row[1] = item.title;
-                if (item.youTrackStatus) row[2] = item.youTrackStatus;
-                row[5] = item.url || `https://enveu.youtrack.cloud/issue/${mainKey}`;
-                hasTabChanges = true;
-                updatedCount++;
-              }
-            }
-          } else {
-            // Standard layout: [#, Ticket ID, Ticket Link, Title, Status, Internal Status, Action/Notes, Due Date, Tag]
-            const ticketCell = String(row[1] || '').trim();
-            const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
-            if (matches && matches.length > 0) {
-              const mainKey = matches[0].toUpperCase();
-              if (youTrackMap[mainKey]) {
-                const item = youTrackMap[mainKey];
-                if (item.title) row[3] = item.title;
-                if (item.youTrackStatus) row[4] = item.youTrackStatus;
-                if (!row[5]) row[5] = item.youTrackStatus || 'To Pick Up';
-                if (item.dueDate && item.dueDate !== 'Not set' && item.dueDate.toLowerCase() !== 'tbd') {
-                  row[7] = item.dueDate;
-                }
-                row[2] = item.url || `https://enveu.youtrack.cloud/issue/${mainKey}`;
-                hasTabChanges = true;
-                updatedCount++;
-              }
-            }
-          }
-        });
-
-        if (hasTabChanges) {
-          const maxCols = Math.max(...rows.map(r => r.length), isPulse ? 7 : 9);
-          const endLetter = colIndexToLetter(maxCols - 1);
-          rows.forEach(r => {
-            while (r.length < maxCols) r.push('');
-          });
-          updateData.push({
-            range: `${tab}!A1:${endLetter}${rows.length}`,
-            majorDimension: 'ROWS',
-            values: rows
-          });
-          if (INDIVIDUAL_SHEETS[tab]) {
-            updatedMemberTabs.push(tab);
-          }
-        }
-      });
-
-      // 5. Execute batch write to Google Sheets Master
-      if (updateData.length > 0) {
-        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
-          spreadsheet_id: SPREADSHEET_ID,
-          valueInputOption: 'USER_ENTERED',
-          data: updateData
-        }, syncApiKey);
-      }
-
-      // 6. Push updates to individual member sheets in background
-      updatedMemberTabs.forEach(tab => {
-        pushMasterToIndividualSheet(tab, sheetData[tab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${tab}:`, e.message));
-      });
-
-      // 7. Update cache immediately
-      cache = {
-        data: sheetData,
-        sheetNames,
-        timestamp: Date.now()
-      };
-
-      console.log(`✅ Bulk YouTrack Sync Complete. Synchronized ${updatedCount} ticket rows with YouTrack & Google Sheets.`);
+      activeYouTrackSyncPromise = executeYouTrackBulkSync(syncApiKey, ytToken);
+      const result = await activeYouTrackSyncPromise;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        success: true,
-        source: 'youtrack',
-        count: updatedCount,
-        sheetNames,
-        data: sheetData
-      }));
+      res.end(JSON.stringify(result));
     } catch (err) {
       console.error('Error in youtrack sync-all:', err);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: false, error: err.message }));
+      res.writeHead(err.isAuthError ? 401 : 500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message, isAuthError: !!err.isAuthError }));
+    } finally {
+      activeYouTrackSyncPromise = null;
     }
     return;
   }
