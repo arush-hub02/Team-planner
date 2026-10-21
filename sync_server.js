@@ -1258,14 +1258,8 @@ const STATUS_COLORS = {
   'FE Ready': { bg: '#e0e7ff', text: '#3730a3' }
 };
 
-const INDIVIDUAL_SHEETS = {
-  "ARUSH": "1Rp5yw78lqoPAe4TSV5ANf3FMFiemlslcDh1D9ksSU8U",
-  "CHETNA": "1e0WUUZPl11CeXP2V3K5uD6LWH1oHRrTzqEJ1f5SaSZ0",
-  "KRISHNA": "1_sZ3DJxjORvnLRsT2IpYhA0ua4PbHOfg9c6yKuw1hW8",
-  "MANISH": "1GccfNZV3De0fINvqKEgTHr6yOrm1L8AI1MiyU8AJjwc",
-  "RAHUL": "1GuT87vd_KT5KKq3To6AzDjC0zqpCohU7oceRq73SAPI",
-  "SONU": "1d6sG7s-U1o3hSabm1NzqNA7VFHsbk6-1Ub93tw50YAQ"
-};
+// Master Spreadsheet Only Architecture: All tasks are managed exclusively in Master Sheet (1mMe1z7_fZRKjAcd_uMGUsY15SFfRcBPUKfttcYDa9FY)
+const INDIVIDUAL_SHEETS = {};
 
 let KNOWN_STATUSES = new Set([
   'To Pick Up',
@@ -1869,192 +1863,18 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   return { sheetNames: cache.sheetNames || sheetNames, sheetData: cache.data || sheetData };
 }
 
+// Master Sheet Only: Individual external sheet duplication decommissioned
 async function updateDataValidationAcrossSheets() {
-  const tools = [];
-  const statusList = Array.from(KNOWN_STATUSES);
-  for (const [name, sheetId] of Object.entries(INDIVIDUAL_SHEETS)) {
-    // Internal status validation (Col F: index 5)
-    tools.push({
-      tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
-      arguments: {
-        spreadsheet_id: sheetId,
-        sheet_id: 0,
-        mode: 'SET',
-        start_row_index: 1,
-        end_row_index: 100,
-        start_column_index: 5,
-        end_column_index: 6,
-        validation_type: 'ONE_OF_LIST',
-        values: statusList,
-        strict: false,
-        show_custom_ui: true
-      }
-    });
-    // Tag validation (Col I: index 8)
-    tools.push({
-      tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
-      arguments: {
-        spreadsheet_id: sheetId,
-        sheet_id: 0,
-        mode: 'SET',
-        start_row_index: 1,
-        end_row_index: 100,
-        start_column_index: 8,
-        end_column_index: 9,
-        validation_type: 'ONE_OF_LIST',
-        values: ['Product', 'Support'],
-        strict: false,
-        show_custom_ui: true
-      }
-    });
-  }
-  if (tools.length > 0) {
-    await executeComposioBatch(tools);
-    console.log('✅ [Data Validation Updated] Dynamic status and tag dropdown rules updated across all individual sheets');
-  }
-}
-
-async function pushMasterToIndividualSheet(memberName, masterRows) {
-  if (!memberName) return;
-  const memberKey = memberName.trim().toUpperCase();
-  const sheetId = INDIVIDUAL_SHEETS[memberKey];
-  if (!sheetId) return;
-
-  try {
-    const rowsToWrite = masterRows.map(r => {
-      const copy = [...r];
-      while (copy.length < 9) copy.push('');
-      return copy;
-    });
-    while (rowsToWrite.length < 30) {
-      rowsToWrite.push(['', '', '', '', '', '', '', '', '']);
-    }
-    await executeComposioTool('GOOGLESHEETS_VALUES_UPDATE', {
-      spreadsheet_id: sheetId,
-      range: `Sheet1!A1:I${rowsToWrite.length}`,
-      value_input_option: 'USER_ENTERED',
-      values: rowsToWrite
-    });
-    console.log(`📤 [1-Way Push] Synced ${masterRows.length} rows to ${memberKey}'s individual sheet`);
-  } catch (err) {
-    console.error(`Error pushing to ${memberKey} individual sheet:`, err.message);
-  }
-}
-
-async function syncPulseSheet() {
-  // Decommissioned: PULSE sheet deleted by user
   return;
 }
 
-let isSyncingIndividual = false;
-async function syncIndividualSheetsWithMaster() {
-  if (isSyncingIndividual) return;
-  isSyncingIndividual = true;
-
-  try {
-    // 1. Fetch live master sheets
-    const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
-
-    // 2. Batch read all 6 individual sheets
-    const members = Object.keys(INDIVIDUAL_SHEETS);
-    const getTools = members.map(m => ({
-      tool_slug: 'GOOGLESHEETS_VALUES_GET',
-      arguments: {
-        spreadsheet_id: INDIVIDUAL_SHEETS[m],
-        range: 'Sheet1!A1:H30'
-      }
-    }));
-
-    const batchRes = await executeComposioBatch(getTools);
-    if (!batchRes?.data?.results) return;
-
-    const masterUpdatePayload = [];
-    let masterUpdated = false;
-
-    members.forEach((m, idx) => {
-      const indRows = batchRes.data.results[idx]?.response?.data?.values || [];
-      const masterRows = sheetData[m] || [];
-      if (indRows.length <= 1 && masterRows.length <= 1) return;
-
-      let memberNeedsPush = false;
-
-      // Scan rows from individual sheet
-      indRows.forEach((indRow, rowIdx) => {
-        if (rowIdx === 0) return; // skip header
-        const tKey = (indRow[1] || '').trim().toUpperCase();
-        if (!tKey) return;
-
-        const mIdx = masterRows.findIndex((mr, i) => i > 0 && mr[1] && mr[1].trim().toUpperCase() === tKey);
-        if (mIdx > 0) {
-          const masterRow = [...masterRows[mIdx]];
-          const indInternalStatus = (indRow[5] || '').trim();
-          const indNotes = (indRow[6] || '').trim();
-
-          let rowModified = false;
-          if (indInternalStatus && indInternalStatus !== (masterRow[5] || '').trim()) {
-            console.log(`📥 [2-Way Sync] ${m}'s sheet updated Internal Status for ${tKey}: "${masterRow[5]}" -> "${indInternalStatus}"`);
-            masterRow[5] = indInternalStatus;
-            registerCustomStatus(indInternalStatus);
-            rowModified = true;
-          }
-
-          if (indNotes && indNotes !== (masterRow[6] || '').trim()) {
-            console.log(`📥 [2-Way Sync] ${m}'s sheet updated Action/Notes for ${tKey}: "${indNotes}"`);
-            masterRow[6] = indNotes;
-            rowModified = true;
-          }
-
-          if (rowModified) {
-            masterRows[mIdx] = masterRow;
-            masterUpdated = true;
-          }
-
-          // If restricted columns (A:E, H) were modified in individual sheet, mark to overwrite with master
-          if (indRow[3] !== masterRow[3] || indRow[4] !== masterRow[4] || indRow[7] !== masterRow[7]) {
-            memberNeedsPush = true;
-          }
-        }
-      });
-
-      if (masterUpdated) {
-        sheetData[m] = masterRows;
-        masterUpdatePayload.push({
-          range: `${m}!A1:H${masterRows.length}`,
-          majorDimension: 'ROWS',
-          values: masterRows
-        });
-      }
-
-      // If master had different row count or restricted columns were touched, push master back to individual
-      if (memberNeedsPush || (masterRows.length > 0 && indRows.length !== masterRows.length)) {
-        pushMasterToIndividualSheet(m, masterRows).catch(() => {});
-      }
-    });
-
-    if (masterUpdatePayload.length > 0) {
-      await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
-        spreadsheet_id: SPREADSHEET_ID,
-        valueInputOption: 'USER_ENTERED',
-        data: masterUpdatePayload
-      });
-      cache = {
-        sheetNames,
-        data: sheetData,
-        timestamp: Date.now()
-      };
-      console.log(`✅ [2-Way Sync Complete] Master Sheet updated with changes from individual sheets`);
-    }
-  } catch (err) {
-    console.error('Error during 2-way sync:', err.message);
-  } finally {
-    isSyncingIndividual = false;
-  }
+async function pushMasterToIndividualSheet(memberName, masterRows) {
+  // Master Sheet Only: No-op
+  return;
 }
 
-// Background 2-way sync: runs every 10 minutes (600,000 ms) to conserve Composio quota
-// Real-time mutations (status updates, ticket creation, deletion, etc.) sync immediately on-demand
-if (process.env.VERCEL !== '1' && require.main === module) {
-  setInterval(syncIndividualSheetsWithMaster, 10 * 60 * 1000);
+async function syncPulseSheet() {
+  return;
 }
 
 async function handleRequest(req, res) {
