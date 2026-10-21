@@ -3944,6 +3944,350 @@
     html.user-pre-authenticated #dashboardContainer {
       display: block !important;
     }
+
+    /* =========================================================================
+       CUSTOM DUE DATE PICKER (No time needed, pure date selection & presets)
+       ========================================================================= */
+    .fg-duedate {
+      flex: 0 1 150px;
+      min-width: 130px;
+    }
+    .custom-datepicker-trigger-btn {
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      background: #0d1322;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      outline: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .custom-datepicker-trigger-btn:hover,
+    .custom-datepicker-trigger-btn:focus-visible {
+      border-color: #3b82f6;
+      background: #111a2e;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    .custom-datepicker-trigger-btn.has-value {
+      border-color: rgba(59, 130, 246, 0.45);
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    .cdp-trigger-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+    .cdp-trigger-val {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .cdp-trigger-clear {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cdp-trigger-clear:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    /* Popover Container */
+    .custom-datepicker-popover {
+      position: fixed;
+      z-index: 99999 !important;
+      width: 320px;
+      background: #0f172a;
+      background: linear-gradient(180deg, #131d35 0%, #0c1222 100%);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      border-radius: 14px;
+      box-shadow: 0 20px 45px -5px rgba(0, 0, 0, 0.85), 0 0 30px rgba(59, 130, 246, 0.25);
+      padding: 14px;
+      color: #f8fafc;
+      font-family: inherit;
+      user-select: none;
+      animation: cdpFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      box-sizing: border-box;
+    }
+    @keyframes cdpFadeIn {
+      from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Popover Header (Navigation & Selectors) */
+    .cdp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cdp-nav-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 6px;
+    }
+    .cdp-nav-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      line-height: 1;
+      padding: 0;
+    }
+    .cdp-nav-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #60a5fa;
+    }
+    .cdp-month-year-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: center;
+    }
+    .cdp-select {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 6px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .cdp-select:hover,
+    .cdp-select:focus {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #3b82f6;
+    }
+    .cdp-select option {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    /* Quick Presets Row */
+    .cdp-presets-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .cdp-preset-chip {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+      border-radius: 6px;
+      padding: 4px 2px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .cdp-preset-chip:hover {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Weekday Headers */
+    .cdp-weekdays-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .cdp-weekday {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 0;
+    }
+    .cdp-weekday.cdp-weekend {
+      color: #f43f5e;
+      opacity: 0.8;
+    }
+
+    /* Days Grid */
+    .cdp-days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+      margin-bottom: 12px;
+    }
+    .cdp-day {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #e2e8f0;
+      cursor: pointer;
+      position: relative;
+      background: transparent;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      padding: 0;
+    }
+    .cdp-day:hover:not(.is-disabled) {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #ffffff;
+    }
+    .cdp-day.cdp-other-month {
+      color: #475569;
+      opacity: 0.6;
+    }
+    .cdp-day.is-today {
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #38bdf8;
+      font-weight: 700;
+    }
+    .cdp-day.is-today::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #38bdf8;
+    }
+    .cdp-day.is-selected {
+      background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+      border-color: #60a5fa !important;
+      color: #ffffff !important;
+      font-weight: 700;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+    }
+    .cdp-day.is-selected::after {
+      display: none;
+    }
+
+    /* Popover Footer */
+    .cdp-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      gap: 8px;
+    }
+    .cdp-footer-preview {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #94a3b8;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .cdp-preview-label {
+      text-transform: uppercase;
+      font-weight: 700;
+      font-size: 9.5px;
+      color: #64748b;
+      letter-spacing: 0.05em;
+    }
+    .cdp-preview-value {
+      color: #38bdf8;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cdp-footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .cdp-btn-clear,
+    .cdp-btn-cancel,
+    .cdp-btn-apply {
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      border: 1px solid transparent;
+      line-height: 1.2;
+    }
+    .cdp-btn-clear {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: #fca5a5;
+    }
+    .cdp-btn-clear:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #ffffff;
+    }
+    .cdp-btn-cancel {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+    }
+    .cdp-btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+    }
+    .cdp-btn-apply {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+    }
+    .cdp-btn-apply:hover {
+      background: #1d4ed8;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    }
   </style>
   <script>
     (function() {
@@ -4449,7 +4793,15 @@
               <option value="Backlog">⚪ Backlog</option>
             </select>
           </div>
-          <input type="hidden" id="dueDateInput" value="Not set">
+          <div class="form-group fg-duedate" id="quickAddDueDateGroup">
+            <label>Due Date</label>
+            <div class="custom-datepicker-trigger-btn" id="quickAddDueDateBtn" onclick="openCustomDatePicker(this, { targetInputId: 'dueDateInput', onSelect: updateQuickAddDueDateDisplay }, event)" tabindex="0" role="button" aria-haspopup="dialog" title="Pick due date (no time needed)">
+              <span class="cdp-trigger-icon">📅</span>
+              <span id="quickAddDueDateText" class="cdp-trigger-val">Not set</span>
+              <button type="button" class="cdp-trigger-clear" id="quickAddClearBtn" onclick="clearQuickAddDueDate(event)" title="Clear due date" style="display: none;">✕</button>
+            </div>
+            <input type="hidden" id="dueDateInput" value="Not set">
+          </div>
           <div class="form-group fg-submit">
             <button type="submit" id="submitBtn" class="btn btn-primary" style="height: 38px; justify-content: center; min-width: 120px;">
               🚀 Add & Sync
@@ -7340,6 +7692,7 @@ Thanks!`;
     // State is 100% dynamically fetched from Google Sheets via sync server API
     let sheetStore = {};
     let currentActiveTab = 'all';
+    let currentTabStore = {};
     let searchQuery = '';
 
     // Dashboard Universal Sorting & Filtering State (Dashboard Only)
@@ -7550,7 +7903,7 @@ Thanks!`;
       const container = document.getElementById('detailedFilterList');
       if (!container) return;
 
-      const statusSet = new Set(STATUS_OPTIONS);
+      const statusSet = new Set(YOUTRACK_STATE_OPTIONS);
       Object.keys(sheetStore).forEach(sheetName => {
         const rows = sheetStore[sheetName] || [];
         if (isProjectSheet(sheetName)) {
@@ -7560,7 +7913,6 @@ Thanks!`;
           const dataRows = rows.length > 0 && rows[0][0] === '#' ? rows.slice(1) : rows;
           dataRows.forEach(r => {
             if (r[4]) statusSet.add(r[4].trim());
-            if (r[5]) statusSet.add(r[5].trim());
           });
         }
       });
@@ -7642,7 +7994,7 @@ Thanks!`;
         const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
         const monthIdx = monthNames.findIndex(mn => monthStr.startsWith(mn));
         if (monthIdx !== -1) {
-          const year = m1[3] ? (m1[3].length === 2 ? 2000 + parseInt(m1[3], 10) : parseInt(m1[3], 10)) : 2026;
+          const year = m1[3] ? (m1[3].length === 2 ? 2000 + parseInt(m1[3], 10) : parseInt(m1[3], 10)) : new Date().getFullYear();
           return new Date(year, monthIdx, day, 12, 0, 0);
         }
       }
@@ -7655,7 +8007,7 @@ Thanks!`;
         const monthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
         const monthIdx = monthNames.findIndex(mn => monthStr.startsWith(mn));
         if (monthIdx !== -1) {
-          const year = m2[3] ? (m2[3].length === 2 ? 2000 + parseInt(m2[3], 10) : parseInt(m2[3], 10)) : 2026;
+          const year = m2[3] ? (m2[3].length === 2 ? 2000 + parseInt(m2[3], 10) : parseInt(m2[3], 10)) : new Date().getFullYear();
           return new Date(year, monthIdx, day, 12, 0, 0);
         }
       }
@@ -7671,9 +8023,8 @@ Thanks!`;
     function isTicketDone(item) {
       if (!item) return false;
       if (isStatusSheet(item.owner)) return true;
-      const s1 = (item.jiraStatus || '').toLowerCase();
-      const s2 = (item.internalStatus || '').toLowerCase();
-      return s1.includes('done') || s1.includes('closed') || s2.includes('done') || s2.includes('closed');
+      const s = (item.jiraStatus || '').trim().toLowerCase();
+      return s === 'done' || s === 'closed' || s === 'resolved';
     }
 
     function getWeekRange(date) {
@@ -7844,7 +8195,7 @@ Thanks!`;
       return list;
     }
 
-    function updateDeliveryHorizonStats(allRows) {
+    function updateDeliveryHorizonStats(items) {
       let overdue = 0;
       let thisWeekTotal = 0;
       let thisWeekDelivered = 0;
@@ -7856,8 +8207,9 @@ Thanks!`;
       const today = new Date();
       const { monday: curMon, sunday: curSun } = getWeekRange(today);
       const curMonTime = curMon.getTime();
+      const rows = items || (currentTabStore && currentTabStore[currentActiveTab]) || (currentTabStore && currentTabStore['all']) || [];
 
-      allRows.forEach(item => {
+      rows.forEach(item => {
         const tKey = (item.ticket || '').toUpperCase();
         if (tKey && seenTickets.has(tKey)) return;
         if (tKey) seenTickets.add(tKey);
@@ -8156,34 +8508,31 @@ Thanks!`;
       return d.getTime();
     }
 
-    function matchesStatusFilter(jiraStatus, internalStatus) {
+    function matchesStatusFilter(jiraStatus) {
       const isAll = activeFilterBuckets.has('ALL') || (activeFilterBuckets.size === 0 && activeDetailedStatuses.size === 0);
       if (isAll) return true;
 
-      const s1 = (jiraStatus || '').trim().toLowerCase();
-      const s2 = (internalStatus || '').trim().toLowerCase();
+      const s = (jiraStatus || '').trim().toLowerCase();
 
       // Check detailed exact status filter if active
       if (activeDetailedStatuses.size > 0) {
-        if (activeDetailedStatuses.has(s1) || activeDetailedStatuses.has(s2)) {
+        if (activeDetailedStatuses.has(s)) {
           return true;
         }
       }
 
-      // Check quick status bucket filters
+      // Check quick status bucket filters based solely on YouTrack status
       for (const bucket of activeFilterBuckets) {
-        if (bucket === 'DONE' && (s1.includes('done') || s1.includes('closed') || s2.includes('done') || s2.includes('closed'))) return true;
-        if (bucket === 'IN_REVIEW' && (s1.includes('review') || s1.includes('verify') || s2.includes('review') || s2.includes('verify'))) return true;
+        if (bucket === 'DONE' && (s === 'done' || s === 'closed' || s === 'resolved')) return true;
+        if (bucket === 'IN_REVIEW' && (s.includes('review') || s.includes('verify'))) return true;
         if (bucket === 'IN_PROGRESS' && (
-          s1.includes('in progress') || s1.includes('in-progress') || s1.includes('progress') || s1.includes('analyz') || s1.includes('wip') ||
-          s2.includes('in progress') || s2.includes('in-progress') || s2.includes('progress') || s2.includes('analyz') || s2.includes('wip')
+          s.includes('in progress') || s.includes('in-progress') || s.includes('progress') || s.includes('analyz') || s.includes('wip') || s.includes('be done') || s.includes('dev done') || s.includes('reopen')
         )) return true;
         if (bucket === 'TODO' && (
-          s1.includes('to do') || s1.includes('todo') || s1.includes('to pick up') || s1.includes('open') || s1.includes('selected') || s1.includes('backlog') ||
-          s2.includes('to do') || s2.includes('todo') || s2.includes('to pick up') || s2.includes('open') || s2.includes('selected') || s2.includes('backlog')
+          s.includes('to do') || s.includes('todo') || s.includes('to pick up') || s.includes('open') || s.includes('selected') || s.includes('backlog')
         )) return true;
-        if (bucket === 'POC' && (s1.includes('poc') || s1.includes('escalated to l2') || s2.includes('poc') || s2.includes('escalated to l2'))) return true;
-        if (bucket === 'DISCUSS' && (s1.includes('discuss') || s1.includes('escalated to l3') || s2.includes('discuss') || s2.includes('escalated to l3'))) return true;
+        if (bucket === 'POC' && (s.includes('poc') || s.includes('escalated to l2'))) return true;
+        if (bucket === 'DISCUSS' && (s.includes('discuss') || s.includes('escalated to l3') || s.includes('escalated to l4') || s.includes('waiting for customer') || s.includes('on hold'))) return true;
       }
 
       return false;
@@ -8243,8 +8592,8 @@ Thanks!`;
       const sortMode = currentSortMode;
       if (sortMode === 'done_first') {
         list.sort((a, b) => {
-          const statusA = isPulse ? a.status : (a.internalStatus || a.jiraStatus);
-          const statusB = isPulse ? b.status : (b.internalStatus || b.jiraStatus);
+          const statusA = isPulse ? a.status : (a.jiraStatus || '');
+          const statusB = isPulse ? b.status : (b.jiraStatus || '');
           const rankA = getDoneFirstStatusRank(statusA);
           const rankB = getDoneFirstStatusRank(statusB);
           if (rankA !== rankB) return rankA - rankB;
@@ -8252,8 +8601,8 @@ Thanks!`;
         });
       } else if (sortMode === 'lifecycle') {
         list.sort((a, b) => {
-          const statusA = isPulse ? a.status : (a.internalStatus || a.jiraStatus);
-          const statusB = isPulse ? b.status : (b.internalStatus || b.jiraStatus);
+          const statusA = isPulse ? a.status : (a.jiraStatus || '');
+          const statusB = isPulse ? b.status : (b.jiraStatus || '');
           const rankA = getLifecycleStatusRank(statusA);
           const rankB = getLifecycleStatusRank(statusB);
           if (rankA !== rankB) return rankA - rankB;
@@ -8276,8 +8625,8 @@ Thanks!`;
         list.sort((a, b) => (a.assignee || a.owner || '').localeCompare(b.assignee || b.owner || ''));
       } else if (sortMode === 'status_asc') {
         list.sort((a, b) => {
-          const statusA = isPulse ? (a.status || '') : (a.internalStatus || a.jiraStatus || '');
-          const statusB = isPulse ? (b.status || '') : (b.internalStatus || b.jiraStatus || '');
+          const statusA = isPulse ? (a.status || '') : (a.jiraStatus || '');
+          const statusB = isPulse ? (b.status || '') : (b.jiraStatus || '');
           return statusA.localeCompare(statusB);
         });
       } else {
@@ -9078,12 +9427,23 @@ Thanks!`;
       }
       handleAssigneeSelectChange();
 
-      // Total count across standard task sheets in All Overview (excluding project sheets like PULSE which have their own schema)
+      // Total count across standard task sheets in All Overview (excluding project sheets, CLOSED sheets, PLAN sheet, and closed tickets)
       let totalAll = 0;
+      const seenAllCount = new Set();
       sheetKeys.forEach(k => {
-        if (!isProjectSheet(k)) {
+        if (!isProjectSheet(k) && !isStatusSheet(k) && !isPlanSheet(k)) {
           const rows = sheetStore[k] || [];
-          totalAll += getValidSheetRows(rows).length;
+          getValidSheetRows(rows).forEach(r => {
+            const ticketKey = String(r[1] || '').trim().toUpperCase();
+            if (ticketKey && seenAllCount.has(ticketKey)) return;
+            const s1 = String(r[4] || '').trim().toLowerCase();
+            const s2 = String(r[5] || '').trim().toLowerCase();
+            const isClosed = s1 === 'done' || s1 === 'closed' || s1 === 'resolved' || s2 === 'done' || s2 === 'closed' || s2 === 'resolved';
+            if (!isClosed) {
+              if (ticketKey) seenAllCount.add(ticketKey);
+              totalAll++;
+            }
+          });
         }
       });
 
@@ -9958,6 +10318,8 @@ Thanks!`;
 
         totalCountAllSheets += parsedItems.length;
 
+        currentTabStore[name.toLowerCase()] = parsedItems;
+
         if (parsedItems.length === 0) {
           const emptyColspan0 = 10 + (schema.dynamicCols ? schema.dynamicCols.length : 0);
           tbody.innerHTML = `<tr><td colspan="${emptyColspan0}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tasks found. Use the form above to add a task!</td></tr>`;
@@ -9977,14 +10339,13 @@ Thanks!`;
             (item.assignee || '').toLowerCase().includes(q) ||
             (item.tag || '').toLowerCase().includes(q) ||
             (item.jiraStatus || '').toLowerCase().includes(q) ||
-            (item.internalStatus || '').toLowerCase().includes(q) ||
             (item.notes || '').toLowerCase().includes(q) ||
             (item.dueDate || '').toLowerCase().includes(q) ||
             extraMatch;
 
           if (!matchQuery) return false;
           if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
-          if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
+          if (!matchesStatusFilter(item.jiraStatus)) return false;
           return matchesDeliveryHorizon(item);
         });
 
@@ -10010,11 +10371,15 @@ Thanks!`;
         const emptyColspanAll = ((teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 10 : 9) + allDynCols.length;
         if (allRows.length === 0) {
           allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
+          currentTabStore['all'] = [];
         } else {
           const renderedTicketsInAll = new Set();
           const uniqueAllItems = [];
 
           allRows.forEach(item => {
+            if (isPlanSheet(item.owner)) return;
+            if (isStatusSheet(item.owner)) return;
+            if (isTicketDone(item)) return;
             const parsed = parseTicketAssignees(item.ticket, item.owner, item.notes);
             if (parsed.isShared) {
               if (renderedTicketsInAll.has(item.ticket.toUpperCase())) return;
@@ -10023,7 +10388,9 @@ Thanks!`;
             uniqueAllItems.push(item);
           });
 
-          // Filter All Overview items
+          currentTabStore['all'] = uniqueAllItems;
+
+          // Filter All Overview items - Do not show closed tickets or PLAN sheet in All Overview
           const filteredAll = uniqueAllItems.filter(item => {
             const extraMatch = Object.values(item.extraCols || {}).some(ec => (ec.value || '').toLowerCase().includes(q));
             const matchQuery = !q ||
@@ -10032,21 +10399,20 @@ Thanks!`;
               (item.epic || '').toLowerCase().includes(q) ||
               (item.tag || '').toLowerCase().includes(q) ||
               (item.jiraStatus || '').toLowerCase().includes(q) ||
-              (item.internalStatus || '').toLowerCase().includes(q) ||
               (item.notes || '').toLowerCase().includes(q) ||
               (item.dueDate || '').toLowerCase().includes(q) ||
               extraMatch;
 
             if (!matchQuery) return false;
             if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
-            if (!matchesStatusFilter(item.jiraStatus, item.internalStatus)) return false;
+            if (!matchesStatusFilter(item.jiraStatus)) return false;
             return matchesDeliveryHorizon(item);
           });
 
           // Sort All Overview items
           const sortedAll = sortItemList(filteredAll, false);
           const badgeAllEl = document.getElementById('badge-all');
-          if (badgeAllEl) badgeAllEl.innerText = sortedAll.length;
+          if (badgeAllEl) badgeAllEl.innerText = uniqueAllItems.length;
 
           renderRowsWithSprintGroups(allTbody, sortedAll, true, (teamsSelectMode && currentUser && currentUser.role === 'ADMIN'), emptyColspanAll, 'All Overview');
         }
@@ -10081,15 +10447,23 @@ Thanks!`;
 
       updateHeaderSortIcons();
       renderDetailedStatusMenu();
-      updateKpis(allRows);
-      updateDeliveryHorizonStats(allRows);
+      updateDashboardKpisForActiveTab();
     }
 
-    function updateKpis(allRows) {
+    function updateDashboardKpisForActiveTab() {
+      const activeItems = (currentTabStore && currentTabStore[currentActiveTab]) 
+        ? currentTabStore[currentActiveTab] 
+        : ((currentTabStore && currentTabStore['all']) || []);
+      updateKpis(activeItems);
+      updateDeliveryHorizonStats(activeItems);
+    }
+
+    function updateKpis(items) {
       let inProg = 0, review = 0, todo = 0, poc = 0, discuss = 0, done = 0, total = 0;
       const seenTickets = new Set();
+      const rows = items || [];
 
-      allRows.forEach(r => {
+      rows.forEach(r => {
         const tKey = (r.ticket || '').toUpperCase();
         if (tKey && seenTickets.has(tKey)) return;
         if (tKey) seenTickets.add(tKey);
@@ -10100,15 +10474,15 @@ Thanks!`;
           return;
         }
 
-        const s = (r.internalStatus || r.jiraStatus || '').toLowerCase();
-        if (s === 'closed') {
+        const s = (r.jiraStatus || '').toLowerCase();
+        if (s === 'closed' || s === 'done' || s === 'resolved') {
           done++;
           return;
         }
-        if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('done')) inProg++;
+        if (s.includes('in progress') || s.includes('be done') || s.includes('dev done') || s.includes('reopen')) inProg++;
         else if (s.includes('review') || s.includes('verify')) review++;
         else if (s.includes('poc') || s.includes('escalated to l2')) poc++;
-        else if (s.includes('discuss') || s.includes('escalated to l3')) discuss++;
+        else if (s.includes('discuss') || s.includes('escalated to l3') || s.includes('escalated to l4') || s.includes('waiting for customer') || s.includes('on hold')) discuss++;
         else todo++;
       });
       if (document.getElementById('kpi-in-prog')) document.getElementById('kpi-in-prog').innerText = inProg;
@@ -11082,104 +11456,404 @@ Thanks!`;
       const safeOwner = escapeHtml(owner || '');
       const safeTicket = escapeHtml(ticket || '');
       const currentVal = (dueDate && dueDate !== 'Not set') ? escapeHtml(dueDate) : '';
-      const canEdit = canUserEditTask(owner);
-      if (!canEdit) {
-        return `<span class="due-date-badge ${horizonInfo.badgeClass}" title="${horizonInfo.horizon}">${horizonInfo.badgeText}</span>`;
-      }
       return `
         <div class="due-date-cell-wrap" data-owner="${safeOwner}" data-ticket="${safeTicket}" data-row="${rowNumber}" data-val="${currentVal}" style="display: inline-block;">
           <span class="due-date-badge ${horizonInfo.badgeClass}" 
-                onclick="startInlineEditDueDate(this)" 
+                onclick="openCustomDatePickerForCell(this, event)" 
                 style="cursor: pointer;" 
-                title="Click to edit due date (Note: YouTrack due date will override if present in YouTrack)">
+                title="Click to pick due date with custom date picker (no time needed)">
             ${horizonInfo.badgeText}
           </span>
-          <div class="due-date-picker-wrap" style="display: none;">
-            <input type="text" class="due-date-input" value="${currentVal}" placeholder="e.g. 15 Oct or YYYY-MM-DD" 
-                   onkeydown="handleDueDateKeydown(event, this)" 
-                   onblur="handleDueDateBlur(this)" 
-                   style="width: 95px; font-size: 11px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--accent); background: var(--bg-card); color: var(--text-main); text-align: center;">
-          </div>
         </div>
       `;
     }
 
-    function startInlineEditDueDate(elem) {
+    // =========================================================================
+    // 📅 CUSTOM DUE DATE PICKER CONTROLLER (Pure Date, No Time Needed)
+    // =========================================================================
+    let cdpState = {
+      isOpen: false,
+      triggerElem: null,
+      targetInputId: null,
+      onSelect: null,
+      selectedDate: null, // Date object or null
+      viewingYear: new Date().getFullYear(),
+      viewingMonth: new Date().getMonth() // 0-11
+    };
+
+    const CDP_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const CDP_MONTH_SHORTS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const CDP_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function cdpFormatDate(dateObj) {
+      if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) return 'Not set';
+      const day = dateObj.getDate();
+      const month = CDP_MONTH_SHORTS[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      const currentYear = new Date().getFullYear();
+      if (year !== currentYear) {
+        return `${day} ${month} ${year}`;
+      }
+      return `${day} ${month}`;
+    }
+
+    function cdpFormatDateFull(dateObj) {
+      if (!dateObj || !(dateObj instanceof Date) || isNaN(dateObj.getTime())) return 'Not set';
+      const dayName = CDP_DAY_NAMES[dateObj.getDay()];
+      const day = dateObj.getDate();
+      const month = CDP_MONTH_SHORTS[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      return `${dayName}, ${day} ${month} ${year}`;
+    }
+
+    function cdpPopulateYearSelect() {
+      const yearSelect = document.getElementById('cdpYearSelect');
+      if (!yearSelect) return;
+      const currentYear = new Date().getFullYear();
+      let html = '';
+      for (let y = currentYear - 2; y <= currentYear + 5; y++) {
+        html += `<option value="${y}">${y}</option>`;
+      }
+      yearSelect.innerHTML = html;
+    }
+
+    function openCustomDatePicker(triggerElem, options = {}, event = null) {
+      if (event) {
+        event.stopPropagation();
+      }
+      const popover = document.getElementById('customDatePickerPopover');
+      if (!popover) return;
+
+      // Toggle close if already open on this same trigger
+      if (cdpState.isOpen && cdpState.triggerElem === triggerElem) {
+        closeCustomDatePicker();
+        return;
+      }
+
+      cdpPopulateYearSelect();
+
+      // Determine starting date
+      let parsedDate = null;
+      if (options.initialValue) {
+        parsedDate = parseTicketDueDate(options.initialValue);
+      } else if (options.targetInputId) {
+        const inp = document.getElementById(options.targetInputId);
+        if (inp && inp.value && inp.value !== 'Not set') {
+          parsedDate = parseTicketDueDate(inp.value);
+        }
+      }
+
+      const today = new Date();
+      if (parsedDate && !isNaN(parsedDate.getTime())) {
+        cdpState.selectedDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 12, 0, 0);
+        cdpState.viewingYear = parsedDate.getFullYear();
+        cdpState.viewingMonth = parsedDate.getMonth();
+      } else {
+        cdpState.selectedDate = null;
+        cdpState.viewingYear = today.getFullYear();
+        cdpState.viewingMonth = today.getMonth();
+      }
+
+      cdpState.triggerElem = triggerElem;
+      cdpState.targetInputId = options.targetInputId || null;
+      cdpState.onSelect = options.onSelect || null;
+      cdpState.isOpen = true;
+
+      cdpRenderCalendar();
+
+      popover.style.display = 'block';
+      positionCustomDatePicker(triggerElem);
+    }
+
+    function closeCustomDatePicker(event = null) {
+      if (event) {
+        event.stopPropagation();
+      }
+      const popover = document.getElementById('customDatePickerPopover');
+      if (popover) popover.style.display = 'none';
+      cdpState.isOpen = false;
+      cdpState.triggerElem = null;
+      cdpState.onSelect = null;
+      cdpState.targetInputId = null;
+    }
+
+    function positionCustomDatePicker(triggerElem) {
+      const popover = document.getElementById('customDatePickerPopover');
+      if (!popover || !triggerElem) return;
+
+      const rect = triggerElem.getBoundingClientRect();
+      const popoverWidth = 320;
+      const popoverHeight = 360;
+      const margin = 8;
+
+      let left = rect.left;
+      if (left + popoverWidth > window.innerWidth - margin) {
+        left = window.innerWidth - popoverWidth - margin;
+      }
+      if (left < margin) left = margin;
+
+      let top = rect.bottom + margin;
+      if (top + popoverHeight > window.innerHeight - margin) {
+        if (rect.top - popoverHeight - margin > 0) {
+          top = rect.top - popoverHeight - margin;
+        } else {
+          top = Math.max(margin, window.innerHeight - popoverHeight - margin);
+        }
+      }
+
+      popover.style.position = 'fixed';
+      popover.style.left = `${Math.round(left)}px`;
+      popover.style.top = `${Math.round(top)}px`;
+    }
+
+    function cdpRenderCalendar() {
+      const monthSelect = document.getElementById('cdpMonthSelect');
+      const yearSelect = document.getElementById('cdpYearSelect');
+      const grid = document.getElementById('cdpDaysGrid');
+      const preview = document.getElementById('cdpPreviewValue');
+      if (!grid) return;
+
+      if (monthSelect) monthSelect.value = String(cdpState.viewingMonth);
+      if (yearSelect) yearSelect.value = String(cdpState.viewingYear);
+
+      const today = new Date();
+      const y = cdpState.viewingYear;
+      const m = cdpState.viewingMonth;
+
+      const firstDay = new Date(y, m, 1);
+      // Monday = 0, Sunday = 6
+      const startDay = (firstDay.getDay() + 6) % 7;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const daysInPrevMonth = new Date(y, m, 0).getDate();
+
+      let html = '';
+
+      // Previous month padding
+      for (let i = startDay - 1; i >= 0; i--) {
+        const prevD = daysInPrevMonth - i;
+        const prevM = m === 0 ? 11 : m - 1;
+        const prevY = m === 0 ? y - 1 : y;
+        html += `<button type="button" class="cdp-day cdp-other-month" onclick="cdpSelectDay(${prevY}, ${prevM}, ${prevD}, true, event)">${prevD}</button>`;
+      }
+
+      // Current month days
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = (d === today.getDate() && m === today.getMonth() && y === today.getFullYear());
+        const isSelected = (cdpState.selectedDate &&
+          d === cdpState.selectedDate.getDate() &&
+          m === cdpState.selectedDate.getMonth() &&
+          y === cdpState.selectedDate.getFullYear());
+
+        let cls = 'cdp-day';
+        if (isToday) cls += ' is-today';
+        if (isSelected) cls += ' is-selected';
+
+        html += `<button type="button" class="${cls}" onclick="cdpSelectDay(${y}, ${m}, ${d}, true, event)" title="${d} ${CDP_MONTH_SHORTS[m]} ${y}">${d}</button>`;
+      }
+
+      // Next month padding to fill multiple of 7
+      const totalRendered = startDay + daysInMonth;
+      const remainder = totalRendered % 7;
+      const nextDays = remainder === 0 ? 0 : 7 - remainder;
+      for (let d = 1; d <= nextDays; d++) {
+        const nextM = m === 11 ? 0 : m + 1;
+        const nextY = m === 11 ? y + 1 : y;
+        html += `<button type="button" class="cdp-day cdp-other-month" onclick="cdpSelectDay(${nextY}, ${nextM}, ${d}, true, event)">${d}</button>`;
+      }
+
+      grid.innerHTML = html;
+
+      if (preview) {
+        preview.innerText = cdpState.selectedDate ? cdpFormatDateFull(cdpState.selectedDate) : 'Not set';
+      }
+    }
+
+    function cdpNavMonth(dir, event = null) {
+      if (event) event.stopPropagation();
+      cdpState.viewingMonth += dir;
+      if (cdpState.viewingMonth < 0) {
+        cdpState.viewingMonth = 11;
+        cdpState.viewingYear--;
+      } else if (cdpState.viewingMonth > 11) {
+        cdpState.viewingMonth = 0;
+        cdpState.viewingYear++;
+      }
+      cdpRenderCalendar();
+    }
+
+    function cdpHandleMonthSelect(val, event = null) {
+      if (event) event.stopPropagation();
+      cdpState.viewingMonth = parseInt(val, 10);
+      cdpRenderCalendar();
+    }
+
+    function cdpHandleYearSelect(val, event = null) {
+      if (event) event.stopPropagation();
+      cdpState.viewingYear = parseInt(val, 10);
+      cdpRenderCalendar();
+    }
+
+    function cdpSelectDay(y, m, d, autoApply = false, event = null) {
+      if (event) event.stopPropagation();
+      cdpState.selectedDate = new Date(y, m, d, 12, 0, 0);
+      cdpState.viewingYear = y;
+      cdpState.viewingMonth = m;
+      cdpRenderCalendar();
+      if (autoApply) {
+        cdpConfirmSelection(event);
+      }
+    }
+
+    function cdpConfirmSelection(event = null) {
+      if (event) event.stopPropagation();
+      const formatted = cdpFormatDate(cdpState.selectedDate);
+      const selDate = cdpState.selectedDate;
+      const onSelectCb = cdpState.onSelect;
+      const targetInputId = cdpState.targetInputId;
+
+      if (targetInputId) {
+        const inp = document.getElementById(targetInputId);
+        if (inp) inp.value = formatted;
+      }
+
+      closeCustomDatePicker();
+
+      if (typeof onSelectCb === 'function') {
+        onSelectCb(formatted, selDate);
+      }
+    }
+
+    function cdpClearDate(event = null) {
+      if (event) event.stopPropagation();
+      cdpState.selectedDate = null;
+      const onSelectCb = cdpState.onSelect;
+      const targetInputId = cdpState.targetInputId;
+
+      if (targetInputId) {
+        const inp = document.getElementById(targetInputId);
+        if (inp) inp.value = 'Not set';
+      }
+
+      closeCustomDatePicker();
+
+      if (typeof onSelectCb === 'function') {
+        onSelectCb('Not set', null);
+      }
+    }
+
+    function cdpApplyPreset(preset, event = null) {
+      if (event) event.stopPropagation();
+      const today = new Date();
+      let target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+
+      if (preset === 'today') {
+        // target is today
+      } else if (preset === 'tomorrow') {
+        target.setDate(target.getDate() + 1);
+      } else if (preset === 'this-friday') {
+        const day = target.getDay(); // 0: Sun, 1: Mon, ... 5: Fri, 6: Sat
+        let daysUntilFri = 5 - day;
+        if (daysUntilFri <= 0) daysUntilFri += 7; // if Fri, Sat, Sun -> next Fri
+        target.setDate(target.getDate() + daysUntilFri);
+      } else if (preset === 'next-monday') {
+        const day = target.getDay(); // 0: Sun, 1: Mon
+        let daysUntilMon = (8 - day) % 7;
+        if (daysUntilMon === 0) daysUntilMon = 7;
+        target.setDate(target.getDate() + daysUntilMon);
+      }
+
+      cdpSelectDay(target.getFullYear(), target.getMonth(), target.getDate(), true, event);
+    }
+
+    function openCustomDatePickerForCell(elem, event) {
+      if (event) {
+        event.stopPropagation();
+      }
       if (!elem) return;
       const wrap = elem.closest('.due-date-cell-wrap');
       if (!wrap) return;
-      const badge = wrap.querySelector('.due-date-badge');
-      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
-      const input = wrap.querySelector('.due-date-input');
-      if (!badge || !pickerWrap || !input) return;
-      badge.style.display = 'none';
-      pickerWrap.style.display = 'inline-block';
-      input.focus();
-      input.select();
-    }
-
-    async function handleDueDateBlur(inputElem) {
-      if (!inputElem) return;
-      const wrap = inputElem.closest('.due-date-cell-wrap');
-      if (!wrap) return;
-      const badge = wrap.querySelector('.due-date-badge');
-      const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
       const owner = wrap.getAttribute('data-owner');
       const ticket = wrap.getAttribute('data-ticket');
       const rowNumber = parseInt(wrap.getAttribute('data-row'), 10);
-      const oldVal = wrap.getAttribute('data-val') || 'Not set';
-      const newVal = inputElem.value.trim() || 'Not set';
+      const currentVal = wrap.getAttribute('data-val') || 'Not set';
 
-      pickerWrap.style.display = 'none';
-      badge.style.display = 'inline-block';
+      openCustomDatePicker(elem, {
+        initialValue: currentVal,
+        onSelect: async (selectedFormattedDate) => {
+          if (!selectedFormattedDate) selectedFormattedDate = 'Not set';
+          if (selectedFormattedDate.toLowerCase() === currentVal.toLowerCase()) return;
 
-      if (newVal.toLowerCase() === oldVal.toLowerCase()) return;
-
-      badge.innerText = '⏳ Syncing...';
-      try {
-        const res = await fetch('http://localhost:3100/api/ticket/update-due-date', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assignee: owner, ticket, dueDate: newVal, rowNumber })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(`✅ ${ticket} Due date updated to "${data.dueDate}" in Google Sheets!`);
-          wrap.setAttribute('data-val', data.dueDate);
-          const tabRows = sheetStore[owner];
-          if (tabRows && tabRows[rowNumber - 1]) {
-            tabRows[rowNumber - 1][7] = data.dueDate;
+          elem.innerText = '⏳ Syncing...';
+          try {
+            const res = await fetch('/api/ticket/update-due-date', {
+              method: 'POST',
+              headers: getApiHeaders({ 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ assignee: owner, ticket, dueDate: selectedFormattedDate, rowNumber })
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast(`✅ ${ticket} Due date updated to "${data.dueDate}" in Google Sheets!`);
+              wrap.setAttribute('data-val', data.dueDate);
+              const tabRows = sheetStore[owner];
+              if (tabRows && tabRows[rowNumber - 1]) {
+                tabRows[rowNumber - 1][7] = data.dueDate;
+              }
+              populateTableData();
+            } else {
+              showToast('❌ Failed to update due date: ' + (data.error || 'Server error'));
+              populateTableData();
+            }
+          } catch (err) {
+            showToast('❌ Could not reach sync server: ' + err.message);
+            populateTableData();
           }
-          populateTableData();
-        } else {
-          showToast('❌ Failed to update due date: ' + (data.error || 'Server error'));
-          inputElem.value = oldVal;
-          populateTableData();
         }
-      } catch (err) {
-        showToast('❌ Could not reach sync server.');
-        inputElem.value = oldVal;
-        populateTableData();
+      }, event);
+    }
+
+    function updateQuickAddDueDateDisplay(val) {
+      const textEl = document.getElementById('quickAddDueDateText');
+      const clearBtn = document.getElementById('quickAddClearBtn');
+      const triggerBtn = document.getElementById('quickAddDueDateBtn');
+      const inputEl = document.getElementById('dueDateInput');
+      const str = (val && val !== 'Not set' && val.toLowerCase() !== 'tbd') ? val : 'Not set';
+      if (textEl) textEl.innerText = str;
+      if (inputEl) inputEl.value = str;
+      if (clearBtn) clearBtn.style.display = (str !== 'Not set') ? 'inline-flex' : 'none';
+      if (triggerBtn) {
+        if (str !== 'Not set') {
+          triggerBtn.classList.add('has-value');
+        } else {
+          triggerBtn.classList.remove('has-value');
+        }
       }
     }
 
-    function handleDueDateKeydown(event, inputElem) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        inputElem.blur();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        const wrap = inputElem.closest('.due-date-cell-wrap');
-        if (wrap) {
-          const badge = wrap.querySelector('.due-date-badge');
-          const pickerWrap = wrap.querySelector('.due-date-picker-wrap');
-          const oldVal = wrap.getAttribute('data-val') || '';
-          inputElem.value = oldVal;
-          if (pickerWrap) pickerWrap.style.display = 'none';
-          if (badge) badge.style.display = 'inline-block';
-        }
-      }
+    function clearQuickAddDueDate(e) {
+      if (e) e.stopPropagation();
+      updateQuickAddDueDateDisplay('Not set');
     }
+
+    // Dismiss custom date picker on click outside or Escape key
+    document.addEventListener('click', function(e) {
+      const popover = document.getElementById('customDatePickerPopover');
+      if (!popover || popover.style.display === 'none') return;
+      if (popover.contains(e.target)) return;
+      if (cdpState.triggerElem && (cdpState.triggerElem === e.target || cdpState.triggerElem.contains(e.target))) return;
+      closeCustomDatePicker();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && cdpState.isOpen) {
+        closeCustomDatePicker();
+      }
+    });
+
+    window.addEventListener('resize', function() {
+      if (cdpState.isOpen && cdpState.triggerElem) {
+        positionCustomDatePicker(cdpState.triggerElem);
+      }
+    });
 
     // Sync PULSE sheet directly from Chetna's sheet to Master & Dashboard
     async function syncPulseNow() {
@@ -11335,6 +12009,7 @@ Thanks!`;
             }
           }
           document.getElementById('dueDateInput').value = data.dueDate || 'Not set';
+          updateQuickAddDueDateDisplay(data.dueDate || 'Not set');
 
           // Auto-select internal status (for preserved background data)
           const internalStatusSelect = document.getElementById('internalStatusInput');
@@ -11710,6 +12385,7 @@ Thanks!`;
           if (document.getElementById('tagInput')) document.getElementById('tagInput').value = 'Product';
           if (document.getElementById('jiraStatusInput')) document.getElementById('jiraStatusInput').value = 'To Do';
           if (document.getElementById('dueDateInput')) document.getElementById('dueDateInput').value = 'Not set';
+          updateQuickAddDueDateDisplay('Not set');
           document.getElementById('jiraIndicator').style.display = 'none';
           document.getElementById('ticketDuplicateBanner').style.display = 'none';
           await fetchLiveSheets(true);
@@ -11754,6 +12430,9 @@ Thanks!`;
           }
         }
       }
+
+      // Update KPIs and Timeline statistics for the active tab
+      updateDashboardKpisForActiveTab();
     }
 
     function copyTable(tableId) {
@@ -11842,5 +12521,81 @@ Thanks!`;
       await checkYouTrackStatus();
     });
   </script>
+  <!-- 📅 Custom Due Date Picker Popover (No time needed, top-level fixed) -->
+  <div id="customDatePickerPopover" class="custom-datepicker-popover" style="display: none;" role="dialog" aria-modal="true" aria-label="Due Date Picker">
+    <!-- Header: Month/Year navigation & selector -->
+    <div class="cdp-header">
+      <div class="cdp-nav-group">
+        <button type="button" class="cdp-nav-btn" id="cdpPrevMonthBtn" onclick="cdpNavMonth(-1, event)" title="Previous month" aria-label="Previous month">
+          ‹
+        </button>
+        <div class="cdp-month-year-wrap">
+          <select class="cdp-select cdp-select-month" id="cdpMonthSelect" onchange="cdpHandleMonthSelect(this.value, event)">
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
+          </select>
+          <select class="cdp-select cdp-select-year" id="cdpYearSelect" onchange="cdpHandleYearSelect(this.value, event)">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <button type="button" class="cdp-nav-btn" id="cdpNextMonthBtn" onclick="cdpNavMonth(1, event)" title="Next month" aria-label="Next month">
+          ›
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Presets -->
+    <div class="cdp-presets-row">
+      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('today', event)">⚡ Today</button>
+      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('tomorrow', event)">🌅 Tomorrow</button>
+      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('this-friday', event)">📅 Fri</button>
+      <button type="button" class="cdp-preset-chip" onclick="cdpApplyPreset('next-monday', event)">⏭️ Next Mon</button>
+    </div>
+
+    <!-- Weekday Labels -->
+    <div class="cdp-weekdays-row">
+      <span class="cdp-weekday">Mo</span>
+      <span class="cdp-weekday">Tu</span>
+      <span class="cdp-weekday">We</span>
+      <span class="cdp-weekday">Th</span>
+      <span class="cdp-weekday">Fr</span>
+      <span class="cdp-weekday cdp-weekend">Sa</span>
+      <span class="cdp-weekday cdp-weekend">Su</span>
+    </div>
+
+    <!-- Days Grid -->
+    <div class="cdp-days-grid" id="cdpDaysGrid">
+      <!-- Populated by cdpRenderCalendar() -->
+    </div>
+
+    <!-- Footer with Selected Preview & Action Buttons -->
+    <div class="cdp-footer">
+      <div class="cdp-footer-preview">
+        <span class="cdp-preview-label">Due:</span>
+        <span class="cdp-preview-value" id="cdpPreviewValue">Not set</span>
+      </div>
+      <div class="cdp-footer-actions">
+        <button type="button" class="cdp-btn-clear" onclick="cdpClearDate(event)" title="Set due date to Not set">
+          Clear
+        </button>
+        <button type="button" class="cdp-btn-cancel" onclick="closeCustomDatePicker(event)">
+          Cancel
+        </button>
+        <button type="button" class="cdp-btn-apply" id="cdpApplyBtn" onclick="cdpConfirmSelection(event)">
+          Apply
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
