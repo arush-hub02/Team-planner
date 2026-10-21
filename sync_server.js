@@ -798,6 +798,190 @@ async function executeYouTrackCommand(issueKey, commandQuery, customToken) {
   return true;
 }
 
+async function updateYouTrackIssueState(issueKey, newState, customToken) {
+  const cfg = loadYouTrackConfig();
+  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
+  const cleanKey = String(issueKey).trim().toUpperCase();
+
+  if (!token) {
+    throw new Error('YouTrack Access Token is missing or empty. Please enter your YouTrack token.');
+  }
+
+  // 1. Fetch the issue custom fields to inspect the State field type & possibleEvents
+  const metaUrl = `${cleanBaseUrl}/api/issues/${cleanKey}/customFields?fields=id,name,$type,value(id,name),possibleEvents(id,name,presentation)`;
+  const metaResp = await fetch(metaUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (metaResp.status === 401 || metaResp.status === 403) {
+    const err = new Error(`YouTrack Access Token expired or unauthorized (HTTP ${metaResp.status}).`);
+    err.status = metaResp.status;
+    err.isAuthError = true;
+    throw err;
+  }
+
+  let stateField = null;
+  if (metaResp.ok) {
+    const fields = await metaResp.json();
+    stateField = fields.find(f => (f.name || '').toLowerCase() === 'state');
+  }
+
+  async function postEvent(fieldId, eventObj) {
+    const postUrl = `${cleanBaseUrl}/api/issues/${cleanKey}/customFields/${fieldId}?fields=id,name,value(id,name)`;
+    const postResp = await fetch(postUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        $type: 'StateMachineIssueCustomField',
+        event: {
+          id: eventObj.id,
+          name: eventObj.name
+        }
+      })
+    });
+    if (!postResp.ok) {
+      const errTxt = await postResp.text();
+      let errMsg = errTxt;
+      try {
+        const j = JSON.parse(errTxt);
+        errMsg = j.error_description || j.error || errTxt;
+      } catch (_) {}
+      throw new Error(`State machine transition to "${eventObj.name}" failed: ${errMsg}`);
+    }
+    const resData = await postResp.json();
+    return resData?.value?.name;
+  }
+
+  // 2. If it is a StateMachineIssueCustomField (like in Project EN):
+  if (stateField && stateField.$type === 'StateMachineIssueCustomField') {
+    const curStateName = stateField.value?.name || '';
+    if (curStateName.toLowerCase() === newState.toLowerCase()) {
+      return { success: true, state: curStateName };
+    }
+
+    const events = stateField.possibleEvents || [];
+    
+    // Direct match check
+    const directMatch = events.find(e => 
+      (e.name || '').toLowerCase() === newState.toLowerCase() ||
+      (e.presentation || '').toLowerCase() === newState.toLowerCase()
+    );
+
+    if (directMatch) {
+      const finalState = await postEvent(stateField.id, directMatch);
+      return { success: true, state: finalState || newState };
+    }
+
+    // Smart multi-hop path for State Machine (e.g. into "Verify")
+    if (newState.toLowerCase() === 'verify') {
+      // If current is Closed, Reopen first
+      if (curStateName.toLowerCase() === 'closed') {
+        const reopenEvent = events.find(e => (e.name || '').toLowerCase() === 'reopen');
+        if (reopenEvent) {
+          await postEvent(stateField.id, reopenEvent);
+        }
+      }
+
+      // Check if we can move to an In Progress state
+      const refreshedResp = await fetch(metaUrl, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      if (refreshedResp.ok) {
+        const updatedFields = await refreshedResp.json();
+        const curField = updatedFields.find(f => (f.name || '').toLowerCase() === 'state');
+        const curEvents = curField?.possibleEvents || [];
+
+        // Check if Verify is now available
+        let verifyMatch = curEvents.find(e => (e.name || '').toLowerCase() === 'verify' || (e.presentation || '').toLowerCase() === 'verify');
+        if (verifyMatch) {
+          const finalState = await postEvent(stateField.id, verifyMatch);
+          return { success: true, state: finalState || 'Verify' };
+        }
+
+        // Try transitioning to In Progress (L3) or any In Progress
+        const inProg = curEvents.find(e => (e.name || '').toLowerCase().includes('in progress'));
+        if (inProg) {
+          await postEvent(stateField.id, inProg);
+
+          // Now fetch events from In Progress
+          const step2Resp = await fetch(metaUrl, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+          });
+          if (step2Resp.ok) {
+            const step2Fields = await step2Resp.json();
+            const step2Field = step2Fields.find(f => (f.name || '').toLowerCase() === 'state');
+            const step2Events = step2Field?.possibleEvents || [];
+            verifyMatch = step2Events.find(e => (e.name || '').toLowerCase() === 'verify' || (e.presentation || '').toLowerCase() === 'verify');
+            if (verifyMatch) {
+              const finalState = await postEvent(stateField.id, verifyMatch);
+              return { success: true, state: finalState || 'Verify' };
+            }
+          }
+        }
+      }
+    }
+
+    // Smart multi-hop for transitioning to "In Progress" (e.g. from Verify or Closed)
+    if (newState.toLowerCase().includes('in progress')) {
+      if (curStateName.toLowerCase() === 'verify' || curStateName.toLowerCase() === 'closed') {
+        const reopenEvent = events.find(e => (e.name || '').toLowerCase() === 'reopen');
+        if (reopenEvent) {
+          await postEvent(stateField.id, reopenEvent);
+          const refetch = await fetch(metaUrl, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } });
+          if (refetch.ok) {
+            const refFields = await refetch.json();
+            const refField = refFields.find(f => (f.name || '').toLowerCase() === 'state');
+            const refEvents = refField?.possibleEvents || [];
+            const inProgMatch = refEvents.find(e => 
+              (e.name || '').toLowerCase() === newState.toLowerCase() || 
+              (e.presentation || '').toLowerCase() === newState.toLowerCase()
+            );
+            if (inProgMatch) {
+              const finalState = await postEvent(stateField.id, inProgMatch);
+              return { success: true, state: finalState || newState };
+            }
+          }
+        }
+      }
+    }
+
+    // Smart multi-hop for "Escalated to L2" or "Escalated to L3":
+    if (newState.toLowerCase().includes('escalated')) {
+      const inProg = events.find(e => (e.name || '').toLowerCase().includes('in progress'));
+      if (inProg) {
+        await postEvent(stateField.id, inProg);
+        const refetch = await fetch(metaUrl, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } });
+        if (refetch.ok) {
+          const refFields = await refetch.json();
+          const refState = refFields.find(f => (f.name || '').toLowerCase() === 'state');
+          const refEvents = refState?.possibleEvents || [];
+          const escMatch = refEvents.find(e => (e.name || '').toLowerCase() === newState.toLowerCase() || (e.presentation || '').toLowerCase() === newState.toLowerCase());
+          if (escMatch) {
+            const finalState = await postEvent(stateField.id, escMatch);
+            return { success: true, state: finalState || newState };
+          }
+        }
+      }
+    }
+
+    const allowed = events.map(e => e.presentation || e.name).join(', ');
+    throw new Error(`State machine does not allow transition from "${curStateName}" to "${newState}". Allowed transitions: ${allowed || 'none'}`);
+  }
+
+  // 3. Fallback to standard YouTrack commands API for non-state-machine fields (e.g. SES)
+  await executeYouTrackCommand(cleanKey, `State ${newState}`, token);
+  return { success: true, state: newState };
+}
+
 async function batchFetchYouTrackIssues(keyList, customToken) {
   const CHUNK_SIZE = 15;
   const youTrackMap = {};
@@ -3574,7 +3758,7 @@ async function handleRequest(req, res) {
         if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(ticketKey)) {
           try {
             const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
-            await executeYouTrackCommand(ticketKey, `State ${newState}`, ytToken);
+            await updateYouTrackIssueState(ticketKey, newState, ytToken);
             youTrackSynced = true;
           } catch (ytErr) {
             console.warn(`[YouTrack State Sync] Failed for ${ticketKey}:`, ytErr.message);
@@ -4899,9 +5083,9 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   // 5. Batch write to Master Google Sheet
   if (updateData.length > 0) {
     console.log(`Writing batch updates to Master Google Sheet for ${updateData.length} tabs...`);
-    await composioCall('GOOGLESHEETS_BATCH_UPDATE_VALUES', {
+    await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
       spreadsheet_id: SPREADSHEET_ID,
-      value_input_option: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       data: updateData
     }, syncApiKey);
   }
