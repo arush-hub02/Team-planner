@@ -9867,6 +9867,21 @@ Thanks!`;
 
     // State is 100% dynamically fetched from Google Sheets via sync server API
     let sheetStore = {};
+    try {
+      const savedStore = localStorage.getItem('team_task_sync_sheetStore');
+      if (savedStore) {
+        const parsed = JSON.parse(savedStore);
+        if (parsed && typeof parsed === 'object') {
+          let tRows = 0;
+          for (const rows of Object.values(parsed)) {
+            if (Array.isArray(rows) && rows.length > 1) tRows += (rows.length - 1);
+          }
+          if (tRows > 0) {
+            sheetStore = parsed;
+          }
+        }
+      }
+    } catch (_) {}
     let currentActiveTab = 'all';
     let currentTabStore = {};
     let searchQuery = '';
@@ -14095,6 +14110,10 @@ Thanks!`;
         });
         const json = await res.json();
         if (json.success && json.data && Object.keys(json.data).length > 0) {
+          let totalRows = 0;
+          for (const rows of Object.values(json.data)) {
+            if (Array.isArray(rows) && rows.length > 1) totalRows += (rows.length - 1);
+          }
           if (json.statusOptions && Array.isArray(json.statusOptions)) {
             json.statusOptions.forEach(s => {
               if (s && !STATUS_OPTIONS.some(o => o.toLowerCase() === s.toLowerCase())) {
@@ -14103,8 +14122,17 @@ Thanks!`;
             });
             updateQuickAddStatusDropdown();
           }
-          sheetStore = json.data;
-          if (currentActiveTab === 'pulse' && !json.data['PULSE'] && !json.data['pulse']) {
+          
+          // Only overwrite local store if valid tickets are returned, or if store was empty
+          if (totalRows > 0 || Object.keys(sheetStore).length === 0) {
+            sheetStore = json.data;
+            if (totalRows > 0) {
+              try {
+                localStorage.setItem('team_task_sync_sheetStore', JSON.stringify(json.data));
+              } catch (_) {}
+            }
+          }
+          if (currentActiveTab === 'pulse' && !sheetStore['PULSE'] && !sheetStore['pulse']) {
             currentActiveTab = 'all';
           }
           renderDynamicTabsAndPanes();

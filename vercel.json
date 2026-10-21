@@ -2,6 +2,12 @@
   "version": 2,
   "name": "team-task-sync",
   "regions": ["bom1"],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -1139,11 +1139,18 @@ function loadDiskCache() {
     if (fs.existsSync(CACHE_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
       if (parsed && parsed.data && Object.keys(parsed.data).length > 0) {
-        return {
-          data: parsed.data,
-          sheetNames: parsed.sheetNames || Object.keys(parsed.data),
-          timestamp: parsed.timestamp || Date.now()
-        };
+        let totalRows = 0;
+        for (const rows of Object.values(parsed.data)) {
+          if (Array.isArray(rows) && rows.length > 1) totalRows += (rows.length - 1);
+        }
+        if (totalRows > 0) {
+          console.log(`[loadDiskCache] Loaded ${totalRows} cached tickets across ${Object.keys(parsed.data).length} sheets from runtime disk cache.`);
+          return {
+            data: parsed.data,
+            sheetNames: parsed.sheetNames || Object.keys(parsed.data),
+            timestamp: parsed.timestamp || 0
+          };
+        }
       }
     }
   } catch (e) {
@@ -1155,7 +1162,14 @@ function loadDiskCache() {
 function saveDiskCache(c) {
   try {
     if (c && c.data) {
-      fs.writeFileSync(CACHE_FILE, JSON.stringify(c, null, 2), 'utf8');
+      let totalRows = 0;
+      for (const rows of Object.values(c.data)) {
+        if (Array.isArray(rows) && rows.length > 1) totalRows += (rows.length - 1);
+      }
+      // CRITICAL: Never write an empty cache to disk!
+      if (totalRows > 0) {
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(c, null, 2), 'utf8');
+      }
     }
   } catch (e) {
     console.warn('Could not write sheets_cache.json:', e.message);
@@ -1163,7 +1177,25 @@ function saveDiskCache(c) {
 }
 
 let cache = loadDiskCache();
-const CACHE_TTL_MS = 180000; // 3 minutes (180,000 ms)
+const CACHE_TTL_MS = 300000; // 5 minutes (300,000 ms)
+
+let isBackgroundFetchingSheets = false;
+async function refreshSheetsInBackground() {
+  if (isBackgroundFetchingSheets) return;
+  isBackgroundFetchingSheets = true;
+  try {
+    console.log('[refreshSheetsInBackground] Starting background refresh of sheets...');
+    await fetchAllSheetsFromGoogle();
+  } catch (e) {
+    console.warn('[refreshSheetsInBackground] Note:', e.message);
+  } finally {
+    isBackgroundFetchingSheets = false;
+  }
+}
+
+let feReadyVerified = true;
+let closedSheetVerified = true;
+let tagColumnsVerified = true;
 
 const STATUS_SHEETS = ['CLOSED'];
 const PROJECT_SHEETS = [];
@@ -1477,6 +1509,11 @@ async function executeComposioBatch(toolsList, customApiKey) {
 }
 
 async function ensureFeReadySheetExists(customApiKey) {
+  if (feReadyVerified) return true;
+  if (cache?.sheetNames && cache.sheetNames.some(s => s.toUpperCase() === 'FE READY')) {
+    feReadyVerified = true;
+    return true;
+  }
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   console.log('[ensureFeReadySheetExists] Verifying if FE Ready sheet exists in Google Sheets...');
 
@@ -1552,6 +1589,11 @@ async function ensureFeReadySheetExists(customApiKey) {
 }
 
 async function ensureClosedSheetExists(customApiKey) {
+  if (closedSheetVerified) return true;
+  if (cache?.sheetNames && cache.sheetNames.some(s => s.toUpperCase() === 'CLOSED')) {
+    closedSheetVerified = true;
+    return true;
+  }
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   try {
     const testRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
@@ -1614,6 +1656,8 @@ async function ensureClosedSheetExists(customApiKey) {
 
 
 async function ensureTagColumnAcrossSheets(customApiKey) {
+  if (tagColumnsVerified) return true;
+  tagColumnsVerified = true;
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   console.log('[ensureTagColumnAcrossSheets] Ensuring Tag column and dropdown validation in Master & Individual sheets...');
 
@@ -1716,19 +1760,15 @@ function resolveActualTabName(inputName) {
 async function discoverSheetNames(customApiKey) {
   try {
     const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
-    const res = await executeComposioTool('GOOGLESHEETS_GET_SPREADSHEET', {
-      spreadsheet_id: SPREADSHEET_ID,
-      spreadsheetId: SPREADSHEET_ID
+    const res = await executeComposioTool('GOOGLESHEETS_GET_SHEET_NAMES', {
+      spreadsheet_id: SPREADSHEET_ID
     }, activeKey);
-    const sheets = res?.data?.results?.[0]?.response?.data?.sheets;
-    if (Array.isArray(sheets) && sheets.length > 0) {
-      const titles = sheets.map(s => s.properties?.title).filter(Boolean);
-      if (titles.length > 0) {
-        return titles;
-      }
+    const names = res?.data?.results?.[0]?.response?.data?.sheet_names || res?.data?.sheet_names;
+    if (Array.isArray(names) && names.length > 0) {
+      return names;
     }
   } catch (e) {
-    console.warn('[discoverSheetNames] Note querying spreadsheet metadata:', e.message);
+    console.warn('[discoverSheetNames] Note querying sheet names:', e.message);
   }
   return null;
 }
@@ -1759,40 +1799,74 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     console.warn('[fetchAllSheetsFromGoogle] Note discovering sheet names:', dErr.message);
   }
 
-  // Fetch dynamic range A1:ZZ500 to capture all columns (including dynamically added ones) and up to 500 rows
-  const tools = sheetNames.map(tab => ({
-    tool_slug: 'GOOGLESHEETS_VALUES_GET',
-    arguments: {
-      spreadsheet_id: SPREADSHEET_ID,
-      range: `${tab}!A1:ZZ500`
-    }
-  }));
-
-  const batchResult = await executeComposioBatch(tools, activeKey);
-  const sheetData = {};
-
-  if (batchResult?.data?.results) {
-    batchResult.data.results.forEach((r, idx) => {
-      const tab = sheetNames[idx];
-      if (!r.response?.error && !r.response?.data?.error) {
-        sheetData[tab] = r.response?.data?.values || [];
-      }
-    });
+  // Chunk sheets into batches of 3 to avoid Composio payload truncation and timeout
+  const chunkSize = 3;
+  const chunks = [];
+  for (let i = 0; i < sheetNames.length; i += chunkSize) {
+    chunks.push(sheetNames.slice(i, i + chunkSize));
   }
 
-  // Filter out any tabs that failed to load (e.g. deleted worksheets)
-  sheetNames = sheetNames.filter(tab => sheetData[tab] !== undefined);
+  const sheetData = {};
 
-  if (Object.keys(sheetData).length > 0) {
+  for (const chunk of chunks) {
+    const tools = chunk.map(tab => ({
+      tool_slug: 'GOOGLESHEETS_VALUES_GET',
+      arguments: {
+        spreadsheet_id: SPREADSHEET_ID,
+        range: `${tab}!A1:Z200`
+      }
+    }));
+
+    try {
+      const batchResult = await executeComposioBatch(tools, activeKey);
+      if (batchResult?.data?.results) {
+        batchResult.data.results.forEach((r, idx) => {
+          const tab = chunk[idx];
+          if (!r.response?.error && !r.response?.data?.error) {
+            const vals = r.response?.data?.values || r.response?.data_preview?.values;
+            if (vals && vals.length > 0) {
+              sheetData[tab] = vals;
+            }
+          }
+        });
+      }
+    } catch (chunkErr) {
+      console.warn(`[fetchAllSheetsFromGoogle] Error fetching chunk [${chunk.join(', ')}]:`, chunkErr.message);
+    }
+  }
+
+  // Merge with existing cache if any tabs failed or returned empty
+  if (cache && cache.data) {
+    for (const tab of sheetNames) {
+      if ((!sheetData[tab] || sheetData[tab].length === 0) && cache.data[tab] && cache.data[tab].length > 0) {
+        sheetData[tab] = cache.data[tab];
+      }
+    }
+  }
+
+  // Calculate total tickets after merge
+  let totalTicketsAfterMerge = 0;
+  for (const rows of Object.values(sheetData)) {
+    if (Array.isArray(rows) && rows.length > 1) {
+      totalTicketsAfterMerge += (rows.length - 1);
+    }
+  }
+
+  // CRITICAL GUARD: Never wipe cache if 0 tickets were fetched from Google Sheets!
+  if (totalTicketsAfterMerge > 0) {
     cache = {
       data: sheetData,
-      sheetNames,
+      sheetNames: sheetNames.filter(tab => sheetData[tab] !== undefined),
       timestamp: Date.now()
     };
     saveDiskCache(cache);
+    console.log(`[fetchAllSheetsFromGoogle] Cache updated with ${totalTicketsAfterMerge} tickets across ${Object.keys(sheetData).length} sheets.`);
+  } else if (cache && cache.data && Object.keys(cache.data).length > 0) {
+    console.warn('[fetchAllSheetsFromGoogle] Live fetch yielded 0 tickets; preserving existing cache to prevent data loss.');
+    return { sheetNames: cache.sheetNames, sheetData: cache.data };
   }
 
-  return { sheetNames, sheetData };
+  return { sheetNames: cache.sheetNames || sheetNames, sheetData: cache.data || sheetData };
 }
 
 async function updateDataValidationAcrossSheets() {
@@ -2629,17 +2703,35 @@ async function handleRequest(req, res) {
       const clientUser = (req.headers['x-user-name'] || '').toLowerCase();
       const userConfig = USER_ACCOUNTS[clientUser];
 
-      const isCacheValid = !forceRefresh && cache.data && Object.keys(cache.data).length > 0 && (Date.now() - cache.timestamp < CACHE_TTL_MS);
+      let hasCachedData = false;
+      if (cache.data && Object.keys(cache.data).length > 0) {
+        for (const rows of Object.values(cache.data)) {
+          if (Array.isArray(rows) && rows.length > 1) {
+            hasCachedData = true;
+            break;
+          }
+        }
+      }
 
       let sheetNames = cache.sheetNames;
       let sheetData = cache.data;
       let wasCached = true;
 
-      if (!isCacheValid) {
+      // Check if memory/disk cache is fresh (< CACHE_TTL_MS, 3 minutes)
+      const isCacheFresh = hasCachedData && !forceRefresh && (Date.now() - cache.timestamp < CACHE_TTL_MS);
+
+      if (isCacheFresh) {
+        // FAST PATH: Serve warm cache in < 15ms
+        wasCached = true;
+      } else {
+        // Cache expired (> 3 mins or after 10 days) or cold start or force refresh:
+        // MUST fetch 100% LIVE data from Google Sheets!
         try {
           const apiKey = resolveApiKey(req.headers['x-composio-key']);
-          if (apiKey) {
+          if (apiKey && !feReadyVerified) {
             ensureFeReadySheetExists(apiKey).catch(err => console.warn('[ensureFeReadySheetExists] background note:', err.message));
+          }
+          if (apiKey && !tagColumnsVerified) {
             ensureTagColumnAcrossSheets(apiKey).catch(err => console.warn('[ensureTagColumnAcrossSheets] background note:', err.message));
           }
           const fetched = await fetchAllSheetsFromGoogle();
@@ -2647,8 +2739,9 @@ async function handleRequest(req, res) {
           sheetData = fetched.sheetData;
           wasCached = false;
         } catch (fetchErr) {
-          if (cache.data && Object.keys(cache.data).length > 0) {
-            console.warn('[api/sheets] Live Google Sheets fetch failed, serving cached data:', fetchErr.message);
+          // If live fetch throws (network/API rate limit), fallback to cached data so user is never blocked
+          if (hasCachedData) {
+            console.warn('[api/sheets] Live Google Sheets fetch failed, serving cached fallback:', fetchErr.message);
             sheetNames = cache.sheetNames;
             sheetData = cache.data;
             wasCached = true;
