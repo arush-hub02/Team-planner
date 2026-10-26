@@ -1754,47 +1754,6 @@ async function ensureTagColumnAcrossSheets(customApiKey) {
     }
   }
 
-  // 2. Data validation dropdown on Column I across individual sheets & master
-  try {
-    const valTools = [];
-    for (const [name, sheetId] of Object.entries(INDIVIDUAL_SHEETS)) {
-      valTools.push({
-        tool_slug: 'GOOGLESHEETS_SET_DATA_VALIDATION_RULE',
-        arguments: {
-          spreadsheet_id: sheetId,
-          sheet_id: 0,
-          mode: 'SET',
-          start_row_index: 1,
-          end_row_index: 100,
-          start_column_index: 8,
-          end_column_index: 9,
-          validation_type: 'ONE_OF_LIST',
-          values: ['Product', 'Support'],
-          strict: false,
-          show_custom_ui: true
-        }
-      });
-      try {
-        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
-          spreadsheet_id: sheetId,
-          spreadsheetId: sheetId,
-          valueInputOption: 'USER_ENTERED',
-          data: [{
-            range: 'Sheet1!I1',
-            majorDimension: 'ROWS',
-            values: [['Tag']]
-          }]
-        }, activeKey);
-      } catch (err) {}
-    }
-    if (valTools.length > 0) {
-      await executeComposioBatch(valTools, activeKey);
-      console.log('✅ [ensureTagColumnAcrossSheets] Data validation dropdown (Product | Support) configured for all sheets');
-    }
-  } catch (err) {
-    console.warn('[ensureTagColumnAcrossSheets] Data validation note:', err.message);
-  }
-
   return true;
 }
 
@@ -1952,10 +1911,6 @@ async function updateDataValidationAcrossSheets() {
   return;
 }
 
-async function pushMasterToIndividualSheet(memberName, masterRows) {
-  // Master Sheet Only: No-op
-  return;
-}
 
 async function syncPulseSheet() {
   return;
@@ -2497,9 +2452,6 @@ async function handleRequest(req, res) {
             }
             cache.data[tabName][rIdx][colIdx] = cellVal;
           }
-          if (INDIVIDUAL_SHEETS[tabName]) {
-            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
-          }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2844,9 +2796,6 @@ async function handleRequest(req, res) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][targetColIdx] = internalStatus;
-          }
-          if (INDIVIDUAL_SHEETS[tabName]) {
-            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
           }
         }
 
@@ -3577,32 +3526,11 @@ async function handleRequest(req, res) {
           }]
         });
 
-        // 2. If tab is PULSE, also sync to Chetna's PULSE sheet
-        if (tabName === 'PULSE' && INDIVIDUAL_SHEETS.CHETNA) {
-          try {
-            await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
-              spreadsheet_id: INDIVIDUAL_SHEETS.CHETNA,
-              valueInputOption: 'USER_ENTERED',
-              data: [{
-                range: `PULSE!G${targetRow}`,
-                majorDimension: 'ROWS',
-                values: [[actionNotes]]
-              }]
-            });
-            console.log(`✅ [PULSE Note Synced] Chetna's PULSE sheet updated for row ${targetRow}`);
-          } catch (pErr) {
-            console.warn('Warning syncing PULSE note to Chetna sheet:', pErr.message);
-          }
-        }
-
-        // 3. Update memory cache if present
+        // 2. Update memory cache if present
         if (cache.data && cache.data[tabName]) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][targetColIdx] = actionNotes;
-          }
-          if (INDIVIDUAL_SHEETS[tabName]) {
-            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
           }
         }
 
@@ -3696,9 +3624,6 @@ async function handleRequest(req, res) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][7] = formattedDueDate;
-          }
-          if (INDIVIDUAL_SHEETS[tabName]) {
-            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
           }
         }
 
@@ -3822,9 +3747,6 @@ async function handleRequest(req, res) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][colIdx] = newState;
-          }
-          if (INDIVIDUAL_SHEETS[tabName]) {
-            pushMasterToIndividualSheet(tabName, cache.data[tabName]).catch(() => {});
           }
         }
 
@@ -4037,8 +3959,7 @@ async function handleRequest(req, res) {
           cache.timestamp = Date.now();
         }
 
-        if (INDIVIDUAL_SHEETS[fromTab]) pushMasterToIndividualSheet(fromTab, newFromRows).catch(() => {});
-        if (INDIVIDUAL_SHEETS[toTab]) pushMasterToIndividualSheet(toTab, newToRows).catch(() => {});
+
 
         console.log(`✅ [Reassign Complete] ${ticketKey} moved from ${fromTab} -> ${toTab}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4650,12 +4571,7 @@ async function handleRequest(req, res) {
           }
         ]).catch(e => console.warn('[Close Ticket] Format note:', e.message));
 
-        // 4. Push updates to individual member sheets immediately
-        affectedMemberTabs.forEach(mTab => {
-          if (INDIVIDUAL_SHEETS[mTab]) {
-            pushMasterToIndividualSheet(mTab, sheetData[mTab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${mTab}:`, e.message));
-          }
-        });
+
 
         // 5. Update server cache & persist to disk
         cache = {
@@ -4817,10 +4733,7 @@ async function handleRequest(req, res) {
           }
         ]).catch(e => console.warn('[Reopen Ticket] Format note:', e.message));
 
-        // Push to individual member sheet
-        if (INDIVIDUAL_SHEETS[destTab]) {
-          pushMasterToIndividualSheet(destTab, sheetData[destTab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${destTab}:`, e.message));
-        }
+
 
         cache = {
           sheetNames,
@@ -5081,14 +4994,15 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
           }
         }
       } else {
-        // Standard Member Sheet layout: [Link, Ticket, Title, Tag, YouTrack Status, Internal Status, Action/Notes, Due Date]
+        // Standard Member Sheet layout: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date, Tag]
         const ticketKey = String(row[1] || '').trim().toUpperCase();
         if (youTrackMap[ticketKey]) {
           const item = youTrackMap[ticketKey];
-          if (item.title) row[2] = item.title;
-          if (item.tag) row[3] = item.tag;
+          if (!row[0] || String(row[0]).startsWith('http')) row[0] = String(rIdx);
+          row[2] = item.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`;
+          if (item.title) row[3] = item.title;
           if (item.youTrackStatus) row[4] = item.youTrackStatus;
-          row[0] = item.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`;
+          if (item.tag && !row[8]) row[8] = item.tag;
 
           // Override Action / Notes (Col G / index 6) with last YouTrack comment if present
           if (commentsBatch[ticketKey] && commentsBatch[ticketKey].count > 0 && commentsBatch[ticketKey].text) {
@@ -5116,14 +5030,10 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
           r[6] || ''
         ])
       });
-
-      if (!isPulse && tab !== 'ALL' && tab !== 'MASTER') {
-        updatedMemberTabs.push(tab);
-      }
     }
   });
 
-  // 5. Batch write to Master Google Sheet
+  // 5. Batch write to Master Google Sheet (Only single Master Sheet updated)
   if (updateData.length > 0) {
     console.log(`Writing batch updates to Master Google Sheet for ${updateData.length} tabs...`);
     await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
@@ -5132,11 +5042,6 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
       data: updateData
     }, syncApiKey);
   }
-
-  // 6. Push updates to individual member sheets in background
-  updatedMemberTabs.forEach(tab => {
-    pushMasterToIndividualSheet(tab, sheetData[tab]).catch(e => console.warn(`[pushMasterToIndividualSheet] ${tab}:`, e.message));
-  });
 
   // 7. Update cache immediately
   cache = {
@@ -5582,14 +5487,7 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
         cache.timestamp = 0;
 
         if (finalInternalStatus) registerCustomStatus(finalInternalStatus);
-        if (INDIVIDUAL_SHEETS[tabName]) {
-          if (isExisting) {
-            currentRows[existingIdx] = newRow;
-          } else {
-            currentRows.push(newRow);
-          }
-          pushMasterToIndividualSheet(tabName, currentRows).catch(() => {});
-        }
+
 
         const successMsg = isExisting
           ? `Ticket ${ticketKey} was already assigned to ${tabName} — existing row details updated.`
