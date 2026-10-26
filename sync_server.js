@@ -1131,6 +1131,71 @@ function recordComposioCall(username, count = 1) {
   saveComposioUsage(composioUsageStore);
 }
 
+// Helper to identify banner/epic rows in sheets (e.g. PLAN tab or epic grouping)
+function isEpicRow(row) {
+  if (!row || !Array.isArray(row) || row.length === 0) return false;
+  const nonEmpties = row.map((c, i) => ({ val: String(c || '').trim(), idx: i })).filter(item => item.val.length > 0);
+  if (nonEmpties.length === 0) return false;
+
+  const fullText = nonEmpties.map(e => e.val).join(' ');
+  if (/^\s*(?:👑|⚡|🎯)?\s*(?:epic|module|milestone|feature\s*group|stream)[\s:-]/i.test(fullText) || /\[epic\]/i.test(fullText)) {
+    return true;
+  }
+
+  if (nonEmpties.length <= 2) {
+    const firstVal = nonEmpties[0].val;
+    if (firstVal === '#' || firstVal === 'SNo' || firstVal === 'S.No.' || firstVal === 'Ticket ID' || firstVal.toLowerCase() === 'ticket') return false;
+    if (/epic/i.test(firstVal)) return true;
+    const isJiraKey = /^[A-Z0-9]+-\d+$/i.test((row[1] || '').trim());
+    const hasStatus = (row[4] && String(row[4]).trim()) || (row[5] && String(row[5]).trim());
+    if (!isJiraKey && !hasStatus && firstVal.length >= 3) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Check if a row represents a genuine task (must have a valid ticket key or an actual title)
+// Prevents ghost rows left behind with only Tag or row numbers from appearing as tasks
+function isRowValidTask(row, isPlan = false) {
+  if (!row || !Array.isArray(row) || row.length === 0) return false;
+  if (isEpicRow(row)) return true;
+  const ticket = (row[1] || '').trim();
+  const title = (row[3] || row[2] || '').trim();
+  const hasRealTicket = ticket && ticket !== '-' && ticket !== 'N/A';
+  if (isPlan) {
+    const pTitle = (row[2] || row[3] || '').trim();
+    return Boolean(hasRealTicket || pTitle);
+  }
+  return Boolean(hasRealTicket || title);
+}
+
+// Sanitize sheet rows by filtering out ghost rows and re-indexing row numbers
+function sanitizeSheetRows(tabName, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
+  const header = rows[0];
+  const isPlan = (tabName || '').trim().toUpperCase() === 'PLAN';
+  const isPulse = (tabName || '').trim().toUpperCase() === 'PULSE';
+
+  if (isPulse) {
+    const dataRows = rows.slice(1).filter(r => {
+      if (!Array.isArray(r)) return false;
+      const tNum = (r[0] || '').trim();
+      const tTitle = (r[1] || '').trim();
+      return (tNum && tNum !== '-') || Boolean(tTitle);
+    });
+    return [header, ...dataRows];
+  }
+
+  const validRows = rows.slice(1).filter(r => isRowValidTask(r, isPlan));
+  validRows.forEach((r, idx) => {
+    if (!isEpicRow(r)) {
+      r[0] = String(idx + 1);
+    }
+  });
+  return [header, ...validRows];
+}
+
 // Cache with disk persistence & 3-minute TTL (Prevents redundant Google Sheets calls on page reloads)
 const CACHE_FILE = path.join(os.tmpdir(), 'task_sync_sheets_cache.json');
 
@@ -1139,6 +1204,9 @@ function loadDiskCache() {
     if (fs.existsSync(CACHE_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
       if (parsed && parsed.data && Object.keys(parsed.data).length > 0) {
+        for (const tab of Object.keys(parsed.data)) {
+          parsed.data[tab] = sanitizeSheetRows(tab, parsed.data[tab]);
+        }
         let totalRows = 0;
         for (const rows of Object.values(parsed.data)) {
           if (Array.isArray(rows) && rows.length > 1) totalRows += (rows.length - 1);
@@ -1767,6 +1835,17 @@ async function discoverSheetNames(customApiKey) {
   return null;
 }
 
+// Fast access to cached master sheet data (avoids redundant 15-20s Google Sheets API batch queries)
+function getCachedOrLiveSheets() {
+  if (cache && cache.data && cache.sheetNames && Object.keys(cache.data).length > 0) {
+    return {
+      sheetNames: [...cache.sheetNames],
+      sheetData: JSON.parse(JSON.stringify(cache.data))
+    };
+  }
+  return null;
+}
+
 // Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with dynamic columns A:ZZ and rows up to 500)
 async function fetchAllSheetsFromGoogle(passedApiKey) {
   const baseTabs = [
@@ -1836,6 +1915,11 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
         sheetData[tab] = cache.data[tab];
       }
     }
+  }
+
+  // Sanitize each tab in sheetData to strip out ghost rows (e.g. left behind with only Tag or row #)
+  for (const tab of Object.keys(sheetData)) {
+    sheetData[tab] = sanitizeSheetRows(tab, sheetData[tab]);
   }
 
   // Calculate total tickets after merge
@@ -4217,15 +4301,16 @@ async function handleRequest(req, res) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { ticket, assignee, allTabs } = JSON.parse(body);
-        if (!ticket) {
+        const { ticket, assignee, allTabs, rowNumber } = JSON.parse(body || '{}');
+        if (!ticket && !rowNumber) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: 'ticket key is required' }));
+          res.end(JSON.stringify({ success: false, error: 'ticket key or rowNumber is required' }));
           return;
         }
 
-        const ticketKey = ticket.trim().toUpperCase();
-        console.log(`[Delete Ticket] Removing ${ticketKey} from ${assignee ? assignee : 'all tabs'}...`);
+        const ticketKey = (ticket || '').trim().toUpperCase();
+        const rowNum = parseInt(rowNumber, 10);
+        console.log(`[Delete Ticket] Removing ${ticketKey || ('row ' + rowNum)} from ${assignee ? assignee : 'all tabs'}...`);
 
         // RBAC Check: Team members can only delete tasks from their own sheet
         const clientRole = (req.headers['x-user-role'] || '').toUpperCase();
@@ -4241,9 +4326,13 @@ async function handleRequest(req, res) {
           }
         }
 
-        // 1. Fetch live sheets
-        const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
-        const targetTabs = (assignee && !allTabs) ? [assignee.trim().toUpperCase()] : sheetNames;
+        // 1. Fast sheet data retrieval from memory cache
+        let working = getCachedOrLiveSheets();
+        if (!working) {
+          working = await fetchAllSheetsFromGoogle();
+        }
+        const { sheetNames, sheetData } = working;
+        const targetTabs = (assignee && !allTabs) ? [resolveActualTabName(assignee)] : sheetNames;
 
         const updatePayload = [];
         let deletedFromCount = 0;
@@ -4251,62 +4340,80 @@ async function handleRequest(req, res) {
         for (const tab of targetTabs) {
           if (!sheetData[tab]) continue;
           const rows = sheetData[tab] || [];
-          const targetIdx = rows.findIndex((r, idx) => {
-            if (idx === 0) return false;
-            if (r[1] && r[1].trim().toUpperCase() === ticketKey) return true;
-            if (ticketKey.startsWith('PLAN-')) {
-              const numPart = ticketKey.replace('PLAN-', '').trim();
-              if (r[0] && r[0].trim() === numPart) return true;
-              if (r[2] && r[2].trim().toUpperCase() === ticketKey) return true;
-            }
-            if (r[0] && r[0].trim().toUpperCase() === ticketKey) return true;
-            return false;
-          });
+          let targetIdx = -1;
+          if (rowNum > 1 && rowNum <= rows.length) {
+            targetIdx = rowNum - 1;
+          } else if (ticketKey && ticketKey !== '-') {
+            targetIdx = rows.findIndex((r, idx) => {
+              if (idx === 0) return false;
+              if (r[1] && r[1].trim().toUpperCase() === ticketKey) return true;
+              if (ticketKey.startsWith('PLAN-')) {
+                const numPart = ticketKey.replace('PLAN-', '').trim();
+                if (r[0] && r[0].trim() === numPart) return true;
+                if (r[2] && r[2].trim().toUpperCase() === ticketKey) return true;
+              }
+              if (r[0] && r[0].trim().toUpperCase() === ticketKey) return true;
+              return false;
+            });
+          }
 
           if (targetIdx > 0) {
             deletedFromCount++;
             const oldLength = rows.length;
-            const newRows = rows.filter((_, idx) => idx !== targetIdx);
+            // Filter out targetIdx AND any ghost rows without a real ticket or title
+            const newRows = rows.filter((r, idx) => {
+              if (idx === targetIdx) return false;
+              if (idx > 0 && !isRowValidTask(r, tab === 'PLAN')) return false;
+              return true;
+            });
             newRows.forEach((r, idx) => {
-              if (idx > 0) r[0] = String(idx);
+              if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
             });
 
             // Pad with empty row to clear out deleted row in Google Sheets
-            const maxCols = Math.max(9, ...rows.map(r => r.length));
+            const maxCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
             const endLetter = colIndexToLetter(maxCols - 1);
             const paddedRows = [...newRows];
             while (paddedRows.length < oldLength) {
               paddedRows.push(new Array(maxCols).fill(''));
             }
 
+            const normalizedPaddedRows = paddedRows.map(r => {
+              const copy = [...r];
+              while (copy.length < maxCols) copy.push('');
+              return copy.slice(0, maxCols);
+            });
+
             sheetData[tab] = newRows;
             updatePayload.push({
-              range: `${tab}!A1:${endLetter}${paddedRows.length}`,
+              range: `${tab}!A1:${endLetter}${normalizedPaddedRows.length}`,
               majorDimension: 'ROWS',
-              values: paddedRows
+              values: normalizedPaddedRows
             });
           }
         }
 
         if (updatePayload.length === 0) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey} not found in target sheet tabs` }));
+          res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey || ('row ' + rowNum)} not found in target sheet tabs` }));
           return;
         }
 
         // 2. Write updates to Google Sheets
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
         });
 
-        // 3. Update cache
+        // 3. Update cache & persist to disk
         cache = {
           sheetNames,
           data: sheetData,
           timestamp: Date.now()
         };
+        saveDiskCache(cache);
 
         console.log(`✅ [Delete Ticket Complete] ${ticketKey} deleted from ${deletedFromCount} tab(s)`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4355,8 +4462,12 @@ async function handleRequest(req, res) {
           }
         }
 
-        // 1. Fetch live sheets
-        const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
+        // 1. Fast sheet data retrieval from memory cache
+        let working = getCachedOrLiveSheets();
+        if (!working) {
+          working = await fetchAllSheetsFromGoogle();
+        }
+        const { sheetNames, sheetData } = working;
 
         let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
         let closedRows = sheetData[closedTab] || [];
@@ -4387,9 +4498,13 @@ async function handleRequest(req, res) {
               movedTicketData = [...rows[targetIdx]];
             }
             const oldLength = rows.length;
-            const newRows = rows.filter((_, idx) => idx !== targetIdx);
+            const newRows = rows.filter((r, idx) => {
+              if (idx === targetIdx) return false;
+              if (idx > 0 && !isRowValidTask(r, tab === 'PLAN')) return false;
+              return true;
+            });
             newRows.forEach((r, idx) => {
-              if (idx > 0) r[0] = String(idx);
+              if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
             });
 
             // Calculate max columns to ensure uniform grid and dynamic end column
@@ -4429,9 +4544,13 @@ async function handleRequest(req, res) {
               removedCount++;
               movedTicketData = [...rows[targetIdx]];
               const oldLength = rows.length;
-              const newRows = rows.filter((_, idx) => idx !== targetIdx);
+              const newRows = rows.filter((r, idx) => {
+                if (idx === targetIdx) return false;
+                if (idx > 0 && !isRowValidTask(r, tab === 'PLAN')) return false;
+                return true;
+              });
               newRows.forEach((r, idx) => {
-                if (idx > 0) r[0] = String(idx);
+                if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
               });
               const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
               const endCol = colIndexToLetter(maxTabCols - 1);
@@ -4538,12 +4657,13 @@ async function handleRequest(req, res) {
           }
         });
 
-        // 5. Update server cache
+        // 5. Update server cache & persist to disk
         cache = {
           sheetNames,
           data: sheetData,
           timestamp: Date.now()
         };
+        saveDiskCache(cache);
 
         console.log(`✅ [Close Ticket Complete] ${ticketKey} moved from ${removedCount} tab(s) to ${closedTab}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4578,7 +4698,11 @@ async function handleRequest(req, res) {
         const destTab = resolveActualTabName(toAssignee);
         console.log(`[Reopen Ticket] Moving ${ticketKey} from CLOSED to ${destTab}...`);
 
-        const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
+        let working = getCachedOrLiveSheets();
+        if (!working) {
+          working = await fetchAllSheetsFromGoogle();
+        }
+        const { sheetNames, sheetData } = working;
         let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
 
         const closedRows = sheetData[closedTab] || [];
@@ -4703,6 +4827,7 @@ async function handleRequest(req, res) {
           data: sheetData,
           timestamp: Date.now()
         };
+        saveDiskCache(cache);
 
         console.log(`✅ [Reopen Complete] ${ticketKey} reopened to ${destTab}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4740,7 +4865,11 @@ async function handleRequest(req, res) {
         const apiKey = resolveApiKey(req.headers['x-composio-key']);
         await ensureFeReadySheetExists(apiKey);
 
-        const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle();
+        let working = getCachedOrLiveSheets();
+        if (!working) {
+          working = await fetchAllSheetsFromGoogle();
+        }
+        const { sheetNames, sheetData } = working;
         let feReadyTab = sheetNames.find(s => s.trim().toUpperCase() === 'FE READY') || 'FE Ready';
         let feReadyRows = sheetData[feReadyTab] || [];
 
@@ -4814,12 +4943,13 @@ async function handleRequest(req, res) {
           }
         ], apiKey);
 
-        // Update cache
+        // Update cache & persist to disk
         cache = {
           data: sheetData,
           sheetNames,
           timestamp: Date.now()
         };
+        saveDiskCache(cache);
 
         console.log(`✅ [Move to FE Ready Complete] ${ticketKey} cloned into ${feReadyTab} for CHETNA`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
