@@ -12792,14 +12792,41 @@ Thanks!`;
         return;
       }
 
-      const confirmed = confirm(`Reassign ${ticket} from ${fromAssignee} to ${toAssignee}?\n\nThis will move the task row in Google Sheets and update both team members' tabs.`);
-      if (!confirmed) {
-        selectElem.value = fromAssignee;
-        return;
+      // Optimistic instant 0ms UI update
+      const prevStore = JSON.parse(JSON.stringify(sheetStore));
+      const fromTab = fromAssignee.trim().toUpperCase();
+      const toTab = toAssignee.trim().toUpperCase();
+      const ticketKey = ticket.trim().toUpperCase();
+
+      if (sheetStore[fromTab]) {
+        const rows = sheetStore[fromTab];
+        const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+        if (targetIdx > 0) {
+          const movedRow = [...rows[targetIdx]];
+          rows.splice(targetIdx, 1);
+          rows.forEach((r, idx) => {
+            if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
+          });
+
+          if (!sheetStore[toTab]) {
+            sheetStore[toTab] = [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+          }
+          const toRows = sheetStore[toTab];
+          const existingToIdx = toRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          if (existingToIdx > 0) {
+            movedRow[0] = String(existingToIdx);
+            toRows[existingToIdx] = movedRow;
+          } else {
+            movedRow[0] = String(toRows.length);
+            toRows.push(movedRow);
+          }
+
+          populateTableData();
+          updateDeliveryHorizonStats();
+        }
       }
 
-      selectElem.disabled = true;
-      showToast(`⏳ Moving ${ticket} from ${fromAssignee} to ${toAssignee} in Google Sheets...`);
+      showToast(`⏳ Moving ${ticket} from ${fromAssignee} to ${toAssignee}...`);
 
       try {
         const res = await fetch('http://localhost:3100/api/ticket/reassign', {
@@ -12809,22 +12836,24 @@ Thanks!`;
         });
         const json = await res.json();
         if (json.success) {
-          showToast(`✅ ${ticket} successfully reassigned to ${toAssignee} and Google Sheet updated!`);
+          showToast(`✅ ${ticket} reassigned to ${toAssignee}!`);
           if (json.data) {
             sheetStore = json.data;
             renderDynamicTabsAndPanes();
-          } else {
-            await fetchLiveSheets(true);
           }
         } else {
+          sheetStore = prevStore;
+          populateTableData();
+          updateDeliveryHorizonStats();
           showToast('❌ Reassignment failed: ' + (json.error || 'Server error'));
-          selectElem.value = fromAssignee;
-          selectElem.disabled = false;
+          if (selectElem) selectElem.value = fromAssignee;
         }
       } catch (err) {
+        sheetStore = prevStore;
+        populateTableData();
+        updateDeliveryHorizonStats();
         showToast('❌ Could not connect to Sync Server.');
-        selectElem.value = fromAssignee;
-        selectElem.disabled = false;
+        if (selectElem) selectElem.value = fromAssignee;
       }
     }
 
@@ -12901,6 +12930,36 @@ Thanks!`;
       const confirmMove = confirm(`🚀 Move & Clone ticket ${ticket} to FE Ready sheet?\n\nThis will clone the task into the "FE Ready" sheet with:\n• Assignee: CHETNA\n• Status: FE Ready\n\nFrontend can pick it up immediately. The original task row in ${assignee || 'its tab'} remains preserved.`);
       if (!confirmMove) return;
 
+      // Optimistic instant UI update (instant 0ms response)
+      const prevFeStore = JSON.parse(JSON.stringify(sheetStore));
+      const sourceTab = assignee ? assignee.trim().toUpperCase() : '';
+      let clonedRow = null;
+      if (sourceTab && sheetStore[sourceTab]) {
+        const rows = sheetStore[sourceTab];
+        const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
+        if (targetIdx > 0) {
+          clonedRow = [...rows[targetIdx]];
+          while (clonedRow.length < 9) clonedRow.push('');
+          clonedRow[5] = 'FE Ready';
+          if (!clonedRow[8]) clonedRow[8] = 'Product';
+
+          if (!sheetStore['FE Ready']) {
+            sheetStore['FE Ready'] = [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+          }
+          const feRows = sheetStore['FE Ready'];
+          const existingFeIdx = feRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
+          if (existingFeIdx > 0) {
+            clonedRow[0] = String(existingFeIdx);
+            feRows[existingFeIdx] = clonedRow;
+          } else {
+            clonedRow[0] = String(feRows.length);
+            feRows.push(clonedRow);
+          }
+          populateTableData();
+          updateDeliveryHorizonStats();
+        }
+      }
+
       showToast(`🚀 Cloning ${ticket} to FE Ready sheet for CHETNA...`);
 
       try {
@@ -12912,17 +12971,21 @@ Thanks!`;
 
         const json = await res.json();
         if (json.success) {
-          showToast(`✅ ${ticket} successfully cloned to FE Ready sheet for CHETNA!`);
+          showToast(`✅ ${ticket} cloned to FE Ready sheet for CHETNA!`);
           if (json.data) {
             sheetStore = json.data;
             renderDynamicTabsAndPanes();
-          } else {
-            await fetchLiveSheets(true);
           }
         } else {
+          sheetStore = prevFeStore;
+          populateTableData();
+          updateDeliveryHorizonStats();
           showToast('❌ Move to FE Ready failed: ' + (json.error || 'Server error'));
         }
       } catch (err) {
+        sheetStore = prevFeStore;
+        populateTableData();
+        updateDeliveryHorizonStats();
         showToast('❌ Could not connect to Sync Server.');
       }
     }
@@ -12968,6 +13031,42 @@ Thanks!`;
         return;
       }
 
+      // Optimistic instant UI update (instant 0ms response)
+      const prevReopenStore = JSON.parse(JSON.stringify(sheetStore));
+      const closedTab = 'CLOSED';
+      const destTab = matched.trim().toUpperCase();
+      const ticketKey = ticket.trim().toUpperCase();
+
+      if (sheetStore[closedTab]) {
+        const cRows = sheetStore[closedTab];
+        const cIdx = cRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+        if (cIdx > 0) {
+          const movedRow = [...cRows[cIdx]];
+          cRows.splice(cIdx, 1);
+          cRows.forEach((r, idx) => {
+            if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
+          });
+
+          if (!sheetStore[destTab]) {
+            sheetStore[destTab] = [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+          }
+          const dRows = sheetStore[destTab];
+          while (movedRow.length < 9) movedRow.push('');
+          movedRow[5] = movedRow[4] || 'To Pick Up';
+          const existingDestIdx = dRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          if (existingDestIdx > 0) {
+            movedRow[0] = String(existingDestIdx);
+            dRows[existingDestIdx] = movedRow;
+          } else {
+            movedRow[0] = String(dRows.length);
+            dRows.push(movedRow);
+          }
+
+          populateTableData();
+          updateDeliveryHorizonStats();
+        }
+      }
+
       showToast(`⏳ Reopening ${ticket} to ${matched}...`);
 
       try {
@@ -12983,13 +13082,17 @@ Thanks!`;
           if (json.data) {
             sheetStore = json.data;
             renderDynamicTabsAndPanes();
-          } else {
-            await fetchLiveSheets(true);
           }
         } else {
+          sheetStore = prevReopenStore;
+          populateTableData();
+          updateDeliveryHorizonStats();
           showToast('❌ Reopen failed: ' + (json.error || 'Server error'));
         }
       } catch (err) {
+        sheetStore = prevReopenStore;
+        populateTableData();
+        updateDeliveryHorizonStats();
         showToast('❌ Could not connect to Sync Server.');
       }
     }

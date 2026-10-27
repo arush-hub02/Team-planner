@@ -2902,9 +2902,9 @@ async function handleRequest(req, res) {
           }]
         });
 
-        // 2. Format cell
+        // 2. Format cell (non-blocking)
         const colorConfig = STATUS_COLORS[internalStatus] || STATUS_COLORS['To Pick Up'];
-        await executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
+        executeComposioTool('GOOGLESHEETS_FORMAT_CELL', {
           spreadsheet_id: SPREADSHEET_ID,
           sheet_name: tabName,
           range: `${targetColLetter}${targetRow}`,
@@ -3936,21 +3936,14 @@ async function handleRequest(req, res) {
 
         console.log(`[Reassign] Moving ${ticketKey} from ${fromTab} -> ${toTab}...`);
 
-        // 1. Fetch current rows from both tabs
-        const getTools = [
-          {
-            tool_slug: 'GOOGLESHEETS_VALUES_GET',
-            arguments: { spreadsheet_id: SPREADSHEET_ID, range: `${fromTab}!A1:H50` }
-          },
-          {
-            tool_slug: 'GOOGLESHEETS_VALUES_GET',
-            arguments: { spreadsheet_id: SPREADSHEET_ID, range: `${toTab}!A1:H50` }
-          }
-        ];
-
-        const getRes = await executeComposioBatch(getTools);
-        const fromRows = getRes?.data?.results?.[0]?.response?.data?.values || [];
-        const toRows = getRes?.data?.results?.[1]?.response?.data?.values || [];
+        // 1. Fast sheet data retrieval from memory cache
+        let working = getCachedOrLiveSheets();
+        if (!working) {
+          working = await fetchAllSheetsFromGoogle();
+        }
+        const { sheetNames, sheetData } = working;
+        const fromRows = sheetData[fromTab] || [];
+        const toRows = sheetData[toTab] || [];
 
         // 2. Find row in fromTab (check ticket Col B, S.No Col A, title Col C, or PLAN-x)
         const targetIdx = fromRows.findIndex((r, idx) => {
@@ -4047,11 +4040,11 @@ async function handleRequest(req, res) {
           data: updatePayload
         });
 
-        // 6. Format status cells in toTab
+        // 6. Format status cells in toTab asynchronously in background (non-blocking)
         const jCol = STATUS_COLORS[jiraStatus] || STATUS_COLORS['To Pick Up'];
         const iCol = STATUS_COLORS[internalStatus] || STATUS_COLORS['To Pick Up'];
 
-        await executeComposioBatch([
+        executeComposioBatch([
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
@@ -4076,14 +4069,17 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ]);
+        ]).catch(e => console.warn('[Reassign] Format note:', e.message));
 
-        // 7. Update in-memory cache
-        if (cache.data) {
-          cache.data[fromTab] = newFromRows;
-          cache.data[toTab] = newToRows;
-          cache.timestamp = Date.now();
-        }
+        // 7. Update in-memory cache & persist to disk
+        sheetData[fromTab] = newFromRows;
+        sheetData[toTab] = newToRows;
+        cache = {
+          data: sheetData,
+          sheetNames,
+          timestamp: Date.now()
+        };
+        saveDiskCache(cache);
 
 
 
@@ -4313,9 +4309,9 @@ async function handleRequest(req, res) {
           });
         }
 
-        // 4. Apply format calls
+        // 4. Apply format calls (non-blocking)
         if (formatCalls.length > 0) {
-          await executeComposioBatch(formatCalls);
+          executeComposioBatch(formatCalls).catch(e => console.warn('[Manage Shared] Format note:', e.message));
         }
 
         // 5. Update cache
@@ -4681,7 +4677,7 @@ async function handleRequest(req, res) {
 
         // 3. Format status cells in CLOSED sheet
         const cCol = STATUS_COLORS['Closed'];
-        await executeComposioBatch([
+        executeComposioBatch([
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
@@ -4841,9 +4837,9 @@ async function handleRequest(req, res) {
           throw new Error(`Google Sheets update failed: ${errMsg}`);
         }
 
-        // Format status cell in destTab
+        // Format status cell in destTab (non-blocking)
         const iCol = STATUS_COLORS[targetRow[5]] || STATUS_COLORS['To Pick Up'];
-        await executeComposioBatch([
+        executeComposioBatch([
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
@@ -4966,8 +4962,8 @@ async function handleRequest(req, res) {
           }]
         }, apiKey);
 
-        // Format status cell in FE Ready
-        await executeComposioBatch([
+        // Format status cell in FE Ready (non-blocking)
+        executeComposioBatch([
           {
             tool_slug: 'GOOGLESHEETS_FORMAT_CELL',
             arguments: {
@@ -4980,7 +4976,7 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ], apiKey);
+        ], apiKey).catch(e => console.warn('[Move to FE Ready] Format note:', e.message));
 
         // Update cache & persist to disk
         cache = {
