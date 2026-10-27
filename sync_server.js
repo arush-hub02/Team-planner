@@ -2067,13 +2067,21 @@ async function handleRequest(req, res) {
   if (urlObj.pathname === '/' || urlObj.pathname === '/index.html') {
     const htmlPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(htmlPath)) {
+      const cacheControl = (req.headers['cache-control'] || '').toLowerCase();
+      const pragma = (req.headers['pragma'] || '').toLowerCase();
+      const isHardRefresh = cacheControl.includes('no-cache') || pragma.includes('no-cache');
+
+      let html = fs.readFileSync(htmlPath, 'utf8');
+      const injection = `<script>window.__IS_HARD_REFRESH__ = ${isHardRefresh};</script>`;
+      html = html.replace('</head>', `${injection}\n</head>`);
+
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
       });
-      fs.createReadStream(htmlPath).pipe(res);
+      res.end(html);
       return;
     }
   }

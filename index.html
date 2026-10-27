@@ -8373,6 +8373,34 @@
       showToast(`🚀 Welcome, ${currentUser ? currentUser.name : 'Team'}! All systems active.`);
     }
 
+    function detectIfHardRefresh() {
+      // 1. Server-detected header flag from initial page request (Ctrl+F5 / Shift+Reload send Cache-Control: no-cache)
+      if (typeof window.__IS_HARD_REFRESH__ === 'boolean' && window.__IS_HARD_REFRESH__) {
+        return true;
+      }
+
+      // 2. Client-detected key combination stored in sessionStorage
+      try {
+        if (sessionStorage.getItem('team_task_pending_hard_refresh') === 'true') {
+          sessionStorage.removeItem('team_task_pending_hard_refresh');
+          return true;
+        }
+      } catch (_) {}
+
+      return false;
+    }
+
+    // Capture Ctrl+F5, Ctrl+Shift+R, Meta+Shift+R before browser reloads
+    window.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey && (e.key === 'F5' || e.key === 'f5')) ||
+          (e.ctrlKey && e.shiftKey && (e.key === 'R' || e.key === 'r')) ||
+          (e.metaKey && e.shiftKey && (e.key === 'R' || e.key === 'r'))) {
+        try {
+          sessionStorage.setItem('team_task_pending_hard_refresh', 'true');
+        } catch (_) {}
+      }
+    }, true);
+
     async function checkAuthSession() {
       stopMcpPolling();
       stopReadinessPolling();
@@ -8476,10 +8504,16 @@
       }
       fetchLiveSheets();
 
-      // Non-blocking automatic background sync with YouTrack on startup (after 2.5s)
-      setTimeout(() => {
-        triggerBackgroundYouTrackSync(false);
-      }, 2500);
+      // Background YouTrack sync ONLY on hard refresh, NOT on simple refresh
+      const isHard = detectIfHardRefresh();
+      if (isHard) {
+        console.log('🔄 Hard refresh detected: triggering background YouTrack sync...');
+        setTimeout(() => {
+          triggerBackgroundYouTrackSync(true);
+        }, 1500);
+      } else {
+        console.log('⚡ Simple refresh/load: skipping background YouTrack sync.');
+      }
     }
 
     function updateMcpConnectionCards(conn) {
