@@ -12299,7 +12299,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-tag', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ assignee, ticket, tag: validTag, rowNumber })
         });
         const json = await res.json();
@@ -12804,7 +12804,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/reassign', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket, fromAssignee, toAssignee })
         });
         const json = await res.json();
@@ -12869,7 +12869,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/close', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket, fromAssignee: assignee, allTabs: false })
         });
 
@@ -12906,7 +12906,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/move-to-fe-ready', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket, fromAssignee: assignee })
         });
 
@@ -12973,7 +12973,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/reopen', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket, toAssignee: matched })
         });
 
@@ -13032,7 +13032,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/delete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket: ticket || '', assignee, rowNumber, allTabs: false })
         });
 
@@ -13307,7 +13307,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-youtrack-state', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ assignee, ticket, state: newState, rowNumber })
         });
         const json = await res.json();
@@ -13371,7 +13371,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-internal-status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ assignee, ticket, internalStatus: newStatus, rowNumber })
         });
         const json = await res.json();
@@ -13659,7 +13659,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-action-notes', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             assignee: tabName,
             ticket: ticketKey,
@@ -13887,7 +13887,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/ticket/update-due-date', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ assignee: owner, ticket, dueDate: newVal, rowNumber })
         });
         const data = await res.json();
@@ -15852,7 +15852,7 @@ Thanks!`;
       try {
         const res = await fetch('http://localhost:3100/api/add-ticket', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ 
             ticket, 
             assignee: finalAssignee, 

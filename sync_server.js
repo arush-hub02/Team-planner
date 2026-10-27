@@ -802,7 +802,8 @@ async function updateYouTrackIssueState(issueKey, newState, customToken) {
   const cfg = loadYouTrackConfig();
   const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
-  const cleanKey = String(issueKey).trim().toUpperCase();
+  const match = String(issueKey).trim().toUpperCase().match(/\b[A-Z][A-Z0-9]+-\d+\b/);
+  const cleanKey = match ? match[0] : String(issueKey).trim().toUpperCase();
 
   if (!token) {
     throw new Error('YouTrack Access Token is missing or empty. Please enter your YouTrack token.');
@@ -828,7 +829,10 @@ async function updateYouTrackIssueState(issueKey, newState, customToken) {
   let stateField = null;
   if (metaResp.ok) {
     const fields = await metaResp.json();
-    stateField = fields.find(f => (f.name || '').toLowerCase() === 'state');
+    stateField = Array.isArray(fields) ? fields.find(f => {
+      const fn = (f.name || '').toLowerCase();
+      return fn === 'state' || fn === 'status' || fn === 'stage';
+    }) : null;
   }
 
   async function postEvent(fieldId, eventObj) {
@@ -977,7 +981,32 @@ async function updateYouTrackIssueState(issueKey, newState, customToken) {
     throw new Error(`State machine does not allow transition from "${curStateName}" to "${newState}". Allowed transitions: ${allowed || 'none'}`);
   }
 
-  // 3. Fallback to standard YouTrack commands API for non-state-machine fields (e.g. SES)
+  // 3. Direct REST update for standard StateIssueCustomField / SingleEnumIssueCustomField (e.g. SES, PULSE)
+  if (stateField && stateField.id && stateField.$type && stateField.$type !== 'StateMachineIssueCustomField') {
+    try {
+      const postUrl = `${cleanBaseUrl}/api/issues/${cleanKey}/customFields/${stateField.id}?fields=id,name,value(name)`;
+      const postResp = await fetch(postUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          $type: stateField.$type,
+          value: { name: newState }
+        })
+      });
+      if (postResp.ok) {
+        const resData = await postResp.json();
+        return { success: true, state: resData?.value?.name || newState };
+      }
+    } catch (fieldErr) {
+      console.warn(`[YouTrack direct field update note] ${cleanKey}:`, fieldErr.message);
+    }
+  }
+
+  // 4. Fallback to standard YouTrack commands API
   await executeYouTrackCommand(cleanKey, `State ${newState}`, token);
   return { success: true, state: newState };
 }
@@ -1173,13 +1202,21 @@ function isRowValidTask(row, isPlan = false) {
 // Sanitize sheet rows by filtering out ghost rows and re-indexing row numbers
 function sanitizeSheetRows(tabName, rows) {
   if (!Array.isArray(rows) || rows.length === 0) return rows;
-  const header = rows[0];
   const isPlan = (tabName || '').trim().toUpperCase() === 'PLAN';
   const isPulse = (tabName || '').trim().toUpperCase() === 'PULSE';
+  const isClosed = (tabName || '').trim().toUpperCase() === 'CLOSED';
+
+  let header = rows[0];
+  if (isClosed || (!isPulse && !isPlan)) {
+    if (!Array.isArray(header) || header.length < 5 || header.some(c => typeof c === 'string' && c.includes('...'))) {
+      header = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag'];
+    }
+  }
 
   if (isPulse) {
     const dataRows = rows.slice(1).filter(r => {
       if (!Array.isArray(r)) return false;
+      if (r.some(c => typeof c === 'string' && /^\.\.\.\d+\s+more\s+items/i.test(c.trim()))) return false;
       const tNum = (r[0] || '').trim();
       const tTitle = (r[1] || '').trim();
       return (tNum && tNum !== '-') || Boolean(tTitle);
@@ -1187,7 +1224,11 @@ function sanitizeSheetRows(tabName, rows) {
     return [header, ...dataRows];
   }
 
-  const validRows = rows.slice(1).filter(r => isRowValidTask(r, isPlan));
+  const validRows = rows.slice(1).filter(r => {
+    if (!Array.isArray(r)) return false;
+    if (r.some(c => typeof c === 'string' && /^\.\.\.\d+\s+more\s+items/i.test(c.trim()))) return false;
+    return isRowValidTask(r, isPlan);
+  });
   validRows.forEach((r, idx) => {
     if (!isEpicRow(r)) {
       r[0] = String(idx + 1);
@@ -1845,33 +1886,62 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
       tool_slug: 'GOOGLESHEETS_VALUES_GET',
       arguments: {
         spreadsheet_id: SPREADSHEET_ID,
-        range: `${tab}!A1:Z200`
+        range: `${tab}!A1:I150`
       }
     }));
 
     try {
       const batchResult = await executeComposioBatch(tools, activeKey);
       if (batchResult?.data?.results) {
-        batchResult.data.results.forEach((r, idx) => {
+        for (let idx = 0; idx < batchResult.data.results.length; idx++) {
+          const r = batchResult.data.results[idx];
           const tab = chunk[idx];
           if (!r.response?.error && !r.response?.data?.error) {
-            const vals = r.response?.data?.values || r.response?.data_preview?.values;
-            if (vals && vals.length > 0) {
+            let vals = r.response?.data?.values;
+            const isTruncated = !vals || !Array.isArray(vals) || vals.some(row => 
+              Array.isArray(row) && row.some(cell => typeof cell === 'string' && /^\.\.\.\d+\s+more\s+items/i.test(cell.trim()))
+            );
+            if (!isTruncated && vals.length > 0) {
               sheetData[tab] = vals;
+            } else {
+              console.log(`[fetchAllSheetsFromGoogle] Tab "${tab}" needs individual fetch (batch was truncated or preview only)...`);
+              try {
+                const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+                  spreadsheet_id: SPREADSHEET_ID,
+                  range: `${tab}!A1:I150`
+                }, activeKey);
+                const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
+                if (Array.isArray(singleVals) && singleVals.length > 0) {
+                  sheetData[tab] = singleVals;
+                }
+              } catch (singleErr) {
+                console.warn(`[fetchAllSheetsFromGoogle] Individual fetch for "${tab}" failed:`, singleErr.message);
+              }
             }
           }
-        });
+        }
       }
     } catch (chunkErr) {
       console.warn(`[fetchAllSheetsFromGoogle] Error fetching chunk [${chunk.join(', ')}]:`, chunkErr.message);
     }
   }
 
-  // Merge with existing cache if any tabs failed or returned empty
-  if (cache && cache.data) {
-    for (const tab of sheetNames) {
-      if ((!sheetData[tab] || sheetData[tab].length === 0) && cache.data[tab] && cache.data[tab].length > 0) {
+  // Ensure every tab in sheetNames is present; if missing, fetch individually or merge with cache
+  for (const tab of sheetNames) {
+    if (!sheetData[tab] || sheetData[tab].length === 0) {
+      if (cache && cache.data && cache.data[tab] && cache.data[tab].length > 0 && !cache.data[tab].some(r => r.some(c => typeof c === 'string' && c.includes('...')))) {
         sheetData[tab] = cache.data[tab];
+      } else {
+        try {
+          const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+            spreadsheet_id: SPREADSHEET_ID,
+            range: `${tab}!A1:I150`
+          }, activeKey);
+          const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
+          if (Array.isArray(singleVals) && singleVals.length > 0) {
+            sheetData[tab] = singleVals;
+          }
+        } catch (_) {}
       }
     }
   }
@@ -1916,6 +1986,14 @@ async function syncPulseSheet() {
   return;
 }
 
+// Global Sequential Mutex Queue for Sheet Mutations (Prevents race conditions when multiple actions are triggered simultaneously)
+let sheetMutationQueue = Promise.resolve();
+function runSerializedMutation(fn) {
+  const next = sheetMutationQueue.then(() => fn(), () => fn());
+  sheetMutationQueue = next.catch(() => {});
+  return next;
+}
+
 async function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -1941,8 +2019,56 @@ async function handleRequest(req, res) {
   // Dynamic user-provided YouTrack token from request headers
   const incomingYtToken = req.headers['x-youtrack-token'];
   currentRequestYouTrackToken = incomingYtToken ? incomingYtToken.trim() : null;
+  if (currentRequestYouTrackToken) {
+    activeYouTrackToken = currentRequestYouTrackToken;
+    saveYouTrackConfig(currentRequestYouTrackToken);
+  }
 
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // Automatically serialize all sheet mutation endpoints so simultaneous user actions never overlap or race
+  const MUTATION_ROUTES = new Set([
+    '/api/sheet/update-cell',
+    '/api/sheet/add-column',
+    '/api/sheet/create-fe-ready',
+    '/api/pulse/sync',
+    '/api/ticket/update-internal-status',
+    '/api/ticket/update-tag',
+    '/api/ticket/update-action-notes',
+    '/api/ticket/update-notes',
+    '/api/ticket/update-due-date',
+    '/api/ticket/update-youtrack-state',
+    '/api/ticket/reassign',
+    '/api/ticket/manage-shared',
+    '/api/ticket/delete',
+    '/api/ticket/close',
+    '/api/ticket/reopen',
+    '/api/ticket/move-to-fe-ready',
+    '/api/youtrack/sync-all',
+    '/api/add-ticket'
+  ]);
+
+  if (req.method === 'POST' && MUTATION_ROUTES.has(urlObj.pathname)) {
+    const originalOn = req.on.bind(req);
+    req.on = function(event, listener) {
+      if (event === 'end') {
+        return originalOn('end', function(...args) {
+          runSerializedMutation(async () => {
+            try {
+              await listener.apply(this, args);
+            } catch (err) {
+              console.error(`[Mutation Queue Error] ${urlObj.pathname}:`, err);
+              if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+              }
+            }
+          });
+        });
+      }
+      return originalOn(event, listener);
+    };
+  }
 
   // Serve static HTML dashboard
   if (urlObj.pathname === '/' || urlObj.pathname === '/index.html') {
@@ -5002,6 +5128,9 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
           row[2] = item.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`;
           if (item.title) row[3] = item.title;
           if (item.youTrackStatus) row[4] = item.youTrackStatus;
+          if (item.dueDate && item.dueDate !== 'Not set') {
+            row[7] = item.dueDate;
+          }
           if (item.tag && !row[8]) row[8] = item.tag;
 
           // Override Action / Notes (Col G / index 6) with last YouTrack comment if present
@@ -5018,17 +5147,17 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     });
 
     if (hasTabChanges) {
+      const maxCols = isPulse ? 7 : 9;
+      const endCol = isPulse ? 'G' : 'I';
       updateData.push({
-        range: `${tab}!A2:G${rows.length}`,
-        values: rows.slice(1).map(r => [
-          r[0] || '',
-          r[1] || '',
-          r[2] || '',
-          r[3] || '',
-          r[4] || '',
-          r[5] || '',
-          r[6] || ''
-        ])
+        range: `${tab}!A2:${endCol}${rows.length}`,
+        values: rows.slice(1).map(r => {
+          const rowVals = [];
+          for (let c = 0; c < maxCols; c++) {
+            rowVals.push(r[c] !== undefined && r[c] !== null ? String(r[c]) : '');
+          }
+          return rowVals;
+        })
       });
     }
   });
