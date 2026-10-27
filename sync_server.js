@@ -1855,21 +1855,12 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   const activeKey = passedApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
 
   let sheetNames = [...baseTabs];
-  try {
-    if (activeKey) {
-      const discovered = await discoverSheetNames(activeKey);
-      if (discovered && discovered.length > 0) {
-        const validDiscovered = discovered.map(d => String(d).trim());
-        sheetNames = baseTabs.filter(b => validDiscovered.some(v => v.toUpperCase() === b.toUpperCase()));
-        validDiscovered.forEach(d => {
-          if (!sheetNames.some(s => s.toUpperCase() === d.toUpperCase())) {
-            sheetNames.push(d);
-          }
-        });
+  if (cache?.sheetNames && Array.isArray(cache.sheetNames)) {
+    cache.sheetNames.forEach(s => {
+      if (!sheetNames.some(b => b.toUpperCase() === s.toUpperCase())) {
+        sheetNames.push(s);
       }
-    }
-  } catch (dErr) {
-    console.warn('[fetchAllSheetsFromGoogle] Note discovering sheet names:', dErr.message);
+    });
   }
 
   // Chunk sheets into batches of 3 to avoid Composio payload truncation and timeout
@@ -1881,7 +1872,8 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
 
   const sheetData = {};
 
-  for (const chunk of chunks) {
+  // Execute all chunk requests in parallel via Promise.all
+  await Promise.all(chunks.map(async (chunk) => {
     const tools = chunk.map(tab => ({
       tool_slug: 'GOOGLESHEETS_VALUES_GET',
       arguments: {
@@ -1924,11 +1916,12 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     } catch (chunkErr) {
       console.warn(`[fetchAllSheetsFromGoogle] Error fetching chunk [${chunk.join(', ')}]:`, chunkErr.message);
     }
-  }
+  }));
 
-  // Ensure every tab in sheetNames is present; if missing, fetch individually or merge with cache
-  for (const tab of sheetNames) {
-    if (!sheetData[tab] || sheetData[tab].length === 0) {
+  // Ensure every tab in sheetNames is present; if missing, fetch in parallel or merge with cache
+  const missingTabs = sheetNames.filter(tab => !sheetData[tab] || sheetData[tab].length === 0);
+  if (missingTabs.length > 0) {
+    await Promise.all(missingTabs.map(async (tab) => {
       if (cache && cache.data && cache.data[tab] && cache.data[tab].length > 0 && !cache.data[tab].some(r => r.some(c => typeof c === 'string' && c.includes('...')))) {
         sheetData[tab] = cache.data[tab];
       } else {
@@ -1943,7 +1936,7 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
           }
         } catch (_) {}
       }
-    }
+    }));
   }
 
   // Sanitize each tab in sheetData to strip out ghost rows (e.g. left behind with only Tag or row #)
@@ -2699,37 +2692,41 @@ async function handleRequest(req, res) {
       let sheetData = cache.data;
       let wasCached = true;
 
-      // Check if memory/disk cache is fresh (< CACHE_TTL_MS, 3 minutes)
-      const isCacheFresh = hasCachedData && !forceRefresh && (Date.now() - cache.timestamp < CACHE_TTL_MS);
+      // ⚡ FAST STALE-WHILE-REVALIDATE (SWR) PATH:
+      // If server has cached data and client is NOT requesting a forced refresh:
+      // ALWAYS respond immediately (< 5ms) with cached data!
+      if (hasCachedData && !forceRefresh) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          success: true, 
+          sheetNames: cache.sheetNames, 
+          data: cache.data, 
+          statusOptions: Array.from(KNOWN_STATUSES),
+          cached: true 
+        }));
 
-      if (isCacheFresh) {
-        // FAST PATH: Serve warm cache in < 15ms
-        wasCached = true;
-      } else {
-        // Cache expired (> 3 mins or after 10 days) or cold start or force refresh:
-        // MUST fetch 100% LIVE data from Google Sheets!
-        try {
-          const apiKey = resolveApiKey(req.headers['x-composio-key']);
-          if (apiKey && !feReadyVerified) {
-            ensureFeReadySheetExists(apiKey).catch(err => console.warn('[ensureFeReadySheetExists] background note:', err.message));
-          }
-          if (apiKey && !tagColumnsVerified) {
-            ensureTagColumnAcrossSheets(apiKey).catch(err => console.warn('[ensureTagColumnAcrossSheets] background note:', err.message));
-          }
-          const fetched = await fetchAllSheetsFromGoogle();
-          sheetNames = fetched.sheetNames;
-          sheetData = fetched.sheetData;
-          wasCached = false;
-        } catch (fetchErr) {
-          // If live fetch throws (network/API rate limit), fallback to cached data so user is never blocked
-          if (hasCachedData) {
-            console.warn('[api/sheets] Live Google Sheets fetch failed, serving cached fallback:', fetchErr.message);
-            sheetNames = cache.sheetNames;
-            sheetData = cache.data;
-            wasCached = true;
-          } else {
-            throw fetchErr;
-          }
+        // If cache is older than CACHE_TTL_MS, trigger background refresh silently
+        if (Date.now() - cache.timestamp >= CACHE_TTL_MS) {
+          refreshSheetsInBackground().catch(e => console.warn('[api/sheets] SWR background refresh error:', e.message));
+        }
+        return;
+      }
+
+      // Cold start (no cache at all) OR explicit force refresh:
+      try {
+        const fetched = await fetchAllSheetsFromGoogle();
+        sheetNames = fetched.sheetNames;
+        sheetData = fetched.sheetData;
+        wasCached = false;
+      } catch (fetchErr) {
+        // If live fetch throws (network/API rate limit), fallback to cached data so user is never blocked
+        if (hasCachedData) {
+          console.warn('[api/sheets] Live Google Sheets fetch failed, serving cached fallback:', fetchErr.message);
+          sheetNames = cache.sheetNames;
+          sheetData = cache.data;
+          wasCached = true;
+        } else {
+          throw fetchErr;
         }
       }
 

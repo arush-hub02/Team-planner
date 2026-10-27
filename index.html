@@ -8365,6 +8365,9 @@
       document.getElementById('dashboardContainer').style.display = 'block';
 
       updateUserProfileBar();
+      if (sheetStore && Object.keys(sheetStore).length > 0) {
+        renderDynamicTabsAndPanes();
+      }
       fetchLiveSheets();
 
       showToast(`🚀 Welcome, ${currentUser ? currentUser.name : 'Team'}! All systems active.`);
@@ -8468,6 +8471,9 @@
       document.getElementById('dashboardContainer').style.display = 'block';
 
       updateUserProfileBar();
+      if (sheetStore && Object.keys(sheetStore).length > 0) {
+        renderDynamicTabsAndPanes();
+      }
       fetchLiveSheets();
 
       // Non-blocking automatic background sync with YouTrack on startup (after 2.5s)
