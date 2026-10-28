@@ -4612,18 +4612,18 @@
     .comment-card-actions {
       display: inline-flex;
       align-items: center;
-      gap: 2px;
-      opacity: 0.35;
+      gap: 5px;
+      opacity: 0.85;
       transition: opacity 0.15s ease-in-out;
     }
     .comment-card:hover .comment-card-actions {
       opacity: 1;
     }
     .comment-action-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      border-radius: 5px;
-      padding: 3px 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      padding: 3px 8px;
       font-size: 11px;
       cursor: pointer;
       color: #94a3b8;
@@ -4631,33 +4631,40 @@
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      line-height: 1;
+      line-height: 1.2;
       font-weight: 600;
     }
     .comment-action-btn:hover {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.12);
       color: #f8fafc;
-      border-color: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
     }
-    .comment-action-btn.btn-action-pin:hover {
+    .comment-card .comment-action-btn.btn-action-pin:hover {
       color: #fbbf24;
-      border-color: rgba(245, 158, 11, 0.4);
-      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.16);
     }
-    .comment-action-btn.btn-action-edit:hover {
+    .comment-card .comment-action-btn.btn-action-edit:hover {
       color: #38bdf8;
-      border-color: rgba(56, 189, 248, 0.4);
-      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.45);
+      background: rgba(56, 189, 248, 0.16);
     }
-    .comment-action-btn.btn-action-delete:hover {
-      color: #f87171;
-      border-color: rgba(239, 68, 68, 0.4);
-      background: rgba(239, 68, 68, 0.12);
+    .comment-card .comment-action-btn.btn-action-delete {
+      background: rgba(239, 68, 68, 0.08) !important;
+      border: 1px solid rgba(239, 68, 68, 0.25) !important;
+      color: #fca5a5 !important;
+      box-shadow: none !important;
     }
-    .comment-action-btn.btn-action-restore:hover {
+    .comment-card .comment-action-btn.btn-action-delete:hover {
+      background: rgba(239, 68, 68, 0.22) !important;
+      border-color: #f87171 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.3) !important;
+    }
+    .comment-card .comment-action-btn.btn-action-restore:hover {
       color: #34d399;
-      border-color: rgba(52, 211, 153, 0.4);
-      background: rgba(52, 211, 153, 0.12);
+      border-color: rgba(52, 211, 153, 0.45);
+      background: rgba(52, 211, 153, 0.16);
     }
     /* Inline Comment Edit Box */
     .comment-inline-edit-box {
@@ -4758,6 +4765,10 @@
       background-size: cover;
       background-position: center;
       border: 1px solid rgba(255, 255, 255, 0.15);
+      text-decoration: none !important;
+      border-bottom: none !important;
+      line-height: 1;
+      user-select: none;
     }
     .comment-author-name {
       font-size: 13px;
@@ -4770,28 +4781,40 @@
       font-family: 'JetBrains Mono', monospace;
     }
     .comment-content-body {
-      font-size: 13px;
+      font-size: 13.5px;
       line-height: 1.6;
       color: #cbd5e1;
       word-break: break-word;
     }
     .mention-pill {
-      background: rgba(168, 85, 247, 0.18);
-      color: #c084fc;
-      border: 1px solid rgba(168, 85, 247, 0.4);
-      padding: 1px 7px;
+      background: rgba(168, 85, 247, 0.2);
+      color: #d8b4fe;
+      border: 1px solid rgba(168, 85, 247, 0.45);
+      padding: 1.5px 8px;
       border-radius: 12px;
       font-weight: 700;
       font-size: 12px;
       display: inline-flex;
       align-items: center;
       margin: 0 2px;
+      vertical-align: baseline;
+      box-shadow: 0 1px 4px rgba(168, 85, 247, 0.15);
+      letter-spacing: 0.1px;
+    }
+    .mention-pill.mention-pill-sm {
+      font-size: 10px;
+      padding: 0.5px 5px;
+      line-height: 1.3;
+      border-radius: 6px;
+      font-weight: 700;
+      margin: 0 1px;
+      vertical-align: middle;
     }
     .comment-inline-code {
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
-      padding: 1px 6px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 5px;
+      padding: 1.5px 6px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: #38bdf8;
@@ -4806,6 +4829,26 @@
       font-size: 12px;
       color: #e2e8f0;
       margin: 8px 0;
+    }
+    .comment-blockquote {
+      border-left: 3px solid #38bdf8;
+      margin: 6px 0;
+      padding: 4px 12px;
+      color: #94a3b8;
+      background: rgba(56, 189, 248, 0.05);
+      border-radius: 0 6px 6px 0;
+    }
+    .member-pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #c084fc;
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
     .comment-link {
       color: #38bdf8;
@@ -5699,11 +5742,23 @@
       color: #0f172a !important;
       font-weight: 800 !important;
     }
-    [data-theme="light"] .comment-count-badge {
-      background: #eef2ff !important;
-      border: 1px solid #c7d2fe !important;
-      color: #4338ca !important;
+    [data-theme="light"] .comment-count-badge,
+    [data-theme="light"] .comment-count-pill {
+      background: #eff6ff !important;
+      border: 1px solid #bfdbfe !important;
+      color: #1d4ed8 !important;
       font-weight: 700 !important;
+    }
+    [data-theme="light"] .author-dot {
+      background: #0284c7 !important;
+      box-shadow: 0 0 4px rgba(2, 132, 199, 0.4) !important;
+    }
+    [data-theme="light"] .comment-time-badge {
+      color: #64748b !important;
+    }
+    [data-theme="light"] .comment-snippet-body {
+      color: #334155 !important;
+      font-weight: 500 !important;
     }
 
     /* 👑 PLAN TAB — EPIC HEADERS & NOTE CALLOUTS (FIXING WASHED-OUT EPIC TITLE & DARK NOTE) */
@@ -6296,16 +6351,104 @@
       font-weight: 500 !important;
     }
     [data-theme="light"] .comment-card-actions {
-      opacity: 0.8 !important;
+      opacity: 0.85 !important;
     }
     [data-theme="light"] .comment-action-btn {
-      color: #64748b !important;
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #475569 !important;
       font-weight: 700 !important;
     }
     [data-theme="light"] .comment-action-btn:hover {
       background: #f1f5f9 !important;
       color: #0f172a !important;
       border-color: #cbd5e1 !important;
+    }
+    [data-theme="light"] .comment-card .comment-action-btn.btn-action-delete {
+      background: #fef2f2 !important;
+      border-color: #fecaca !important;
+      color: #dc2626 !important;
+    }
+    [data-theme="light"] .comment-card .comment-action-btn.btn-action-delete:hover {
+      background: #fee2e2 !important;
+      border-color: #f87171 !important;
+      color: #b91c1c !important;
+    }
+    [data-theme="light"] .mention-pill {
+      background: #f3e8ff !important;
+      color: #7e22ce !important;
+      border: 1px solid #d8b4fe !important;
+      box-shadow: 0 1px 3px rgba(126, 34, 206, 0.1) !important;
+    }
+    [data-theme="light"] .mention-pill.mention-pill-sm {
+      background: #f3e8ff !important;
+      color: #7e22ce !important;
+      border: 1px solid #d8b4fe !important;
+    }
+    [data-theme="light"] .comment-inline-code {
+      background: #f1f5f9 !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0369a1 !important;
+      font-weight: 600 !important;
+      border-radius: 5px !important;
+      padding: 1.5px 6px !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    }
+    [data-theme="light"] .comment-code-block {
+      background: #f8fafc !important;
+      border: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+      border-radius: 8px !important;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    }
+    [data-theme="light"] .comment-code-block code {
+      color: #0f172a !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+    [data-theme="light"] .comment-link {
+      color: #0284c7 !important;
+      border-bottom: 1px solid rgba(2, 132, 199, 0.4) !important;
+      font-weight: 600 !important;
+    }
+    [data-theme="light"] .comment-link:hover {
+      color: #0369a1 !important;
+      border-bottom-color: #0369a1 !important;
+      text-shadow: none !important;
+    }
+    [data-theme="light"] .comment-content-body {
+      color: #1e293b !important;
+    }
+    [data-theme="light"] .comment-content-body strong {
+      color: #0f172a !important;
+      font-weight: 700 !important;
+    }
+    [data-theme="light"] .comment-ticket-link {
+      color: #0284c7 !important;
+      background: #f0f9ff !important;
+      border-color: #bae6fd !important;
+    }
+    [data-theme="light"] .comment-ticket-link:hover {
+      background: #e0f2fe !important;
+      color: #0369a1 !important;
+      text-shadow: none !important;
+    }
+    [data-theme="light"] .comment-count-pill {
+      color: #0284c7 !important;
+      background: #f0f9ff !important;
+      border-color: #bae6fd !important;
+    }
+    [data-theme="light"] .member-pill {
+      color: #7e22ce !important;
+      background: #f3e8ff !important;
+      border-color: #d8b4fe !important;
+    }
+    [data-theme="light"] .comment-time-stamp {
+      color: #64748b !important;
+    }
+    [data-theme="light"] .comment-blockquote {
+      border-left-color: #0284c7 !important;
+      color: #475569 !important;
+      background: #f8fafc !important;
     }
     [data-theme="light"] .comment-editor-section {
       background: #ffffff !important;
@@ -13624,9 +13767,9 @@ Thanks!`;
         `;
       }
 
-      const cleanSnippet = stripMarkdownAndImages(textSnippet);
-      const safeSnippet = escapeHtml(cleanSnippet);
-      const safeAuthor = escapeHtml(author);
+      const snippetHtml = formatCommentSnippetHtml(textSnippet);
+      const resolvedAuthor = resolveCommentUserName(author) || author || 'Team Member';
+      const safeAuthor = escapeHtml(resolvedAuthor);
 
       return `
         <div class="comment-cell-preview" 
@@ -13645,7 +13788,7 @@ Thanks!`;
               💬 ${count}
             </span>
           </div>
-          <div class="comment-snippet-body">${safeSnippet}</div>
+          <div class="comment-snippet-body">${snippetHtml}</div>
         </div>
       `;
     }
@@ -14385,9 +14528,9 @@ Thanks!`;
         if (ticketCommentCache.hasOwnProperty(tKey)) {
           const cached = ticketCommentCache[tKey];
           if (cached && cached.count > 0 && cached.text) {
-            const cleanSnippet = stripMarkdownAndImages(cached.text);
-            const safeSnippet = escapeHtml(cleanSnippet);
-            const safeAuthor = escapeHtml(cached.author || 'Team Member');
+            const snippetHtml = formatCommentSnippetHtml(cached.text);
+            const resolvedAuthor = resolveCommentUserName(cached.author) || cached.author || 'Team Member';
+            const safeAuthor = escapeHtml(resolvedAuthor);
             const timeStr = formatRelativeTime(cached.created);
             const count = cached.count;
 
@@ -14403,7 +14546,7 @@ Thanks!`;
                   💬 ${count}
                 </span>
               </div>
-              <div class="comment-snippet-body">${safeSnippet}</div>
+              <div class="comment-snippet-body">${snippetHtml}</div>
             `;
           } else {
             cell.className = 'comment-cell-preview empty-comment';
@@ -14417,6 +14560,19 @@ Thanks!`;
         }
       });
     }
+
+    const KNOWN_TEAM_MEMBERS = [
+      { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', aliases: ['arush', 'arushdeep.gupta', 'arush.gupta', 'arushdeep'] },
+      { name: 'Chetna Sharma', login: 'chetna.sharma@enveu.com', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
+      { name: 'Krishna Sharma', login: 'krishna.sharma@enveu.com', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
+      { name: 'Manish Kumar', login: 'manish@enveu.com', aliases: ['manish', 'manish.kumar', 'manish.kumar@enveu.com'] },
+      { name: 'Rahul Joshi', login: 'rahul.joshi@enveu.com', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
+      { name: 'Sonu Kumar', login: 'sonu.kumar@enveu.com', aliases: ['sonu', 'sonu.kumar', 'sonu@enveu.com'] },
+      { name: 'Anshu Priya', login: 'anshu.priya@enveu.com', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com'] },
+      { name: 'Abhinav Rajput', login: 'abhinav.rajput', aliases: ['abhinav', 'abhinav.rajput@enveu.com'] },
+      { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', aliases: ['tanisha', 'tanisha.upadhyay@enveu.com'] },
+      { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] }
+    ];
 
     async function loadMentionUsers() {
       if (allMentionUsers.length > 0) return;
@@ -14432,18 +14588,58 @@ Thanks!`;
         console.warn('Mention users note:', e.message);
       }
       if (allMentionUsers.length === 0) {
-        allMentionUsers = [
-          { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com' },
-          { name: 'Chetna', login: 'chetna@enveu.com' },
-          { name: 'Krishna', login: 'krishna@enveu.com' },
-          { name: 'Manish', login: 'manish@enveu.com' },
-          { name: 'Rahul', login: 'rahul@enveu.com' },
-          { name: 'Sonu', login: 'sonu@enveu.com' },
-          { name: 'Abhinav Rajput', login: 'abhinav.rajput' },
-          { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay' },
-          { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui' }
-        ];
+        allMentionUsers = [...KNOWN_TEAM_MEMBERS];
       }
+    }
+
+    function resolveCommentUserName(tag) {
+      if (!tag) return '';
+      let cleanTag = String(tag).trim().replace(/^@+/, '').replace(/[.,:;!?]+$/, '');
+
+      // Clean accidental repeated domain artifacts e.g. krishna@enveu.com@enveu.com
+      cleanTag = cleanTag.replace(/@enveu\.com@enveu\.com/gi, '@enveu.com');
+      // If trailing dot name was attached e.g. krishna@enveu.com.Sharma -> krishna.sharma@enveu.com
+      const trailingDotMatch = cleanTag.match(/^([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)$/i);
+      if (trailingDotMatch) {
+        cleanTag = `${trailingDotMatch[1]}.${trailingDotMatch[2]}@enveu.com`;
+      }
+
+      const lower = cleanTag.toLowerCase();
+
+      // 1. Check KNOWN_TEAM_MEMBERS
+      const teamMatch = KNOWN_TEAM_MEMBERS.find(m => {
+        if (m.name.toLowerCase() === lower) return true;
+        if (m.login.toLowerCase() === lower) return true;
+        if (m.login.replace(/@.*$/, '').toLowerCase() === lower.replace(/@.*$/, '')) return true;
+        if (m.aliases && m.aliases.some(a => a.toLowerCase() === lower || a.toLowerCase() === lower.replace(/@.*$/, ''))) return true;
+        return false;
+      });
+      if (teamMatch) return teamMatch.name;
+
+      // 2. Check allMentionUsers loaded from API
+      if (Array.isArray(allMentionUsers) && allMentionUsers.length > 0) {
+        const found = allMentionUsers.find(u => {
+          if (!u) return false;
+          const uLogin = (u.login || '').toLowerCase();
+          const uName = (u.name || '').toLowerCase();
+          if (uLogin === lower || uName === lower) return true;
+          if (uLogin.replace(/@.*$/, '') === lower.replace(/@.*$/, '')) return true;
+          if (Array.isArray(u.aliases) && u.aliases.some(a => a.toLowerCase() === lower)) return true;
+          return false;
+        });
+        if (found && found.name && !found.name.includes('@')) {
+          return found.name;
+        }
+      }
+
+      // 3. Fallback: Parse from email or dot-name (e.g. "sonu.kumar@enveu.com" or "sonu.kumar" -> "Sonu Kumar")
+      let raw = cleanTag.replace(/@.*$/, ''); // remove domain
+      if (raw.includes('.') || raw.includes('_')) {
+        return raw.split(/[._]/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(' ');
+      }
+
+      // 4. Single word -> Capitalize
+      return cleanTag.charAt(0).toUpperCase() + cleanTag.slice(1);
     }
 
     function formatRelativeTime(timestamp) {
@@ -14478,12 +14674,113 @@ Thanks!`;
 
     function stripMarkdownAndImages(text) {
       if (!text) return '';
-      return text
+      let str = text;
+
+      // Clean duplicate domain artifacts
+      str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
+        return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
+      });
+      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+
+      // Strip images and markdown links
+      str = str
         .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
         .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-        .replace(/[*_~\`#>]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+        .replace(/[*_~\`#>]/g, '');
+
+      // Multi-word full names first
+      const knownMultiWordNames = [];
+      const addName = (n) => {
+        if (n && n.includes(' ') && !knownMultiWordNames.includes(n)) knownMultiWordNames.push(n);
+      };
+      KNOWN_TEAM_MEMBERS.forEach(m => addName(m.name));
+      if (Array.isArray(allMentionUsers)) {
+        allMentionUsers.forEach(u => addName(u.name));
+      }
+      knownMultiWordNames.sort((a, b) => b.length - a.length);
+
+      knownMultiWordNames.forEach(fullName => {
+        const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        str = str.replace(reg, `$1@${fullName}`);
+      });
+
+      // Single-token mentions (emails, logins) -> convert to clean @Name
+      str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9_.-]+)?)(?![a-zA-Z0-9_])/g, (match, prefix, tag) => {
+        const displayName = resolveCommentUserName(tag);
+        return `${prefix}@${displayName}`;
+      });
+
+      return str.replace(/\s+/g, ' ').trim();
+    }
+
+    function formatCommentSnippetHtml(text) {
+      if (!text) return '';
+      let str = text;
+
+      // Clean duplicate domain artifacts
+      str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
+        return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
+      });
+      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+
+      // Strip images and markdown links
+      str = str
+        .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/[*_~\`#>]/g, '');
+
+      // Escape HTML before injecting mention pill tags
+      str = escapeHtml(str);
+
+      // Multi-word full names first
+      const knownMultiWordNames = [];
+      const addName = (n) => {
+        if (n && n.includes(' ') && !knownMultiWordNames.includes(n)) knownMultiWordNames.push(n);
+      };
+      KNOWN_TEAM_MEMBERS.forEach(m => addName(m.name));
+      if (Array.isArray(allMentionUsers)) {
+        allMentionUsers.forEach(u => addName(u.name));
+      }
+      knownMultiWordNames.sort((a, b) => b.length - a.length);
+
+      knownMultiWordNames.forEach(fullName => {
+        const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        str = str.replace(reg, `$1<span class="mention-pill mention-pill-sm">@${fullName}</span>`);
+      });
+
+      // Single-token mentions (emails, logins) -> convert to clean @Name with pill
+      str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9_.-]+)?)(?![a-zA-Z0-9_])/g, (match, prefix, tag) => {
+        if (prefix.endsWith('>') || tag.includes('<')) return match;
+        let trailingPunct = '';
+        const punctMatch = tag.match(/[.,:;!?]+$/);
+        let actualTag = tag;
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          actualTag = tag.slice(0, -trailingPunct.length);
+        }
+        if (!actualTag) return match;
+        const displayName = resolveCommentUserName(actualTag);
+        return `${prefix}<span class="mention-pill mention-pill-sm">@${escapeHtml(displayName)}</span>${trailingPunct}`;
+      });
+
+      // Bare team emails without @ prefix (e.g. arushdeep.gupta@enveu.com)
+      str = str.replace(/(^|[\s(])([a-zA-Z0-9_.-]+@enveu\.com)(?![a-zA-Z0-9_])/gi, (match, prefix, email) => {
+        if (prefix.endsWith('>') || email.includes('<')) return match;
+        let trailingPunct = '';
+        const punctMatch = email.match(/[.,:;!?]+$/);
+        let actualEmail = email;
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          actualEmail = email.slice(0, -trailingPunct.length);
+        }
+        if (!actualEmail) return match;
+        const displayName = resolveCommentUserName(actualEmail);
+        return `${prefix}<span class="mention-pill mention-pill-sm">@${escapeHtml(displayName)}</span>${trailingPunct}`;
+      });
+
+      return str.trim();
     }
 
     function getDeterministicColor(str) {
@@ -14539,19 +14836,62 @@ Thanks!`;
       // Strikethrough
       str = str.replace(/~~([^~]+)~~/g, '<s>$1</s>');
 
-      // Mentions: @login or @Name or @@Name -> render clean mention pill with user's name
-      str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.@-]+(?:\s+[a-zA-Z0-9_.-]+)?)/g, (match, prefix, tag) => {
-        let displayName = tag;
-        if (Array.isArray(allMentionUsers) && allMentionUsers.length > 0) {
-          const matchedUser = allMentionUsers.find(u => 
-            (u.login && u.login.toLowerCase() === tag.toLowerCase()) || 
-            (u.name && u.name.toLowerCase() === tag.toLowerCase())
-          );
-          if (matchedUser && matchedUser.name) {
-            displayName = matchedUser.name;
-          }
+      // Blockquotes
+      str = str.replace(/(?:^|\n)&gt;\s?(.*?)(?=\n|$)/g, '<blockquote class="comment-blockquote">$1</blockquote>');
+
+      // Mentions Processing:
+      // 1. Clean any duplicated @domain.com@domain.com artifacts in text
+      str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
+        return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
+      });
+
+      // 2. Multi-word full names first (e.g. @Manish Kumar, @Arush Deep Gupta)
+      const knownMultiWordNames = [];
+      const addName = (n) => {
+        if (n && n.includes(' ') && !knownMultiWordNames.includes(n)) knownMultiWordNames.push(n);
+      };
+      KNOWN_TEAM_MEMBERS.forEach(m => addName(m.name));
+      if (Array.isArray(allMentionUsers)) {
+        allMentionUsers.forEach(u => addName(u.name));
+      }
+      knownMultiWordNames.sort((a, b) => b.length - a.length);
+
+      knownMultiWordNames.forEach(fullName => {
+        const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        str = str.replace(reg, `$1<span class="mention-pill">@${fullName}</span>`);
+      });
+
+      // 3. Single-token mentions (emails, logins, usernames without spaces)
+      // Notice: NO whitespace is allowed inside the mention token so normal text is NEVER swallowed!
+      str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9_.-]+)?)(?![a-zA-Z0-9_])/g, (match, prefix, tag) => {
+        // Do not re-tag if already inside HTML span
+        if (prefix.endsWith('>') || tag.includes('<')) return match;
+        let trailingPunct = '';
+        const punctMatch = tag.match(/[.,:;!?]+$/);
+        let actualTag = tag;
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          actualTag = tag.slice(0, -trailingPunct.length);
         }
-        return `${prefix}<span class="mention-pill">@${escapeHtml(displayName)}</span>`;
+        if (!actualTag) return match;
+        const displayName = resolveCommentUserName(actualTag);
+        return `${prefix}<span class="mention-pill">@${escapeHtml(displayName)}</span>${trailingPunct}`;
+      });
+
+      // 4. Bare team emails without @ prefix (e.g. arushdeep.gupta@enveu.com)
+      str = str.replace(/(^|[\s(])([a-zA-Z0-9_.-]+@enveu\.com)(?![a-zA-Z0-9_])/gi, (match, prefix, email) => {
+        if (prefix.endsWith('>') || email.includes('<')) return match;
+        let trailingPunct = '';
+        const punctMatch = email.match(/[.,:;!?]+$/);
+        let actualEmail = email;
+        if (punctMatch) {
+          trailingPunct = punctMatch[0];
+          actualEmail = email.slice(0, -trailingPunct.length);
+        }
+        if (!actualEmail) return match;
+        const displayName = resolveCommentUserName(actualEmail);
+        return `${prefix}<span class="mention-pill">@${escapeHtml(displayName)}</span>${trailingPunct}`;
       });
 
       // Line breaks
@@ -14590,6 +14930,24 @@ Thanks!`;
       return '';
     }
 
+    function getTicketStatusForModal(ticket, assignee) {
+      if (!ticket) return '';
+      const cleanKey = String(ticket).trim().toUpperCase();
+      for (const sName of Object.keys(sheetStore)) {
+        const rows = sheetStore[sName];
+        if (!Array.isArray(rows)) continue;
+        const isPulse = sName.toUpperCase() === 'PULSE';
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const t = isPulse ? (r[0] || '') : (r[1] || '');
+          if (String(t).trim().toUpperCase() === cleanKey) {
+            return isPulse ? (r[2] || '') : (r[5] || r[4] || '');
+          }
+        }
+      }
+      return '';
+    }
+
     // Open Comment Modal for a ticket
     async function openCommentModal(ticket, assignee, rowNumber, isPulse, title) {
       console.log('Opening Comment Modal for ticket:', ticket, 'assignee:', assignee);
@@ -14622,6 +14980,17 @@ Thanks!`;
 
         const assigneeBadge = document.getElementById('commentModalAssigneeBadge');
         if (assigneeBadge) assigneeBadge.textContent = `👤 ${assignee || 'Unassigned'}`;
+
+        const statusBadge = document.getElementById('commentModalStatusBadge');
+        if (statusBadge) {
+          const st = getTicketStatusForModal(ticket, assignee);
+          if (st) {
+            statusBadge.style.display = 'inline-flex';
+            statusBadge.textContent = st;
+          } else {
+            statusBadge.style.display = 'none';
+          }
+        }
 
         const titleEl = document.getElementById('commentModalTaskTitle');
         if (titleEl) titleEl.textContent = currentCommentTitle || ticket || 'Task Discussion';
@@ -14710,8 +15079,9 @@ Thanks!`;
         // Update local cache for table note preview
         if (activeComments.length > 0) {
           const latest = activeComments[activeComments.length - 1];
+          const rawLatestAuthor = latest.author?.name || latest.author?.login || 'User';
           ticketCommentCache[currentCommentTicket.toUpperCase()] = {
-            author: latest.author?.name || latest.author?.login || 'User',
+            author: resolveCommentUserName(rawLatestAuthor) || rawLatestAuthor,
             text: latest.text || '',
             created: latest.created || Date.now(),
             count: activeComments.length
@@ -14789,7 +15159,8 @@ Thanks!`;
         `;
 
         trashComments.forEach(c => {
-          const authorName = c.author?.name || c.author?.login || 'Team Member';
+          const rawAuthor = c.author?.name || c.author?.login || 'Team Member';
+          const authorName = resolveCommentUserName(rawAuthor) || rawAuthor;
           const avatarUrl = c.author?.avatarUrl || '';
           const initials = getUserInitials(authorName);
           const bgGrad = getDeterministicColor(authorName);
@@ -14848,7 +15219,8 @@ Thanks!`;
 
       let html = '';
       displayList.forEach(c => {
-        const authorName = c.author?.name || c.author?.login || 'Team Member';
+        const rawAuthor = c.author?.name || c.author?.login || 'Team Member';
+        const authorName = resolveCommentUserName(rawAuthor) || rawAuthor;
         const avatarUrl = c.author?.avatarUrl || '';
         const initials = getUserInitials(authorName);
         const bgGrad = getDeterministicColor(authorName);
@@ -14979,6 +15351,52 @@ Thanks!`;
     }
     window.handleEditCommentKeydown = handleEditCommentKeydown;
 
+    function normalizeMentionsBeforeSubmit(text) {
+      if (!text) return '';
+      let str = String(text);
+
+      // Clean duplicate domain artifacts
+      str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
+        return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
+      });
+      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+
+      // Combine KNOWN_TEAM_MEMBERS and allMentionUsers
+      const userList = [];
+      const seen = new Set();
+      const addUser = (u) => {
+        if (!u || !u.name || !u.login) return;
+        const key = u.login.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          userList.push(u);
+        }
+      };
+      KNOWN_TEAM_MEMBERS.forEach(addUser);
+      if (Array.isArray(allMentionUsers)) allMentionUsers.forEach(addUser);
+
+      // Sort longest name first
+      userList.sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+
+      userList.forEach(u => {
+        // Only replace if followed by word boundary and NOT part of an email or username
+        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?![a-zA-Z0-9_.@-])`, 'gi');
+        str = str.replace(reg, `$1@${u.login}`);
+
+        if (Array.isArray(u.aliases)) {
+          u.aliases.forEach(alias => {
+            if (!alias || alias.toLowerCase() === u.login.toLowerCase()) return;
+            const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?![a-zA-Z0-9_.@-])`, 'gi');
+            str = str.replace(regAlias, `$1@${u.login}`);
+          });
+        }
+      });
+
+      return str;
+    }
+
     async function saveEditComment(commentId) {
       const ta = document.getElementById(`editCommentTextarea-${commentId}`);
       if (!ta) return;
@@ -14996,17 +15414,7 @@ Thanks!`;
       }
 
       // Normalize mentions in edited text
-      let normalizedText = newText;
-      if (Array.isArray(allMentionUsers) && allMentionUsers.length > 0) {
-        const sorted = [...allMentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
-        sorted.forEach(u => {
-          if (u.name && u.login) {
-            const escaped = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const reg = new RegExp(`@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
-            normalizedText = normalizedText.replace(reg, `@${u.login}`);
-          }
-        });
-      }
+      const normalizedText = normalizeMentionsBeforeSubmit(newText);
 
       try {
         const res = await fetch('http://localhost:3100/api/ticket/edit-comment', {
@@ -15032,8 +15440,9 @@ Thanks!`;
           const activeComments = currentTicketCommentsList.filter(c => !c.deleted);
           if (activeComments.length > 0) {
             const latest = activeComments[activeComments.length - 1];
+            const rawAuthor = latest.author?.name || latest.author?.login || 'User';
             ticketCommentCache[currentCommentTicket.toUpperCase()] = {
-              author: latest.author?.name || latest.author?.login || 'User',
+              author: resolveCommentUserName(rawAuthor) || rawAuthor,
               text: latest.text || '',
               created: latest.created || Date.now(),
               count: activeComments.length
@@ -15097,8 +15506,9 @@ Thanks!`;
           const activeComments = currentTicketCommentsList.filter(c => !c.deleted);
           if (activeComments.length > 0) {
             const latest = activeComments[activeComments.length - 1];
+            const rawAuthor = latest.author?.name || latest.author?.login || 'User';
             ticketCommentCache[currentCommentTicket.toUpperCase()] = {
-              author: latest.author?.name || latest.author?.login || 'User',
+              author: resolveCommentUserName(rawAuthor) || rawAuthor,
               text: latest.text || '',
               created: latest.created || Date.now(),
               count: activeComments.length
@@ -15148,8 +15558,9 @@ Thanks!`;
           const activeComments = currentTicketCommentsList.filter(c => !c.deleted);
           if (activeComments.length > 0) {
             const latest = activeComments[activeComments.length - 1];
+            const rawAuthor = latest.author?.name || latest.author?.login || 'User';
             ticketCommentCache[currentCommentTicket.toUpperCase()] = {
-              author: latest.author?.name || latest.author?.login || 'User',
+              author: resolveCommentUserName(rawAuthor) || rawAuthor,
               text: latest.text || '',
               created: latest.created || Date.now(),
               count: activeComments.length
@@ -15198,8 +15609,9 @@ Thanks!`;
           const activeComments = currentTicketCommentsList.filter(c => !c.deleted);
           if (activeComments.length > 0) {
             const latest = activeComments[activeComments.length - 1];
+            const rawAuthor = latest.author?.name || latest.author?.login || 'User';
             ticketCommentCache[currentCommentTicket.toUpperCase()] = {
-              author: latest.author?.name || latest.author?.login || 'User',
+              author: resolveCommentUserName(rawAuthor) || rawAuthor,
               text: latest.text || '',
               created: latest.created || Date.now(),
               count: activeComments.length
@@ -15247,17 +15659,7 @@ Thanks!`;
       const authorLogin = currentUser?.login || 'arushdeep.gupta@enveu.com';
 
       // Normalize user mentions for YouTrack: convert any @Full Name or @@Full Name to @login
-      let normalizedText = text;
-      if (Array.isArray(allMentionUsers) && allMentionUsers.length > 0) {
-        const sorted = [...allMentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
-        sorted.forEach(u => {
-          if (u.name && u.login) {
-            const escaped = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const reg = new RegExp(`@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
-            normalizedText = normalizedText.replace(reg, `@${u.login}`);
-          }
-        });
-      }
+      const normalizedText = normalizeMentionsBeforeSubmit(text);
 
       try {
         const res = await fetch('http://localhost:3100/api/ticket/add-comment', {
@@ -15567,9 +15969,8 @@ Thanks!`;
       ta.focus();
 
       const currentPos = ta.selectionStart;
-      // In YouTrack, user mentions MUST use @<login> (e.g. @arushdeep.gupta@enveu.com or @abhinav.rajput)
-      const userTag = (login || name || '').trim();
-      const replacement = `@${userTag} `;
+      const cleanName = (name && !name.includes('@')) ? name : resolveCommentUserName(login || name);
+      const replacement = `@${cleanName} `;
       ta.setRangeText(replacement, mentionStartIndex, currentPos, 'end');
       hideMentionsPopover();
       mentionStartIndex = -1;

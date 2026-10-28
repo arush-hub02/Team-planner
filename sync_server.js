@@ -518,14 +518,7 @@ async function postYouTrackComment(issueKey, text, customToken) {
   let commentPayloadText = (text || '').trim();
   try {
     const mentionUsers = await getMentionableUsers();
-    const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
-    sorted.forEach(u => {
-      if (u.name && u.login) {
-        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`@{1,2}(${escapedName})(?![a-zA-Z0-9_])`, 'gi');
-        commentPayloadText = commentPayloadText.replace(reg, `@${u.login}`);
-      }
-    });
+    commentPayloadText = normalizeMentionsForYouTrack(commentPayloadText, mentionUsers);
   } catch (e) {
     console.warn('[postYouTrackComment] Mentions normalization note:', e.message);
   }
@@ -573,14 +566,7 @@ async function updateYouTrackComment(issueKey, commentId, text, customToken) {
   let commentPayloadText = (text || '').trim();
   try {
     const mentionUsers = await getMentionableUsers();
-    const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
-    sorted.forEach(u => {
-      if (u.name && u.login) {
-        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`@{1,2}(${escapedName})(?![a-zA-Z0-9_])`, 'gi');
-        commentPayloadText = commentPayloadText.replace(reg, `@${u.login}`);
-      }
-    });
+    commentPayloadText = normalizeMentionsForYouTrack(commentPayloadText, mentionUsers);
   } catch (e) {
     console.warn('[updateYouTrackComment] Mentions normalization note:', e.message);
   }
@@ -637,6 +623,102 @@ async function deleteYouTrackComment(issueKey, commentId, customToken) {
   return true;
 }
 
+function resolveServerAuthorName(tagOrName) {
+  if (!tagOrName) return 'Team Member';
+  let clean = String(tagOrName).trim().replace(/^@+/, '').replace(/[.,:;!?]+$/, '');
+  clean = clean.replace(/@enveu\.com@enveu\.com/gi, '@enveu.com');
+  const trailingDotMatch = clean.match(/^([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)$/i);
+  if (trailingDotMatch) clean = `${trailingDotMatch[1]}.${trailingDotMatch[2]}@enveu.com`;
+  const lower = clean.toLowerCase();
+
+  const knownMap = {
+    'arushdeep.gupta@enveu.com': 'Arush Deep Gupta',
+    'arushdeep.gupta': 'Arush Deep Gupta',
+    'arush.gupta': 'Arush Deep Gupta',
+    'arush': 'Arush Deep Gupta',
+    'chetna.sharma@enveu.com': 'Chetna Sharma',
+    'chetna.sharma': 'Chetna Sharma',
+    'chetna': 'Chetna Sharma',
+    'krishna.sharma@enveu.com': 'Krishna Sharma',
+    'krishna.sharma': 'Krishna Sharma',
+    'krishna@enveu.com': 'Krishna Sharma',
+    'krishna': 'Krishna Sharma',
+    'manish@enveu.com': 'Manish Kumar',
+    'manish.kumar@enveu.com': 'Manish Kumar',
+    'manish.kumar': 'Manish Kumar',
+    'manish': 'Manish Kumar',
+    'rahul.joshi@enveu.com': 'Rahul Joshi',
+    'rahul.joshi': 'Rahul Joshi',
+    'rahul@enveu.com': 'Rahul Joshi',
+    'rahul': 'Rahul Joshi',
+    'sonu.kumar@enveu.com': 'Sonu Kumar',
+    'sonu.kumar': 'Sonu Kumar',
+    'sonu@enveu.com': 'Sonu Kumar',
+    'sonu': 'Sonu Kumar',
+    'anshu.priya@enveu.com': 'Anshu Priya',
+    'anshu.priya': 'Anshu Priya',
+    'anshu': 'Anshu Priya',
+    'abhinav.rajput': 'Abhinav Rajput',
+    'abhinav.rajput@enveu.com': 'Abhinav Rajput',
+    'abhinav': 'Abhinav Rajput',
+    'tanisha.upadhyay': 'Tanisha Upadhyay',
+    'tanisha.upadhyay@enveu.com': 'Tanisha Upadhyay',
+    'tanisha': 'Tanisha Upadhyay',
+    'sumayya.siddiqui': 'Sumayya Siddiqui',
+    'sumayya.siddiqui@enveu.com': 'Sumayya Siddiqui',
+    'sumayya': 'Sumayya Siddiqui'
+  };
+
+  if (knownMap[lower]) return knownMap[lower];
+
+  let raw = lower.replace(/@.*$/, '');
+  if (raw.includes('.') || raw.includes('_')) {
+    return raw.split(/[._]/).filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+  }
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+function formatCommentSnippetForSheet(text) {
+  if (!text) return '';
+  let str = String(text);
+  str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
+    return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
+  });
+  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+  str = str
+    .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/[*_~`#>]/g, '');
+
+  str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9_.-]+)?)(?![a-zA-Z0-9_])/g, (match, prefix, tag) => {
+    let trailingPunct = '';
+    const punctMatch = tag.match(/[.,:;!?]+$/);
+    let actualTag = tag;
+    if (punctMatch) {
+      trailingPunct = punctMatch[0];
+      actualTag = tag.slice(0, -trailingPunct.length);
+    }
+    if (!actualTag) return match;
+    const displayName = resolveServerAuthorName(actualTag);
+    return `${prefix}@${displayName}${trailingPunct}`;
+  });
+
+  str = str.replace(/(^|[\s(])([a-zA-Z0-9_.-]+@enveu\.com)(?![a-zA-Z0-9_])/gi, (match, prefix, email) => {
+    let trailingPunct = '';
+    const punctMatch = email.match(/[.,:;!?]+$/);
+    let actualEmail = email;
+    if (punctMatch) {
+      trailingPunct = punctMatch[0];
+      actualEmail = email.slice(0, -trailingPunct.length);
+    }
+    if (!actualEmail) return match;
+    const displayName = resolveServerAuthorName(actualEmail);
+    return `${prefix}@${displayName}${trailingPunct}`;
+  });
+
+  return str.replace(/\s+/g, ' ').trim();
+}
+
 async function syncLatestCommentToSheet(ticketKey, latestComment, assignee, rowNumber) {
   if (!assignee || typeof executeComposioTool !== 'function') return null;
   try {
@@ -647,13 +729,11 @@ async function syncLatestCommentToSheet(ticketKey, latestComment, assignee, rowN
 
     let summaryForSheet = '';
     if (latestComment && latestComment.text) {
-      const cleanSnippet = (latestComment.text || '')
-        .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-        .replace(/\s+/g, ' ')
-        .trim();
+      const cleanSnippet = formatCommentSnippetForSheet(latestComment.text || '');
+      const rawAuthor = latestComment.author?.name || latestComment.author?.login || 'Team';
+      const cleanAuthor = resolveServerAuthorName(rawAuthor);
       const dateStr = new Date(latestComment.created || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-      summaryForSheet = `[${latestComment.author?.name || 'Team'} • ${dateStr}]: ${cleanSnippet.slice(0, 160)}`;
+      summaryForSheet = `[${cleanAuthor} • ${dateStr}]: ${cleanSnippet.slice(0, 160)}`;
     }
 
     let targetRow = parseInt(rowNumber, 10);
@@ -695,6 +775,41 @@ async function syncLatestCommentToSheet(ticketKey, latestComment, assignee, rowN
   }
 }
 
+function normalizeMentionsForYouTrack(text, mentionUsers) {
+  if (!text) return '';
+  let str = String(text);
+
+  // 1. Clean accidental duplicated domains like @user@enveu.com@enveu.com
+  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+  // 2. Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @krishna.sharma@enveu.com
+  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2@enveu.com');
+
+  if (Array.isArray(mentionUsers) && mentionUsers.length > 0) {
+    const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+    sorted.forEach(u => {
+      if (u.name && u.login) {
+        // Only replace if NOT already part of an email/login tag (negative lookahead for [a-zA-Z0-9_.@-])
+        const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?![a-zA-Z0-9_.@-])`, 'gi');
+        str = str.replace(reg, `$1@${u.login}`);
+      }
+      // Also check aliases if available
+      if (Array.isArray(u.aliases) && u.login) {
+        u.aliases.forEach(alias => {
+          if (!alias || alias.toLowerCase() === u.login.toLowerCase()) return;
+          const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?![a-zA-Z0-9_.@-])`, 'gi');
+          str = str.replace(regAlias, `$1@${u.login}`);
+        });
+      }
+    });
+  }
+
+  // Deduplicate any repeated @enveu.com
+  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+  return str;
+}
+
 async function getMentionableUsers() {
   const now = Date.now();
   if (cachedMentionUsers && (now - lastMentionUsersFetch < 300000)) {
@@ -702,15 +817,16 @@ async function getMentionableUsers() {
   }
 
   const teamList = [
-    { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', role: 'Team Lead' },
-    { name: 'Chetna', login: 'chetna@enveu.com', role: 'Frontend Engineer' },
-    { name: 'Krishna', login: 'krishna@enveu.com', role: 'Frontend Engineer' },
-    { name: 'Manish', login: 'manish@enveu.com', role: 'Fullstack Engineer' },
-    { name: 'Rahul', login: 'rahul@enveu.com', role: 'Frontend Engineer' },
-    { name: 'Sonu', login: 'sonu@enveu.com', role: 'Frontend Engineer' },
-    { name: 'Abhinav Rajput', login: 'abhinav.rajput', role: 'Engineering Manager' },
-    { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', role: 'QA / Product' },
-    { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', role: 'Product Manager' }
+    { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', role: 'Team Lead', aliases: ['arush', 'arushdeep.gupta', 'arush.gupta'] },
+    { name: 'Chetna Sharma', login: 'chetna.sharma@enveu.com', role: 'Frontend Engineer', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
+    { name: 'Krishna Sharma', login: 'krishna.sharma@enveu.com', role: 'Frontend Engineer', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
+    { name: 'Manish Kumar', login: 'manish@enveu.com', role: 'Fullstack Engineer', aliases: ['manish', 'manish.kumar', 'manish.kumar@enveu.com'] },
+    { name: 'Rahul Joshi', login: 'rahul.joshi@enveu.com', role: 'Frontend Engineer', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
+    { name: 'Sonu Kumar', login: 'sonu.kumar@enveu.com', role: 'Frontend Engineer', aliases: ['sonu', 'sonu.kumar', 'sonu@enveu.com'] },
+    { name: 'Anshu Priya', login: 'anshu.priya@enveu.com', role: 'Engineer', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com'] },
+    { name: 'Abhinav Rajput', login: 'abhinav.rajput', role: 'Engineering Manager', aliases: ['abhinav', 'abhinav.rajput@enveu.com'] },
+    { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', role: 'QA / Product', aliases: ['tanisha', 'tanisha.upadhyay@enveu.com'] },
+    { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', role: 'Product Manager', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] }
   ];
 
   let ytUsers = [];
@@ -746,6 +862,7 @@ async function getMentionableUsers() {
     } else {
       const existing = map.get(key);
       if (u.avatarUrl) existing.avatarUrl = u.avatarUrl;
+      if (u.name && (!existing.name || existing.name === existing.login)) existing.name = u.name;
     }
   });
 
@@ -3211,8 +3328,9 @@ async function handleRequest(req, res) {
         const list = (localStore[tKey] || []).filter(c => !c.deleted);
         if (list.length > 0) {
           const latest = list[list.length - 1];
+          const rawAuthor = latest.author?.name || latest.author?.login || 'User';
           batch[tKey] = {
-            author: latest.author?.name || latest.author?.login || 'User',
+            author: resolveServerAuthorName(rawAuthor),
             text: latest.text || '',
             created: latest.created || Date.now(),
             count: list.length
