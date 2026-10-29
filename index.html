@@ -13079,7 +13079,7 @@ Thanks!`;
       showToast(`⏳ Closing ${ticket} and updating Google Sheet...`);
 
       try {
-        const res = await fetch('http://localhost:3100/api/ticket/close', {
+        const res = await fetch((typeof API_BASE !== 'undefined' && API_BASE ? API_BASE : '') + '/api/ticket/close', {
           method: 'POST',
           headers: getApiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ ticket, fromAssignee: assignee, allTabs: false })
@@ -15357,6 +15357,24 @@ Thanks!`;
     function normalizeMentionsBeforeSubmit(text) {
       if (!text) return '';
       let str = String(text);
+      // Clean unwanted trailing @enveu.com from all team members
+      str = str.replace(/@(Anshu\s+Priya|Chetna\s+Sharma|Krishna\s+Sharma|Manish\s+Kumar|Rahul\s+Joshi|Sonu\s+Kumar|Abhinav\s+Rajput|Tanisha\s+Upadhyay|Sumayya\s+Siddiqui|Radhika\s+Goel|Sanjay\s+Debnath)@enveu\.com/gi, '@$1');
+      str = str.replace(/@(Chetna\.Sharma|Krishna\.Sharma|Manish\.Kumar|Rahul\.Joshi|sonu\.kumar|Anshu\.Priya|abhinav\.rajput|Tanisha\.Upadhyay|Sumayya\.Siddiqui|Radhika\.Goel|Sanjay\.Debnath)@enveu\.com/gi, '@$1');
+      str = str.replace(/@anshu\.priya@enveu\.com/gi, '@Anshu.Priya');
+      str = str.replace(/@chetna\.sharma@enveu\.com/gi, '@Chetna.Sharma');
+      str = str.replace(/@krishna\.sharma@enveu\.com/gi, '@Krishna.Sharma');
+      str = str.replace(/@manish\.kumar@enveu\.com/gi, '@Manish.Kumar');
+      str = str.replace(/@manish@enveu\.com/gi, '@Manish.Kumar');
+      str = str.replace(/@rahul\.joshi@enveu\.com/gi, '@Rahul.Joshi');
+      str = str.replace(/@rahul@enveu\.com/gi, '@Rahul.Joshi');
+      str = str.replace(/@sonu\.kumar@enveu\.com/gi, '@sonu.kumar');
+      str = str.replace(/@sonu@enveu\.com/gi, '@sonu.kumar');
+      str = str.replace(/@abhinav\.rajput@enveu\.com/gi, '@abhinav.rajput');
+      str = str.replace(/@tanisha\.upadhyay@enveu\.com/gi, '@Tanisha.Upadhyay');
+      str = str.replace(/@sumayya\.siddiqui@enveu\.com/gi, '@Sumayya.Siddiqui');
+      str = str.replace(/@radhika\.goel@enveu\.com/gi, '@Radhika.Goel');
+      str = str.replace(/@sanjay\.debnath@enveu\.com/gi, '@Sanjay.Debnath');
+      str = str.replace(/@sanjay@enveu\.com/gi, '@Sanjay.Debnath');
 
       // Clean duplicate domain repeats
       str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');

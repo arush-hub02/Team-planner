@@ -133,16 +133,18 @@ function saveComposioConfig(key) {
 let lastKnownActiveApiKey = loadComposioConfig();
 
 function getEffectiveComposioKey(customApiKey) {
-  if (customApiKey && typeof customApiKey === 'string' && customApiKey.startsWith('ck_')) return customApiKey.trim();
+  const resolved = resolveApiKey(customApiKey);
+  if (resolved && typeof resolved === 'string' && resolved.startsWith('ck_')) return resolved.trim();
   if (currentRequestApiKey && typeof currentRequestApiKey === 'string' && currentRequestApiKey.startsWith('ck_')) return currentRequestApiKey.trim();
   if (lastKnownActiveApiKey && typeof lastKnownActiveApiKey === 'string' && lastKnownActiveApiKey.startsWith('ck_')) return lastKnownActiveApiKey.trim();
-  const cfgKey = loadComposioConfig();
+  const cfgKey = resolveApiKey(loadComposioConfig());
   if (cfgKey && typeof cfgKey === 'string' && cfgKey.startsWith('ck_')) {
     lastKnownActiveApiKey = cfgKey.trim();
     return lastKnownActiveApiKey;
   }
-  if (COMPOSIO_KEY && typeof COMPOSIO_KEY === 'string' && COMPOSIO_KEY.startsWith('ck_')) return COMPOSIO_KEY.trim();
-  return lastKnownActiveApiKey || cfgKey || COMPOSIO_KEY || '';
+  const defaultKey = resolveApiKey(COMPOSIO_KEY);
+  if (defaultKey && typeof defaultKey === 'string' && defaultKey.startsWith('ck_')) return defaultKey.trim();
+  return lastKnownActiveApiKey || cfgKey || defaultKey || '';
 }
 
 function getEffectiveYouTrackToken(customToken) {
@@ -847,7 +849,25 @@ function normalizeMentionsForYouTrack(text, mentionUsers) {
   // 1. Collapse duplicate domain repeats like @user@enveu.com@enveu.com
   str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
   // 2. Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @Krishna.Sharma
-  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
+  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
+  // 3. Explicitly clean unwanted trailing @enveu.com on all team members whose login is not an email
+  str = str.replace(/@(Anshu\s+Priya|Chetna\s+Sharma|Krishna\s+Sharma|Manish\s+Kumar|Rahul\s+Joshi|Sonu\s+Kumar|Abhinav\s+Rajput|Tanisha\s+Upadhyay|Sumayya\s+Siddiqui|Radhika\s+Goel|Sanjay\s+Debnath)@enveu\.com/gi, '@$1');
+  str = str.replace(/@(Chetna\.Sharma|Krishna\.Sharma|Manish\.Kumar|Rahul\.Joshi|sonu\.kumar|Anshu\.Priya|abhinav\.rajput|Tanisha\.Upadhyay|Sumayya\.Siddiqui|Radhika\.Goel|Sanjay\.Debnath)@enveu\.com/gi, '@$1');
+  str = str.replace(/@anshu\.priya@enveu\.com/gi, '@Anshu.Priya');
+  str = str.replace(/@chetna\.sharma@enveu\.com/gi, '@Chetna.Sharma');
+  str = str.replace(/@krishna\.sharma@enveu\.com/gi, '@Krishna.Sharma');
+  str = str.replace(/@manish\.kumar@enveu\.com/gi, '@Manish.Kumar');
+  str = str.replace(/@manish@enveu\.com/gi, '@Manish.Kumar');
+  str = str.replace(/@rahul\.joshi@enveu\.com/gi, '@Rahul.Joshi');
+  str = str.replace(/@rahul@enveu\.com/gi, '@Rahul.Joshi');
+  str = str.replace(/@sonu\.kumar@enveu\.com/gi, '@sonu.kumar');
+  str = str.replace(/@sonu@enveu\.com/gi, '@sonu.kumar');
+  str = str.replace(/@abhinav\.rajput@enveu\.com/gi, '@abhinav.rajput');
+  str = str.replace(/@tanisha\.upadhyay@enveu\.com/gi, '@Tanisha.Upadhyay');
+  str = str.replace(/@sumayya\.siddiqui@enveu\.com/gi, '@Sumayya.Siddiqui');
+  str = str.replace(/@radhika\.goel@enveu\.com/gi, '@Radhika.Goel');
+  str = str.replace(/@sanjay\.debnath@enveu\.com/gi, '@Sanjay.Debnath');
+  str = str.replace(/@sanjay@enveu\.com/gi, '@Sanjay.Debnath');
 
   if (Array.isArray(mentionUsers) && mentionUsers.length > 0) {
     const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
@@ -2059,6 +2079,7 @@ function getCachedOrLiveSheets() {
 }
 
 // Fetch all sheets from Google Sheets (Consolidated in 1 single batch request with dynamic columns A:ZZ and rows up to 500)
+// Fetch all sheets from Google Sheets (Uses GOOGLESHEETS_BATCH_GET to fetch all sheets in 1 call, preventing 429 quota exhaustion)
 async function fetchAllSheetsFromGoogle(passedApiKey) {
   const baseTabs = [
     'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'
@@ -2075,76 +2096,53 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     });
   }
 
-  // Chunk sheets into batches of 3 to avoid Composio payload truncation and timeout
-  const chunkSize = 3;
-  const chunks = [];
-  for (let i = 0; i < sheetNames.length; i += chunkSize) {
-    chunks.push(sheetNames.slice(i, i + chunkSize));
-  }
-
   const sheetData = {};
 
-  // Execute all chunk requests in parallel via Promise.all
-  await Promise.all(chunks.map(async (chunk) => {
-    const tools = chunk.map(tab => ({
-      tool_slug: 'GOOGLESHEETS_VALUES_GET',
-      arguments: {
-        spreadsheet_id: SPREADSHEET_ID,
-        range: `${tab}!A1:I150`
-      }
-    }));
+  // 1. Primary: Fast single-request BATCH GET across all sheets
+  try {
+    const batchRanges = sheetNames.map(t => `'${t}'!A1:I150`);
+    console.log(`[fetchAllSheetsFromGoogle] Fetching all ${sheetNames.length} sheets in single GOOGLESHEETS_BATCH_GET call...`);
+    const batchRes = await executeComposioTool('GOOGLESHEETS_BATCH_GET', {
+      spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
+      ranges: batchRanges
+    }, activeKey);
 
-    try {
-      const batchResult = await executeComposioBatch(tools, activeKey);
-      if (batchResult?.data?.results) {
-        for (let idx = 0; idx < batchResult.data.results.length; idx++) {
-          const r = batchResult.data.results[idx];
-          const tab = chunk[idx];
-          if (!r.response?.error && !r.response?.data?.error) {
-            let vals = r.response?.data?.values;
-            const isTruncated = !vals || !Array.isArray(vals) || vals.some(row => 
-              Array.isArray(row) && row.some(cell => typeof cell === 'string' && /^\.\.\.\d+\s+more\s+items/i.test(cell.trim()))
-            );
-            if (!isTruncated && vals.length > 0) {
-              sheetData[tab] = vals;
-            } else {
-              console.log(`[fetchAllSheetsFromGoogle] Tab "${tab}" needs individual fetch (batch was truncated or preview only)...`);
-              try {
-                const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-                  spreadsheet_id: SPREADSHEET_ID,
-                  range: `${tab}!A1:I150`
-                }, activeKey);
-                const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
-                if (Array.isArray(singleVals) && singleVals.length > 0) {
-                  sheetData[tab] = singleVals;
-                }
-              } catch (singleErr) {
-                console.warn(`[fetchAllSheetsFromGoogle] Individual fetch for "${tab}" failed:`, singleErr.message);
-              }
-            }
-          }
+    const respObj = batchRes?.data?.results?.[0]?.response;
+    const valRanges = respObj?.data?.valueRanges || respObj?.data_preview?.valueRanges;
+    if (Array.isArray(valRanges) && valRanges.length > 0) {
+      for (const vr of valRanges) {
+        const match = (vr.range || '').match(/^'?([^'!]+)'?!/);
+        const tabTitle = match ? match[1].trim() : '';
+        const resolvedTab = sheetNames.find(s => s.trim().toUpperCase() === tabTitle.toUpperCase()) || tabTitle;
+        if (resolvedTab && Array.isArray(vr.values) && vr.values.length > 0) {
+          sheetData[resolvedTab] = vr.values;
         }
       }
-    } catch (chunkErr) {
-      console.warn(`[fetchAllSheetsFromGoogle] Error fetching chunk [${chunk.join(', ')}]:`, chunkErr.message);
+      console.log(`[fetchAllSheetsFromGoogle] GOOGLESHEETS_BATCH_GET retrieved ${Object.keys(sheetData).length}/${sheetNames.length} sheets successfully.`);
     }
-  }));
+  } catch (batchErr) {
+    console.warn('[fetchAllSheetsFromGoogle] Batch get note:', batchErr.message);
+  }
 
-  // Ensure every tab in sheetNames is present; if missing, fetch in parallel or merge with cache
+  // 2. Fallback for any sheets not captured in batch get
   const missingTabs = sheetNames.filter(tab => !sheetData[tab] || sheetData[tab].length === 0);
   if (missingTabs.length > 0) {
+    console.log(`[fetchAllSheetsFromGoogle] ${missingTabs.length} tab(s) need fallback fetch: ${missingTabs.join(', ')}`);
     await Promise.all(missingTabs.map(async (tab) => {
       try {
         const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
           spreadsheet_id: SPREADSHEET_ID,
-          range: tab.includes(' ') ? `'${tab}'!A1:I150` : `${tab}!A1:I150`
+          range: `'${tab}'!A1:I150`
         }, activeKey);
         const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
         if (Array.isArray(singleVals) && singleVals.length > 0) {
           sheetData[tab] = singleVals;
           return;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.warn(`[fetchAllSheetsFromGoogle] Fallback for "${tab}" failed:`, err.message);
+      }
 
       if (cache && cache.data && cache.data[tab] && cache.data[tab].length > 0 && !cache.data[tab].some(r => r.some(c => typeof c === 'string' && c.includes('...')))) {
         sheetData[tab] = cache.data[tab];
@@ -2152,7 +2150,7 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     }));
   }
 
-  // Sanitize each tab in sheetData to strip out ghost rows (e.g. left behind with only Tag or row #)
+  // Sanitize each tab in sheetData to strip out ghost rows
   for (const tab of Object.keys(sheetData)) {
     sheetData[tab] = sanitizeSheetRows(tab, sheetData[tab]);
   }
@@ -2165,7 +2163,6 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     }
   }
 
-  // CRITICAL GUARD: Never wipe cache if 0 tickets were fetched from Google Sheets!
   if (totalTicketsAfterMerge > 0) {
     cache = {
       data: sheetData,
@@ -4681,12 +4678,21 @@ async function handleRequest(req, res) {
         }
 
         // 2. Write updates to Google Sheets
-        await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        const deleteActiveKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const deleteRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
-        });
+        }, deleteActiveKey);
+
+        const isDeleteOk = deleteRes && !deleteRes.error && !deleteRes.isError && deleteRes.successful !== false &&
+          (!deleteRes.data?.results || !deleteRes.data.results.some(r => r.response && r.response.successful === false));
+        if (!isDeleteOk) {
+          const errMsg = deleteRes?.error || deleteRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets delete update failed';
+          console.error(`❌ [Delete Ticket] Google Sheets update failed:`, errMsg);
+          throw new Error(`Google Sheets update failed: ${errMsg}`);
+        }
 
         // 3. Update cache & persist to disk
         cache = {
@@ -4743,12 +4749,14 @@ async function handleRequest(req, res) {
           }
         }
 
-        // 1. Fast sheet data retrieval from memory cache
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
+        // 1. Sheet data retrieval (from cache or live)
         let working = getCachedOrLiveSheets();
         if (!working) {
-          working = await fetchAllSheetsFromGoogle();
+          working = await fetchAllSheetsFromGoogle(activeKey);
         }
-        const { sheetNames, sheetData } = working;
+        let { sheetNames, sheetData } = working;
 
         let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
         let closedRows = sheetData[closedTab] || [];
@@ -4757,9 +4765,7 @@ async function handleRequest(req, res) {
           closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
-
-        // Search and remove from ALL non-closed tabs (including FE Ready and member tabs) to completely prevent ghost duplicates!
+        // Search and remove from ALL non-closed tabs to completely prevent ghost duplicates!
         const memberTabs = sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase());
 
         let movedTicketData = null;
@@ -4790,9 +4796,10 @@ async function handleRequest(req, res) {
             const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
             const endCol = colIndexToLetter(maxTabCols - 1);
 
-            // Pad with empty rows to cleanly overwrite deleted row in Google Sheets
+            // Pad with empty rows to thoroughly overwrite deleted row and clear extra rows in Google Sheets
+            const clearLength = Math.max(oldLength, rows.length + 5, 20);
             const paddedRows = [...newRows];
-            while (paddedRows.length < oldLength) {
+            while (paddedRows.length < clearLength) {
               paddedRows.push(new Array(maxTabCols).fill(''));
             }
 
@@ -4805,15 +4812,67 @@ async function handleRequest(req, res) {
             sheetData[tab] = newRows;
             affectedMemberTabs.push(tab);
             updatePayload.push({
-              range: tab.includes(' ') ? `'${tab}'!A1:${endCol}${normalizedPaddedRows.length}` : `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
+              range: `'${tab}'!A1:${endCol}${normalizedPaddedRows.length}`,
               majorDimension: 'ROWS',
               values: normalizedPaddedRows
             });
           }
         }
 
+        // If not found in cache, perform live fetch from Google Sheets before failing
         if (!movedTicketData) {
-          // Check if ticket is already in CLOSED tab
+          console.log(`[Close Ticket] ${ticketKey} not found in cache, performing live fetch from Google Sheets...`);
+          working = await fetchAllSheetsFromGoogle(activeKey);
+          sheetData = working.sheetData;
+          sheetNames = working.sheetNames;
+          closedRows = sheetData[closedTab] || [];
+
+          for (const tab of memberTabs) {
+            if (!sheetData[tab]) continue;
+            const rows = sheetData[tab] || [];
+            const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+
+            if (targetIdx > 0) {
+              removedCount++;
+              if (!movedTicketData) {
+                movedTicketData = [...rows[targetIdx]];
+              }
+              const oldLength = rows.length;
+              const newRows = rows.filter((r, idx) => {
+                if (idx === targetIdx) return false;
+                if (idx > 0 && !isRowValidTask(r, tab === 'PLAN')) return false;
+                return true;
+              });
+              newRows.forEach((r, idx) => {
+                if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
+              });
+
+              const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
+              const endCol = colIndexToLetter(maxTabCols - 1);
+              const clearLength = Math.max(oldLength, rows.length + 5, 20);
+              const paddedRows = [...newRows];
+              while (paddedRows.length < clearLength) {
+                paddedRows.push(new Array(maxTabCols).fill(''));
+              }
+
+              const normalizedPaddedRows = paddedRows.map(r => {
+                const copy = [...r];
+                while (copy.length < maxTabCols) copy.push('');
+                return copy.slice(0, maxTabCols);
+              });
+
+              sheetData[tab] = newRows;
+              affectedMemberTabs.push(tab);
+              updatePayload.push({
+                range: `'${tab}'!A1:${endCol}${normalizedPaddedRows.length}`,
+                majorDimension: 'ROWS',
+                values: normalizedPaddedRows
+              });
+            }
+          }
+        }
+
+        if (!movedTicketData) {
           const alreadyInClosed = closedRows.find((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
           if (alreadyInClosed) {
             movedTicketData = [...alreadyInClosed];
@@ -4853,21 +4912,25 @@ async function handleRequest(req, res) {
 
         sheetData[closedTab] = cleanClosedRows;
         updatePayload.push({
-          range: closedTab.includes(' ') ? `'${closedTab}'!A1:${closedEndCol}${normalizedClosedRows.length}` : `${closedTab}!A1:${closedEndCol}${normalizedClosedRows.length}`,
+          range: `'${closedTab}'!A1:${closedEndCol}${normalizedClosedRows.length}`,
           majorDimension: 'ROWS',
           values: normalizedClosedRows
         });
 
-        // 2. Batch update Google Sheets
+        // 2. Batch update Google Sheets with activeKey
+        console.log(`[Close Ticket] Sending batch update to Google Sheets (${updatePayload.length} ranges)...`);
         const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
-        });
+        }, activeKey);
 
-        if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
-          const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+        const isUpdateOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
+          (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
+
+        if (!isUpdateOk) {
+          const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed or returned empty response';
           console.error(`❌ [Close Ticket] Google Sheets batch update failed:`, errMsg);
           throw new Error(`Google Sheets update failed: ${errMsg}`);
         }
@@ -4888,11 +4951,9 @@ async function handleRequest(req, res) {
               horizontal_alignment: 'CENTER'
             }
           }
-        ]).catch(e => console.warn('[Close Ticket] Format note:', e.message));
+        ], activeKey).catch(e => console.warn('[Close Ticket] Format note:', e.message));
 
-
-
-        // 5. Update server cache & persist to disk
+        // 4. Update server cache & persist to disk
         cache = {
           sheetNames,
           data: sheetData,
@@ -4900,7 +4961,7 @@ async function handleRequest(req, res) {
         };
         saveDiskCache(cache);
 
-        console.log(`✅ [Close Ticket Complete] ${ticketKey} moved from ${removedCount} tab(s) to ${closedTab}`);
+        console.log(`✅ [Close Ticket Complete] ${ticketKey} moved from ${removedCount} tab(s) to ${closedTab} and persisted to Google Sheets.`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
@@ -5028,8 +5089,10 @@ async function handleRequest(req, res) {
           data: updatePayload
         }, activeKey);
 
-        if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
-          const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+        const isReopenOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
+          (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
+        if (!isReopenOk) {
+          const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
           console.error(`❌ [Reopen Ticket] Google Sheets batch update failed:`, errMsg);
           throw new Error(`Google Sheets update failed: ${errMsg}`);
         }
