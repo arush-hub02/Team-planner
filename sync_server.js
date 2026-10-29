@@ -896,6 +896,22 @@ function normalizeMentionsForYouTrack(text, mentionUsers) {
     });
   }
 
+  // Final safeguard: strip any trailing @enveu.com for non-email logins
+  const nonEmailLogins = [
+    'Anshu\\.Priya', 'anshu\\.priya',
+    'Chetna\\.Sharma', 'chetna\\.sharma',
+    'Krishna\\.Sharma', 'krishna\\.sharma',
+    'Manish\\.Kumar', 'manish\\.kumar',
+    'Rahul\\.Joshi', 'rahul\\.joshi',
+    'sonu\\.kumar', 'Sonu\\.Kumar',
+    'abhinav\\.rajput', 'Abhinav\\.Rajput',
+    'Tanisha\\.Upadhyay', 'tanisha\\.upadhyay',
+    'Sumayya\\.Siddiqui', 'sumayya\\.siddiqui',
+    'Radhika\\.Goel', 'radhika\\.goel',
+    'Sanjay\\.Debnath', 'sanjay\\.debnath'
+  ];
+  str = str.replace(new RegExp('(^|[\\s(])@(' + nonEmailLogins.join('|') + ')@enveu\\.com(?![a-zA-Z0-9_.-])', 'gi'), '$1@$2');
+
   return str;
 }
 
@@ -2097,57 +2113,29 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   }
 
   const sheetData = {};
+  console.log(`[fetchAllSheetsFromGoogle] Fetching all ${sheetNames.length} sheets sequentially with GOOGLESHEETS_VALUES_GET...`);
 
-  // 1. Primary: Fast single-request BATCH GET across all sheets
-  try {
-    const batchRanges = sheetNames.map(t => `'${t}'!A1:I150`);
-    console.log(`[fetchAllSheetsFromGoogle] Fetching all ${sheetNames.length} sheets in single GOOGLESHEETS_BATCH_GET call...`);
-    const batchRes = await executeComposioTool('GOOGLESHEETS_BATCH_GET', {
-      spreadsheet_id: SPREADSHEET_ID,
-      spreadsheetId: SPREADSHEET_ID,
-      ranges: batchRanges
-    }, activeKey);
+  for (const tab of sheetNames) {
+    try {
+      const res = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+        spreadsheet_id: SPREADSHEET_ID,
+        range: `'${tab}'!A1:I150`
+      }, activeKey);
 
-    const respObj = batchRes?.data?.results?.[0]?.response;
-    const valRanges = respObj?.data?.valueRanges || respObj?.data_preview?.valueRanges;
-    if (Array.isArray(valRanges) && valRanges.length > 0) {
-      for (const vr of valRanges) {
-        const match = (vr.range || '').match(/^'?([^'!]+)'?!/);
-        const tabTitle = match ? match[1].trim() : '';
-        const resolvedTab = sheetNames.find(s => s.trim().toUpperCase() === tabTitle.toUpperCase()) || tabTitle;
-        if (resolvedTab && Array.isArray(vr.values) && vr.values.length > 0) {
-          sheetData[resolvedTab] = vr.values;
-        }
-      }
-      console.log(`[fetchAllSheetsFromGoogle] GOOGLESHEETS_BATCH_GET retrieved ${Object.keys(sheetData).length}/${sheetNames.length} sheets successfully.`);
-    }
-  } catch (batchErr) {
-    console.warn('[fetchAllSheetsFromGoogle] Batch get note:', batchErr.message);
-  }
-
-  // 2. Fallback for any sheets not captured in batch get
-  const missingTabs = sheetNames.filter(tab => !sheetData[tab] || sheetData[tab].length === 0);
-  if (missingTabs.length > 0) {
-    console.log(`[fetchAllSheetsFromGoogle] ${missingTabs.length} tab(s) need fallback fetch: ${missingTabs.join(', ')}`);
-    await Promise.all(missingTabs.map(async (tab) => {
-      try {
-        const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-          spreadsheet_id: SPREADSHEET_ID,
-          range: `'${tab}'!A1:I150`
-        }, activeKey);
-        const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
-        if (Array.isArray(singleVals) && singleVals.length > 0) {
-          sheetData[tab] = singleVals;
-          return;
-        }
-      } catch (err) {
-        console.warn(`[fetchAllSheetsFromGoogle] Fallback for "${tab}" failed:`, err.message);
-      }
-
-      if (cache && cache.data && cache.data[tab] && cache.data[tab].length > 0 && !cache.data[tab].some(r => r.some(c => typeof c === 'string' && c.includes('...')))) {
+      const vals = res?.data?.values || (res?.data?.results?.[0]?.response?.data?.values);
+      if (Array.isArray(vals) && vals.length > 0) {
+        sheetData[tab] = vals;
+      } else if (cache?.data?.[tab] && cache.data[tab].length > 0) {
         sheetData[tab] = cache.data[tab];
       }
-    }));
+    } catch (err) {
+      console.warn(`[fetchAllSheetsFromGoogle] Error fetching tab "${tab}":`, err.message);
+      if (cache?.data?.[tab] && cache.data[tab].length > 0) {
+        sheetData[tab] = cache.data[tab];
+      }
+    }
+    // Breather pause between requests to respect rate limits
+    await new Promise(r => setTimeout(r, 100));
   }
 
   // Sanitize each tab in sheetData to strip out ghost rows
@@ -5811,15 +5799,17 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
         const maxColIdx = Math.max(8, newRow.length - 1);
         const endLetter = colIndexToLetter(maxColIdx);
         const writeRange = `${tabName}!A${targetRowNum}:${endLetter}${targetRowNum}`;
+        const addActiveKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
+          spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
             range: writeRange,
             majorDimension: 'ROWS',
             values: [newRow]
           }]
-        });
+        }, addActiveKey);
 
         // 3. Format cells
         const tagCol = finalTag === 'Support'

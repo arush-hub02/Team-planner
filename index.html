@@ -15421,6 +15421,22 @@ Thanks!`;
         }
       });
 
+      // Final safeguard: strip any trailing @enveu.com for non-email logins
+      const nonEmailLogins = [
+        'Anshu\\.Priya', 'anshu\\.priya',
+        'Chetna\\.Sharma', 'chetna\\.sharma',
+        'Krishna\\.Sharma', 'krishna\\.sharma',
+        'Manish\\.Kumar', 'manish\\.kumar',
+        'Rahul\\.Joshi', 'rahul\\.joshi',
+        'sonu\\.kumar', 'Sonu\\.Kumar',
+        'abhinav\\.rajput', 'Abhinav\\.Rajput',
+        'Tanisha\\.Upadhyay', 'tanisha\\.upadhyay',
+        'Sumayya\\.Siddiqui', 'sumayya\\.siddiqui',
+        'Radhika\\.Goel', 'radhika\\.goel',
+        'Sanjay\\.Debnath', 'sanjay\\.debnath'
+      ];
+      str = str.replace(new RegExp('(^|[\\s(])@(' + nonEmailLogins.join('|') + ')@enveu\\.com(?![a-zA-Z0-9_.-])', 'gi'), '$1@$2');
+
       return str;
     }
 
