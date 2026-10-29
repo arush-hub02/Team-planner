@@ -132,6 +132,31 @@ function saveComposioConfig(key) {
 
 let lastKnownActiveApiKey = loadComposioConfig();
 
+function getEffectiveComposioKey(customApiKey) {
+  if (customApiKey && typeof customApiKey === 'string' && customApiKey.startsWith('ck_')) return customApiKey.trim();
+  if (currentRequestApiKey && typeof currentRequestApiKey === 'string' && currentRequestApiKey.startsWith('ck_')) return currentRequestApiKey.trim();
+  if (lastKnownActiveApiKey && typeof lastKnownActiveApiKey === 'string' && lastKnownActiveApiKey.startsWith('ck_')) return lastKnownActiveApiKey.trim();
+  const cfgKey = loadComposioConfig();
+  if (cfgKey && typeof cfgKey === 'string' && cfgKey.startsWith('ck_')) {
+    lastKnownActiveApiKey = cfgKey.trim();
+    return lastKnownActiveApiKey;
+  }
+  if (COMPOSIO_KEY && typeof COMPOSIO_KEY === 'string' && COMPOSIO_KEY.startsWith('ck_')) return COMPOSIO_KEY.trim();
+  return lastKnownActiveApiKey || cfgKey || COMPOSIO_KEY || '';
+}
+
+function getEffectiveYouTrackToken(customToken) {
+  if (customToken && typeof customToken === 'string' && customToken.trim()) return customToken.trim();
+  if (currentRequestYouTrackToken && typeof currentRequestYouTrackToken === 'string' && currentRequestYouTrackToken.trim()) return currentRequestYouTrackToken.trim();
+  if (activeYouTrackToken && typeof activeYouTrackToken === 'string' && activeYouTrackToken.trim()) return activeYouTrackToken.trim();
+  const cfg = loadYouTrackConfig();
+  if (cfg && cfg.token && typeof cfg.token === 'string' && cfg.token.trim()) {
+    activeYouTrackToken = cfg.token.trim();
+    return activeYouTrackToken;
+  }
+  return '';
+}
+
 function resolveApiKey(rawKey) {
   if (!rawKey || typeof rawKey !== 'string') return lastKnownActiveApiKey || loadComposioConfig() || '';
   const trimmed = rawKey.trim();
@@ -152,12 +177,21 @@ const YOUTRACK_CONFIG_PATH = path.join(os.tmpdir(), 'task_sync_youtrack_config.j
 function loadYouTrackConfig() {
   try {
     if (fs.existsSync(YOUTRACK_CONFIG_PATH)) {
-      const parsed = JSON.parse(fs.readFileSync(YOUTRACK_CONFIG_PATH, 'utf8'));
+      const raw = fs.readFileSync(YOUTRACK_CONFIG_PATH, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return {
+          baseUrl: YOUTRACK_BASE_URL,
+          token: parsed.trim(),
+          stateField: 'State',
+          lastUpdated: new Date().toISOString()
+        };
+      }
       return {
-        baseUrl: parsed.baseUrl || YOUTRACK_BASE_URL,
-        token: parsed.token || process.env.YOUTRACK_TOKEN || '',
-        stateField: parsed.stateField || 'State',
-        lastUpdated: parsed.lastUpdated || null
+        baseUrl: parsed?.baseUrl || YOUTRACK_BASE_URL,
+        token: parsed?.token || (typeof parsed === 'string' ? parsed : '') || process.env.YOUTRACK_TOKEN || '',
+        stateField: parsed?.stateField || 'State',
+        lastUpdated: parsed?.lastUpdated || null
       };
     }
   } catch (e) {
@@ -173,7 +207,25 @@ function loadYouTrackConfig() {
 
 function saveYouTrackConfig(cfg) {
   try {
-    fs.writeFileSync(YOUTRACK_CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+    let toSave;
+    if (typeof cfg === 'string' && cfg.trim()) {
+      toSave = {
+        baseUrl: YOUTRACK_BASE_URL,
+        token: cfg.trim(),
+        stateField: 'State',
+        lastUpdated: new Date().toISOString()
+      };
+    } else if (cfg && typeof cfg === 'object') {
+      toSave = {
+        baseUrl: cfg.baseUrl || YOUTRACK_BASE_URL,
+        token: cfg.token || '',
+        stateField: cfg.stateField || 'State',
+        lastUpdated: cfg.lastUpdated || new Date().toISOString()
+      };
+    } else {
+      return false;
+    }
+    fs.writeFileSync(YOUTRACK_CONFIG_PATH, JSON.stringify(toSave, null, 2), 'utf8');
     return true;
   } catch (e) {
     console.warn('Could not write youtrack_config.json:', e.message);
@@ -296,7 +348,7 @@ async function verifyYouTrackToken(tokenToTest, customUrl) {
 
 async function fetchYouTrackIssue(issueKey, customToken) {
   const cfg = loadYouTrackConfig();
-  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const token = getEffectiveYouTrackToken(customToken);
   if (!token) {
     const err = new Error('YouTrack Access Token is missing. Please configure your token in the dashboard.');
     err.status = 401;
@@ -460,7 +512,7 @@ function httpsYouTrackRequest({ method = 'GET', apiPath, body = null, token, tim
 
 async function fetchYouTrackComments(issueKey, customToken) {
   const cfg = loadYouTrackConfig();
-  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const token = getEffectiveYouTrackToken(customToken);
   if (!token) return [];
 
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
@@ -506,7 +558,7 @@ async function fetchYouTrackComments(issueKey, customToken) {
 
 async function postYouTrackComment(issueKey, text, customToken) {
   const cfg = loadYouTrackConfig();
-  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const token = getEffectiveYouTrackToken(customToken);
   if (!token) throw new Error('YouTrack Access Token is missing.');
 
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
@@ -666,7 +718,13 @@ function resolveServerAuthorName(tagOrName) {
     'tanisha': 'Tanisha Upadhyay',
     'sumayya.siddiqui': 'Sumayya Siddiqui',
     'sumayya.siddiqui@enveu.com': 'Sumayya Siddiqui',
-    'sumayya': 'Sumayya Siddiqui'
+    'sumayya': 'Sumayya Siddiqui',
+    'radhika.goel': 'Radhika Goel',
+    'radhika.goel@enveu.com': 'Radhika Goel',
+    'radhika': 'Radhika Goel',
+    'sanjay.debnath': 'Sanjay Debnath',
+    'sanjay.debnath@enveu.com': 'Sanjay Debnath',
+    'sanjay': 'Sanjay Debnath'
   };
 
   if (knownMap[lower]) return knownMap[lower];
@@ -684,11 +742,18 @@ function formatCommentSnippetForSheet(text) {
   str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
     return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
   });
-  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+  str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
   str = str
     .replace(/!\[.*?\]\(.*?\)/g, '[Image]')
     .replace(/\[(.*?)\]\(.*?\)/g, '$1')
     .replace(/[*_~`#>]/g, '');
+
+  const multiWord = ['Arush Deep Gupta', 'Chetna Sharma', 'Krishna Sharma', 'Manish Kumar', 'Rahul Joshi', 'Sonu Kumar', 'Anshu Priya', 'Abhinav Rajput', 'Tanisha Upadhyay', 'Sumayya Siddiqui', 'Radhika Goel', 'Sanjay Debnath'];
+  multiWord.forEach(fullName => {
+    const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?:@enveu\\.com)?(?![a-zA-Z0-9_])`, 'gi');
+    str = str.replace(reg, `$1@${fullName}`);
+  });
 
   str = str.replace(/(^|[\s(])@{1,2}([a-zA-Z0-9_.-]+(?:@[a-zA-Z0-9_.-]+)?)(?![a-zA-Z0-9_])/g, (match, prefix, tag) => {
     let trailingPunct = '';
@@ -779,18 +844,18 @@ function normalizeMentionsForYouTrack(text, mentionUsers) {
   if (!text) return '';
   let str = String(text);
 
-  // 1. Clean accidental duplicated domains like @user@enveu.com@enveu.com
-  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
-  // 2. Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @krishna.sharma@enveu.com
-  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2@enveu.com');
+  // 1. Collapse duplicate domain repeats like @user@enveu.com@enveu.com
+  str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
+  // 2. Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @Krishna.Sharma
+  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
 
   if (Array.isArray(mentionUsers) && mentionUsers.length > 0) {
     const sorted = [...mentionUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
     sorted.forEach(u => {
       if (u.name && u.login) {
-        // Only replace if NOT already part of an email/login tag (negative lookahead for [a-zA-Z0-9_.@-])
+        // Match @Name or @Name@enveu.com
         const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?![a-zA-Z0-9_.@-])`, 'gi');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?:@enveu\\.com)?(?![a-zA-Z0-9_.-])`, 'gi');
         str = str.replace(reg, `$1@${u.login}`);
       }
       // Also check aliases if available
@@ -798,15 +863,19 @@ function normalizeMentionsForYouTrack(text, mentionUsers) {
         u.aliases.forEach(alias => {
           if (!alias || alias.toLowerCase() === u.login.toLowerCase()) return;
           const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?![a-zA-Z0-9_.@-])`, 'gi');
+          const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?:@enveu\\.com)?(?![a-zA-Z0-9_.-])`, 'gi');
           str = str.replace(regAlias, `$1@${u.login}`);
         });
+      }
+      // If user login does NOT contain @, strip any trailing @enveu.com on their login
+      if (u.login && !u.login.includes('@')) {
+        const escapedLogin = u.login.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regLoginEmail = new RegExp(`(^|[\\s(])@(${escapedLogin})@enveu\\.com(?![a-zA-Z0-9_.-])`, 'gi');
+        str = str.replace(regLoginEmail, `$1@${u.login}`);
       }
     });
   }
 
-  // Deduplicate any repeated @enveu.com
-  str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
   return str;
 }
 
@@ -817,16 +886,18 @@ async function getMentionableUsers() {
   }
 
   const teamList = [
-    { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', role: 'Team Lead', aliases: ['arush', 'arushdeep.gupta', 'arush.gupta'] },
-    { name: 'Chetna Sharma', login: 'chetna.sharma@enveu.com', role: 'Frontend Engineer', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
-    { name: 'Krishna Sharma', login: 'krishna.sharma@enveu.com', role: 'Frontend Engineer', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
-    { name: 'Manish Kumar', login: 'manish@enveu.com', role: 'Fullstack Engineer', aliases: ['manish', 'manish.kumar', 'manish.kumar@enveu.com'] },
-    { name: 'Rahul Joshi', login: 'rahul.joshi@enveu.com', role: 'Frontend Engineer', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
-    { name: 'Sonu Kumar', login: 'sonu.kumar@enveu.com', role: 'Frontend Engineer', aliases: ['sonu', 'sonu.kumar', 'sonu@enveu.com'] },
-    { name: 'Anshu Priya', login: 'anshu.priya@enveu.com', role: 'Engineer', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com'] },
+    { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', role: 'Team Lead', aliases: ['arush', 'arushdeep.gupta', 'arush.gupta', 'arushdeep'] },
+    { name: 'Chetna Sharma', login: 'Chetna.Sharma', role: 'Frontend Engineer', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
+    { name: 'Krishna Sharma', login: 'Krishna.Sharma', role: 'Frontend Engineer', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
+    { name: 'Manish Kumar', login: 'Manish.Kumar', role: 'Fullstack Engineer', aliases: ['manish', 'manish.kumar', 'manish@enveu.com', 'manish.kumar@enveu.com'] },
+    { name: 'Rahul Joshi', login: 'Rahul.Joshi', role: 'Frontend Engineer', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
+    { name: 'Sonu Kumar', login: 'sonu.kumar', role: 'Frontend Engineer', aliases: ['sonu', 'sonu.kumar@enveu.com', 'sonu@enveu.com'] },
+    { name: 'Anshu Priya', login: 'Anshu.Priya', role: 'Engineer', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com', 'anshu.priya@enveu.com'] },
     { name: 'Abhinav Rajput', login: 'abhinav.rajput', role: 'Engineering Manager', aliases: ['abhinav', 'abhinav.rajput@enveu.com'] },
     { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', role: 'QA / Product', aliases: ['tanisha', 'tanisha.upadhyay@enveu.com'] },
-    { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', role: 'Product Manager', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] }
+    { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', role: 'Product Manager', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] },
+    { name: 'Radhika Goel', login: 'Radhika.Goel', role: 'QA', aliases: ['radhika', 'radhika.goel@enveu.com', 'radhika.goel'] },
+    { name: 'Sanjay Debnath', login: 'Sanjay.Debnath', role: 'Engineer', aliases: ['sanjay', 'sanjay.debnath@enveu.com', 'sanjay.debnath'] }
   ];
 
   let ytUsers = [];
@@ -917,7 +988,7 @@ async function executeYouTrackCommand(issueKey, commandQuery, customToken) {
 
 async function updateYouTrackIssueState(issueKey, newState, customToken) {
   const cfg = loadYouTrackConfig();
-  const token = (customToken || currentRequestYouTrackToken || activeYouTrackToken || cfg.token || '').trim();
+  const token = getEffectiveYouTrackToken(customToken);
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
   const match = String(issueKey).trim().toUpperCase().match(/\b[A-Z][A-Z0-9]+-\d+\b/);
   const cleanKey = match ? match[0] : String(issueKey).trim().toUpperCase();
@@ -1652,7 +1723,7 @@ async function manageComposioConnections(apiKey, toolkitsWithActions) {
 }
 
 async function executeComposioTool(toolSlug, args, customApiKey) {
-  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+  const activeKey = getEffectiveComposioKey(customApiKey);
   let sid = await getOrInitSession(activeKey);
 
   let callRes = await sendComposioMcp('tools/call', {
@@ -1691,7 +1762,7 @@ async function executeComposioTool(toolSlug, args, customApiKey) {
 
 async function executeComposioBatch(toolsList, customApiKey) {
   if (!toolsList || toolsList.length === 0) return null;
-  const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+  const activeKey = getEffectiveComposioKey(customApiKey);
   let sid = await getOrInitSession(activeKey);
 
   let callRes = await sendComposioMcp('tools/call', {
@@ -1926,9 +1997,33 @@ function colIndexToLetter(colIdx) {
   return letter;
 }
 
+const USER_DISPLAY_MAP = {
+  'arush deep gupta': 'ARUSH',
+  'arush': 'ARUSH',
+  'chetna sharma': 'CHETNA',
+  'chetna': 'CHETNA',
+  'krishna sharma': 'KRISHNA',
+  'krishna': 'KRISHNA',
+  'manish kumar': 'MANISH',
+  'manish': 'MANISH',
+  'rahul joshi': 'RAHUL',
+  'rahul': 'RAHUL',
+  'sonu kumar': 'SONU',
+  'sonu': 'SONU',
+  'fe ready': 'FE Ready',
+  'feready': 'FE Ready',
+  'fe-ready': 'FE Ready',
+  'closed': 'CLOSED',
+  'upcoming': 'UPCOMING',
+  'plan': 'PLAN',
+  'pulse': 'PULSE'
+};
+
 function resolveActualTabName(inputName) {
   if (!inputName) return '';
   const trimmed = String(inputName).trim();
+  const lower = trimmed.toLowerCase();
+  if (USER_DISPLAY_MAP[lower]) return USER_DISPLAY_MAP[lower];
   const known = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'];
   const allSheets = (cache && cache.sheetNames) ? cache.sheetNames : known;
   const found = allSheets.find(s => s.toUpperCase() === trimmed.toUpperCase());
@@ -2039,19 +2134,20 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   const missingTabs = sheetNames.filter(tab => !sheetData[tab] || sheetData[tab].length === 0);
   if (missingTabs.length > 0) {
     await Promise.all(missingTabs.map(async (tab) => {
+      try {
+        const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+          spreadsheet_id: SPREADSHEET_ID,
+          range: tab.includes(' ') ? `'${tab}'!A1:I150` : `${tab}!A1:I150`
+        }, activeKey);
+        const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
+        if (Array.isArray(singleVals) && singleVals.length > 0) {
+          sheetData[tab] = singleVals;
+          return;
+        }
+      } catch (_) {}
+
       if (cache && cache.data && cache.data[tab] && cache.data[tab].length > 0 && !cache.data[tab].some(r => r.some(c => typeof c === 'string' && c.includes('...')))) {
         sheetData[tab] = cache.data[tab];
-      } else {
-        try {
-          const singleRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-            spreadsheet_id: SPREADSHEET_ID,
-            range: `${tab}!A1:I150`
-          }, activeKey);
-          const singleVals = singleRes?.data?.values || (singleRes?.data?.results?.[0]?.response?.data?.values);
-          if (Array.isArray(singleVals) && singleVals.length > 0) {
-            sheetData[tab] = singleVals;
-          }
-        } catch (_) {}
       }
     }));
   }
@@ -2160,11 +2256,19 @@ async function handleRequest(req, res) {
 
   if (req.method === 'POST' && MUTATION_ROUTES.has(urlObj.pathname)) {
     const originalOn = req.on.bind(req);
+    const savedApiKey = resolvedKey || lastKnownActiveApiKey;
+    const savedUser = incomingUser ? incomingUser.trim().toLowerCase() : 'workspace';
+    const savedYtToken = incomingYtToken ? incomingYtToken.trim() : (activeYouTrackToken || loadYouTrackConfig().token);
+
     req.on = function(event, listener) {
       if (event === 'end') {
         return originalOn('end', function(...args) {
           runSerializedMutation(async () => {
             try {
+              // Restore scoped per-request keys in the mutation execution context
+              currentRequestApiKey = savedApiKey || currentRequestApiKey || lastKnownActiveApiKey;
+              currentRequestUser = savedUser;
+              currentRequestYouTrackToken = savedYtToken;
               await listener.apply(this, args);
             } catch (err) {
               console.error(`[Mutation Queue Error] ${urlObj.pathname}:`, err);
@@ -2839,7 +2943,8 @@ async function handleRequest(req, res) {
 
       // Cold start (no cache at all) OR explicit force refresh:
       try {
-        const fetched = await fetchAllSheetsFromGoogle();
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const fetched = await fetchAllSheetsFromGoogle(activeKey);
         sheetNames = fetched.sheetNames;
         sheetData = fetched.sheetData;
         wasCached = false;
@@ -3013,16 +3118,18 @@ async function handleRequest(req, res) {
 
         console.log(`[Update Internal Status] Tab: ${tabName}, Row: ${targetRow} (${targetColLetter}), Status: ${internalStatus}`);
 
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
         // 1. Update Column G (Internal Status in PLAN) or Column F (standard sheets) in Google Sheets
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
-            range: `${tabName}!${targetColLetter}${targetRow}`,
+            range: tabName.includes(' ') ? `'${tabName}'!${targetColLetter}${targetRow}` : `${tabName}!${targetColLetter}${targetRow}`,
             majorDimension: 'ROWS',
             values: [[internalStatus]]
           }]
-        });
+        }, activeKey);
 
         // 2. Format cell (non-blocking)
         const colorConfig = STATUS_COLORS[internalStatus] || STATUS_COLORS['To Pick Up'];
@@ -3034,18 +3141,20 @@ async function handleRequest(req, res) {
           text_color: colorConfig.text,
           bold: true,
           horizontal_alignment: 'CENTER'
-        }).catch(() => {});
+        }, activeKey).catch(() => {});
 
         // Register custom status if new
         registerCustomStatus(internalStatus);
 
-        // 3. Update memory cache if present
+        // 3. Update memory cache & persist to disk
         if (cache.data && cache.data[tabName]) {
           const rIdx = targetRow - 1;
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][targetColIdx] = internalStatus;
           }
+          saveDiskCache(cache);
         }
+        saveDiskCache(cache);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -3781,6 +3890,7 @@ async function handleRequest(req, res) {
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][targetColIdx] = actionNotes;
           }
+          saveDiskCache(cache);
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -3844,7 +3954,7 @@ async function handleRequest(req, res) {
         let youTrackError = null;
         if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(ticketKey)) {
           try {
-            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytToken = getEffectiveYouTrackToken();
             const ytIso = convertDateToYouTrackIso(dueDate || formattedDueDate);
             if (!ytIso) {
               await executeYouTrackCommand(ticketKey, 'Due Date No Due Date', ytToken);
@@ -3874,6 +3984,7 @@ async function handleRequest(req, res) {
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][7] = formattedDueDate;
           }
+          saveDiskCache(cache);
         }
 
         if (youTrackError) {
@@ -3928,7 +4039,7 @@ async function handleRequest(req, res) {
         let youTrackError = null;
         if (!ticketKey.startsWith('PLAN-') && !ticketKey.startsWith('TASK-') && /\b[A-Z][A-Z0-9]+-\d+\b/.test(ticketKey)) {
           try {
-            const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+            const ytToken = getEffectiveYouTrackToken();
             await updateYouTrackIssueState(ticketKey, newState, ytToken);
             youTrackSynced = true;
           } catch (ytErr) {
@@ -3968,15 +4079,17 @@ async function handleRequest(req, res) {
         const colLetter = isPulseTab ? 'C' : 'E';
         const colIdx = isPulseTab ? 2 : 4;
 
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: [{
-            range: `${tabName}!${colLetter}${targetRow}`,
+            range: tabName.includes(' ') ? `'${tabName}'!${colLetter}${targetRow}` : `${tabName}!${colLetter}${targetRow}`,
             majorDimension: 'ROWS',
             values: [[newState]]
           }]
-        });
+        }, activeKey);
 
         // Cell formatting
         const colStyle = STATUS_COLORS[newState] || STATUS_COLORS['To Pick Up'];
@@ -3989,7 +4102,7 @@ async function handleRequest(req, res) {
             text_color: colStyle.text,
             bold: true,
             horizontal_alignment: 'CENTER'
-          }).catch(() => {});
+          }, activeKey).catch(() => {});
         }
 
         if (cache.data && cache.data[tabName]) {
@@ -3997,7 +4110,9 @@ async function handleRequest(req, res) {
           if (cache.data[tabName][rIdx]) {
             cache.data[tabName][rIdx][colIdx] = newState;
           }
+          saveDiskCache(cache);
         }
+        saveDiskCache(cache);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -4642,11 +4757,10 @@ async function handleRequest(req, res) {
           closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
         }
 
-        // Determine target member tabs to remove from
-        const resolvedFrom = fromAssignee ? resolveActualTabName(fromAssignee) : null;
-        let memberTabs = (resolvedFrom && !allTabs)
-          ? [resolvedFrom]
-          : sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase());
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
+        // Search and remove from ALL non-closed tabs (including FE Ready and member tabs) to completely prevent ghost duplicates!
+        const memberTabs = sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase());
 
         let movedTicketData = null;
         const updatePayload = [];
@@ -4673,11 +4787,10 @@ async function handleRequest(req, res) {
               if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
             });
 
-            // Calculate max columns to ensure uniform grid and dynamic end column
             const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
             const endCol = colIndexToLetter(maxTabCols - 1);
 
-            // Pad with empty row to clear out deleted row in Google Sheets
+            // Pad with empty rows to cleanly overwrite deleted row in Google Sheets
             const paddedRows = [...newRows];
             while (paddedRows.length < oldLength) {
               paddedRows.push(new Array(maxTabCols).fill(''));
@@ -4692,94 +4805,55 @@ async function handleRequest(req, res) {
             sheetData[tab] = newRows;
             affectedMemberTabs.push(tab);
             updatePayload.push({
-              range: `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
+              range: tab.includes(' ') ? `'${tab}'!A1:${endCol}${normalizedPaddedRows.length}` : `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
               majorDimension: 'ROWS',
               values: normalizedPaddedRows
             });
           }
         }
 
-        // Fallback: If not found in specified fromAssignee tab, search all member sheets
-        if (!movedTicketData && resolvedFrom && !allTabs) {
-          const fallbackTabs = sheetNames.filter(s => s.trim().toUpperCase() !== closedTab.toUpperCase() && s.trim().toUpperCase() !== resolvedFrom.toUpperCase());
-          for (const tab of fallbackTabs) {
-            if (!sheetData[tab]) continue;
-            const rows = sheetData[tab] || [];
-            const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
-            if (targetIdx > 0) {
-              removedCount++;
-              movedTicketData = [...rows[targetIdx]];
-              const oldLength = rows.length;
-              const newRows = rows.filter((r, idx) => {
-                if (idx === targetIdx) return false;
-                if (idx > 0 && !isRowValidTask(r, tab === 'PLAN')) return false;
-                return true;
-              });
-              newRows.forEach((r, idx) => {
-                if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
-              });
-              const maxTabCols = Math.max(9, ...rows.map(r => (r ? r.length : 0)));
-              const endCol = colIndexToLetter(maxTabCols - 1);
-              const paddedRows = [...newRows];
-              while (paddedRows.length < oldLength) {
-                paddedRows.push(new Array(maxTabCols).fill(''));
-              }
-              const normalizedPaddedRows = paddedRows.map(r => {
-                const copy = [...r];
-                while (copy.length < maxTabCols) copy.push('');
-                return copy.slice(0, maxTabCols);
-              });
-              sheetData[tab] = newRows;
-              affectedMemberTabs.push(tab);
-              updatePayload.push({
-                range: `${tab}!A1:${endCol}${normalizedPaddedRows.length}`,
-                majorDimension: 'ROWS',
-                values: normalizedPaddedRows
-              });
-              break;
-            }
-          }
-        }
-
         if (!movedTicketData) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey} not found in member sheet tabs` }));
-          return;
+          // Check if ticket is already in CLOSED tab
+          const alreadyInClosed = closedRows.find((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+          if (alreadyInClosed) {
+            movedTicketData = [...alreadyInClosed];
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: `Ticket ${ticketKey} not found in sheet tabs` }));
+            return;
+          }
         }
 
         // Determine max columns for CLOSED tab
         const maxClosedCols = Math.max(9, (closedRows[0] && closedRows[0].length) || 9, movedTicketData.length);
         const closedEndCol = colIndexToLetter(maxClosedCols - 1);
 
-        // Prepare row in CLOSED sheet
-        const existingClosedIdx = closedRows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticketKey);
+        // Remove any existing duplicate copies of ticket in closedRows to keep CLOSED strictly unique
+        const cleanClosedRows = closedRows.filter((r, idx) => {
+          if (idx === 0) return true;
+          return !(r[1] && r[1].trim().toUpperCase() === ticketKey);
+        });
+
         const closedRow = [...movedTicketData];
         while (closedRow.length < maxClosedCols) closedRow.push('');
+        closedRow[5] = 'Closed'; // Internal Status = Closed
+        cleanClosedRows.push(closedRow);
 
-        // Set status to Closed
-        closedRow[5] = 'Closed';
+        cleanClosedRows.forEach((r, idx) => {
+          if (idx > 0) r[0] = String(idx);
+        });
 
-        let targetClosedRowIdx;
-        if (existingClosedIdx > 0) {
-          closedRow[0] = String(existingClosedIdx);
-          closedRows[existingClosedIdx] = closedRow;
-          targetClosedRowIdx = existingClosedIdx + 1;
-        } else {
-          const nextNum = String(closedRows.length);
-          closedRow[0] = nextNum;
-          closedRows.push(closedRow);
-          targetClosedRowIdx = closedRows.length;
-        }
+        const targetClosedRowIdx = cleanClosedRows.length;
 
-        const normalizedClosedRows = closedRows.map(r => {
+        const normalizedClosedRows = cleanClosedRows.map(r => {
           const copy = [...r];
           while (copy.length < maxClosedCols) copy.push('');
           return copy.slice(0, maxClosedCols);
         });
 
-        sheetData[closedTab] = closedRows;
+        sheetData[closedTab] = cleanClosedRows;
         updatePayload.push({
-          range: `${closedTab}!A1:${closedEndCol}${normalizedClosedRows.length}`,
+          range: closedTab.includes(' ') ? `'${closedTab}'!A1:${closedEndCol}${normalizedClosedRows.length}` : `${closedTab}!A1:${closedEndCol}${normalizedClosedRows.length}`,
           majorDimension: 'ROWS',
           values: normalizedClosedRows
         });
@@ -4952,7 +5026,7 @@ async function handleRequest(req, res) {
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
-        });
+        }, activeKey);
 
         if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
           const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
@@ -5269,7 +5343,8 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
       const maxCols = isPulse ? 7 : 9;
       const endCol = isPulse ? 'G' : 'I';
       updateData.push({
-        range: `${tab}!A2:${endCol}${rows.length}`,
+        range: tab.includes(' ') ? `'${tab}'!A2:${endCol}${rows.length}` : `${tab}!A2:${endCol}${rows.length}`,
+        majorDimension: 'ROWS',
         values: rows.slice(1).map(r => {
           const rowVals = [];
           for (let c = 0; c < maxCols; c++) {
@@ -5284,19 +5359,24 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   // 5. Batch write to Master Google Sheet (Only single Master Sheet updated)
   if (updateData.length > 0) {
     console.log(`Writing batch updates to Master Google Sheet for ${updateData.length} tabs...`);
-    await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+    const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
       spreadsheet_id: SPREADSHEET_ID,
       valueInputOption: 'USER_ENTERED',
       data: updateData
     }, syncApiKey);
+    if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
+      const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+      console.error(`❌ [Bulk YouTrack Sync] Google Sheets update failed:`, errMsg);
+    }
   }
 
-  // 7. Update cache immediately
+  // 7. Update cache immediately & persist to disk
   cache = {
     data: sheetData,
     sheetNames,
     timestamp: Date.now()
   };
+  saveDiskCache(cache);
 
   console.log(`✅ Bulk YouTrack Sync Complete. Synchronized ${updatedCount} ticket rows with YouTrack & Google Sheets.`);
   return {
@@ -5309,39 +5389,39 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   };
 }
 
-  // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets
+  // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets (Serialized via Mutation Queue)
   if (urlObj.pathname === '/api/youtrack/sync-all' && req.method === 'POST') {
-    try {
-      // Validate Composio API key upfront for Google Sheets operations
-      const syncApiKey = currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
-      if (!syncApiKey || !syncApiKey.startsWith('ck_')) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Composio API Key is required for Google Sheets. Please sign in and configure your key in the dashboard.' }));
-        return;
-      }
+    runSerializedMutation(async () => {
+      try {
+        const syncApiKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        if (!syncApiKey || !syncApiKey.startsWith('ck_')) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Composio API Key is required for Google Sheets. Please sign in and configure your key in the dashboard.' }));
+          return;
+        }
 
-      const ytToken = currentRequestYouTrackToken || activeYouTrackToken;
+        const ytToken = currentRequestYouTrackToken || activeYouTrackToken || loadYouTrackConfig().token;
 
-      // Deduplicate: If another sync is already running in background, join it without creating parallel requests
-      if (activeYouTrackSyncPromise) {
-        console.log('⚡ Bulk YouTrack Sync already in progress. Joining running background sync...');
+        if (activeYouTrackSyncPromise) {
+          console.log('⚡ Bulk YouTrack Sync already in progress. Joining running background sync...');
+          const result = await activeYouTrackSyncPromise;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        activeYouTrackSyncPromise = executeYouTrackBulkSync(syncApiKey, ytToken);
         const result = await activeYouTrackSyncPromise;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
-        return;
+      } catch (err) {
+        console.error('Error in youtrack sync-all:', err);
+        res.writeHead(err.isAuthError ? 401 : 500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message, isAuthError: !!err.isAuthError }));
+      } finally {
+        activeYouTrackSyncPromise = null;
       }
-
-      activeYouTrackSyncPromise = executeYouTrackBulkSync(syncApiKey, ytToken);
-      const result = await activeYouTrackSyncPromise;
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result));
-    } catch (err) {
-      console.error('Error in youtrack sync-all:', err);
-      res.writeHead(err.isAuthError ? 401 : 500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: false, error: err.message, isAuthError: !!err.isAuthError }));
-    } finally {
-      activeYouTrackSyncPromise = null;
-    }
+    });
     return;
   }
 

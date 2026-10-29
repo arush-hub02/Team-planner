@@ -14563,15 +14563,17 @@ Thanks!`;
 
     const KNOWN_TEAM_MEMBERS = [
       { name: 'Arush Deep Gupta', login: 'arushdeep.gupta@enveu.com', aliases: ['arush', 'arushdeep.gupta', 'arush.gupta', 'arushdeep'] },
-      { name: 'Chetna Sharma', login: 'chetna.sharma@enveu.com', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
-      { name: 'Krishna Sharma', login: 'krishna.sharma@enveu.com', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
-      { name: 'Manish Kumar', login: 'manish@enveu.com', aliases: ['manish', 'manish.kumar', 'manish.kumar@enveu.com'] },
-      { name: 'Rahul Joshi', login: 'rahul.joshi@enveu.com', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
-      { name: 'Sonu Kumar', login: 'sonu.kumar@enveu.com', aliases: ['sonu', 'sonu.kumar', 'sonu@enveu.com'] },
-      { name: 'Anshu Priya', login: 'anshu.priya@enveu.com', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com'] },
+      { name: 'Chetna Sharma', login: 'Chetna.Sharma', aliases: ['chetna', 'chetna@enveu.com', 'chetna.sharma'] },
+      { name: 'Krishna Sharma', login: 'Krishna.Sharma', aliases: ['krishna', 'krishna@enveu.com', 'krishna.sharma'] },
+      { name: 'Manish Kumar', login: 'Manish.Kumar', aliases: ['manish', 'manish.kumar', 'manish@enveu.com', 'manish.kumar@enveu.com'] },
+      { name: 'Rahul Joshi', login: 'Rahul.Joshi', aliases: ['rahul', 'rahul@enveu.com', 'rahul.joshi'] },
+      { name: 'Sonu Kumar', login: 'sonu.kumar', aliases: ['sonu', 'sonu.kumar@enveu.com', 'sonu@enveu.com'] },
+      { name: 'Anshu Priya', login: 'Anshu.Priya', aliases: ['anshu', 'anshu.priya', 'anshu@enveu.com', 'anshu.priya@enveu.com'] },
       { name: 'Abhinav Rajput', login: 'abhinav.rajput', aliases: ['abhinav', 'abhinav.rajput@enveu.com'] },
       { name: 'Tanisha Upadhyay', login: 'Tanisha.Upadhyay', aliases: ['tanisha', 'tanisha.upadhyay@enveu.com'] },
-      { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] }
+      { name: 'Sumayya Siddiqui', login: 'Sumayya.Siddiqui', aliases: ['sumayya', 'sumayya.siddiqui@enveu.com'] },
+      { name: 'Radhika Goel', login: 'Radhika.Goel', aliases: ['radhika', 'radhika.goel@enveu.com', 'radhika.goel'] },
+      { name: 'Sanjay Debnath', login: 'Sanjay.Debnath', aliases: ['sanjay', 'sanjay.debnath@enveu.com', 'sanjay.debnath'] }
     ];
 
     async function loadMentionUsers() {
@@ -14680,7 +14682,7 @@ Thanks!`;
       str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
         return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
       });
-      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+      str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
 
       // Strip images and markdown links
       str = str
@@ -14701,7 +14703,7 @@ Thanks!`;
 
       knownMultiWordNames.forEach(fullName => {
         const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?:@enveu\\.com)?(?![a-zA-Z0-9_])`, 'gi');
         str = str.replace(reg, `$1@${fullName}`);
       });
 
@@ -14722,7 +14724,7 @@ Thanks!`;
       str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
         return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
       });
-      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+      str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
 
       // Strip images and markdown links
       str = str
@@ -14746,7 +14748,7 @@ Thanks!`;
 
       knownMultiWordNames.forEach(fullName => {
         const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?:@enveu\\.com)?(?![a-zA-Z0-9_])`, 'gi');
         str = str.replace(reg, `$1<span class="mention-pill mention-pill-sm">@${fullName}</span>`);
       });
 
@@ -14844,6 +14846,7 @@ Thanks!`;
       str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
         return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
       });
+      str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
 
       // 2. Multi-word full names first (e.g. @Manish Kumar, @Arush Deep Gupta)
       const knownMultiWordNames = [];
@@ -14858,7 +14861,7 @@ Thanks!`;
 
       knownMultiWordNames.forEach(fullName => {
         const escaped = fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?![a-zA-Z0-9_])`, 'gi');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escaped})(?:@enveu\\.com)?(?![a-zA-Z0-9_])`, 'gi');
         str = str.replace(reg, `$1<span class="mention-pill">@${fullName}</span>`);
       });
 
@@ -15355,11 +15358,10 @@ Thanks!`;
       if (!text) return '';
       let str = String(text);
 
-      // Clean duplicate domain artifacts
-      str = str.replace(/@([a-zA-Z0-9_.-]+)@enveu\.com@enveu\.com(?:\.([a-zA-Z0-9_]+))?/gi, (m, u, rest) => {
-        return rest ? `@${u}.${rest}@enveu.com` : `@${u}@enveu.com`;
-      });
-      str = str.replace(/@([a-zA-Z0-9_.-]+)(?:@enveu\.com)+/gi, '@$1@enveu.com');
+      // Clean duplicate domain repeats
+      str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
+      // Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @Krishna.Sharma
+      str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
 
       // Combine KNOWN_TEAM_MEMBERS and allMentionUsers
       const userList = [];
@@ -15379,18 +15381,25 @@ Thanks!`;
       userList.sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
 
       userList.forEach(u => {
-        // Only replace if followed by word boundary and NOT part of an email or username
+        // Match @Name or @Name@enveu.com
         const escapedName = u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?![a-zA-Z0-9_.@-])`, 'gi');
+        const reg = new RegExp(`(^|[\\s(])@{1,2}(${escapedName})(?:@enveu\\.com)?(?![a-zA-Z0-9_.-])`, 'gi');
         str = str.replace(reg, `$1@${u.login}`);
 
-        if (Array.isArray(u.aliases)) {
+        if (Array.isArray(u.aliases) && u.login) {
           u.aliases.forEach(alias => {
             if (!alias || alias.toLowerCase() === u.login.toLowerCase()) return;
             const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?![a-zA-Z0-9_.@-])`, 'gi');
+            const regAlias = new RegExp(`(^|[\\s(])@{1,2}(${escapedAlias})(?:@enveu\\.com)?(?![a-zA-Z0-9_.-])`, 'gi');
             str = str.replace(regAlias, `$1@${u.login}`);
           });
+        }
+
+        // If user login does NOT contain @, strip any trailing @enveu.com on their login
+        if (u.login && !u.login.includes('@')) {
+          const escapedLogin = u.login.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regLoginEmail = new RegExp(`(^|[\\s(])@(${escapedLogin})@enveu\\.com(?![a-zA-Z0-9_.-])`, 'gi');
+          str = str.replace(regLoginEmail, `$1@${u.login}`);
         }
       });
 
