@@ -6,7 +6,15 @@
   "scripts": {
     "start": "node sync_server.js"
   },
-  "keywords": ["jira", "google-sheets", "composio", "task-sync"],
+  "keywords": [
+    "jira",
+    "google-sheets",
+    "composio",
+    "task-sync"
+  ],
   "author": "Enveu Engineering",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^26.6.6"
+  }
 }

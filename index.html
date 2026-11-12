@@ -13051,29 +13051,43 @@ Thanks!`;
 
       // Optimistic instant UI update (instant 0ms response)
       const prevCloseStore = JSON.parse(JSON.stringify(sheetStore));
-      const fromTab = assignee ? assignee : '';
-      let movedRow = null;
-      if (fromTab && sheetStore[fromTab]) {
-        const rows = sheetStore[fromTab];
-        const targetIdx = rows.findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
-        if (targetIdx > 0) {
-          movedRow = [...rows[targetIdx]];
-          rows.splice(targetIdx, 1);
-          rows.forEach((r, idx) => {
-            if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
-          });
-          if (!sheetStore['CLOSED']) {
-            sheetStore['CLOSED'] = [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+      const fromTab = assignee ? assignee.trim() : '';
+      let targetTabName = fromTab && sheetStore[fromTab] ? fromTab : (fromTab ? Object.keys(sheetStore).find(k => k.toUpperCase() === fromTab.toUpperCase()) : null);
+      let targetIdx = -1;
+      if (targetTabName && sheetStore[targetTabName]) {
+        targetIdx = sheetStore[targetTabName].findIndex((r, idx) => idx > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
+      }
+      if (targetIdx <= 0) {
+        for (const tabKey of Object.keys(sheetStore)) {
+          if (isStatusSheet(tabKey)) continue;
+          const idx = (sheetStore[tabKey] || []).findIndex((r, i) => i > 0 && r[1] && r[1].trim().toUpperCase() === ticket.trim().toUpperCase());
+          if (idx > 0) {
+            targetTabName = tabKey;
+            targetIdx = idx;
+            break;
           }
-          const closedRow = [...movedRow];
-          while (closedRow.length < 9) closedRow.push('');
-          closedRow[0] = String(sheetStore['CLOSED'].length);
-          closedRow[5] = 'Closed';
-          sheetStore['CLOSED'].push(closedRow);
-
-          populateTableData();
-          updateDeliveryHorizonStats();
         }
+      }
+
+      let movedRow = null;
+      if (targetTabName && sheetStore[targetTabName] && targetIdx > 0) {
+        const rows = sheetStore[targetTabName];
+        movedRow = [...rows[targetIdx]];
+        rows.splice(targetIdx, 1);
+        rows.forEach((r, idx) => {
+          if (idx > 0 && !isEpicRow(r)) r[0] = String(idx);
+        });
+        if (!sheetStore['CLOSED']) {
+          sheetStore['CLOSED'] = [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+        }
+        const closedRow = [...movedRow];
+        while (closedRow.length < 9) closedRow.push('');
+        closedRow[0] = String(sheetStore['CLOSED'].length);
+        closedRow[5] = 'Closed';
+        sheetStore['CLOSED'].push(closedRow);
+
+        populateTableData();
+        updateDeliveryHorizonStats();
       }
 
       showToast(`⏳ Closing ${ticket} and updating Google Sheet...`);

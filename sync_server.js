@@ -849,7 +849,8 @@ function normalizeMentionsForYouTrack(text, mentionUsers) {
   // 1. Collapse duplicate domain repeats like @user@enveu.com@enveu.com
   str = str.replace(/(@enveu\.com){2,}/gi, '@enveu.com');
   // 2. Clean malformed email with dot-name attached, e.g. @krishna@enveu.com.Sharma -> @Krishna.Sharma
-  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
+  str = str.replace(/@([a-zA-Z0-9_-]+)@enveu\.com\.([a-zA-Z0-9_-]+)/gi, '@$1.$2');
+
   // 3. Explicitly clean unwanted trailing @enveu.com on all team members whose login is not an email
   str = str.replace(/@(Anshu\s+Priya|Chetna\s+Sharma|Krishna\s+Sharma|Manish\s+Kumar|Rahul\s+Joshi|Sonu\s+Kumar|Abhinav\s+Rajput|Tanisha\s+Upadhyay|Sumayya\s+Siddiqui|Radhika\s+Goel|Sanjay\s+Debnath)@enveu\.com/gi, '@$1');
   str = str.replace(/@(Chetna\.Sharma|Krishna\.Sharma|Manish\.Kumar|Rahul\.Joshi|sonu\.kumar|Anshu\.Priya|abhinav\.rajput|Tanisha\.Upadhyay|Sumayya\.Siddiqui|Radhika\.Goel|Sanjay\.Debnath)@enveu\.com/gi, '@$1');
@@ -1526,9 +1527,9 @@ async function refreshSheetsInBackground() {
   }
 }
 
-let feReadyVerified = true;
-let closedSheetVerified = true;
-let tagColumnsVerified = true;
+let feReadyVerified = false;
+let closedSheetVerified = false;
+let tagColumnsVerified = false;
 
 const STATUS_SHEETS = ['CLOSED'];
 const PROJECT_SHEETS = [];
@@ -1759,6 +1760,10 @@ async function manageComposioConnections(apiKey, toolkitsWithActions) {
 }
 
 async function executeComposioTool(toolSlug, args, customApiKey) {
+  if (args && typeof args === 'object') {
+    if (args.spreadsheet_id && !args.spreadsheetId) args.spreadsheetId = args.spreadsheet_id;
+    if (args.spreadsheetId && !args.spreadsheet_id) args.spreadsheet_id = args.spreadsheetId;
+  }
   const activeKey = getEffectiveComposioKey(customApiKey);
   let sid = await getOrInitSession(activeKey);
 
@@ -1793,11 +1798,26 @@ async function executeComposioTool(toolSlug, args, customApiKey) {
       return resData;
     }
   }
+  if (callRes.body && callRes.body.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(callRes.body.trim());
+      const resData = parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      return resData;
+    } catch (jErr) {}
+  }
   return null;
 }
 
 async function executeComposioBatch(toolsList, customApiKey) {
   if (!toolsList || toolsList.length === 0) return null;
+  if (Array.isArray(toolsList)) {
+    toolsList.forEach(t => {
+      if (t && t.arguments && typeof t.arguments === 'object') {
+        if (t.arguments.spreadsheet_id && !t.arguments.spreadsheetId) t.arguments.spreadsheetId = t.arguments.spreadsheet_id;
+        if (t.arguments.spreadsheetId && !t.arguments.spreadsheet_id) t.arguments.spreadsheet_id = t.arguments.spreadsheetId;
+      }
+    });
+  }
   const activeKey = getEffectiveComposioKey(customApiKey);
   let sid = await getOrInitSession(activeKey);
 
@@ -1832,6 +1852,13 @@ async function executeComposioBatch(toolsList, customApiKey) {
       return resData;
     }
   }
+  if (callRes.body && callRes.body.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(callRes.body.trim());
+      const resData = parsed.result?.content?.[0]?.text ? JSON.parse(parsed.result.content[0].text) : parsed;
+      return resData;
+    } catch (jErr) {}
+  }
   return null;
 }
 
@@ -1851,8 +1878,10 @@ async function ensureFeReadySheetExists(customApiKey) {
       range: 'FE Ready!A1:H1'
     }, activeKey);
 
-    if (testRes?.data?.values && testRes.data.values.length > 0) {
+    const hasVals = (testRes?.data?.values && testRes.data.values.length > 0) || (testRes?.data?.results?.[0]?.response?.data?.values && testRes.data.results[0].response.data.values.length > 0);
+    if (hasVals) {
       console.log('[ensureFeReadySheetExists] FE Ready sheet already exists with headers.');
+      feReadyVerified = true;
       return true;
     }
   } catch (err) {
@@ -1866,6 +1895,7 @@ async function ensureFeReadySheetExists(customApiKey) {
       spreadsheet_id: SPREADSHEET_ID,
       spreadsheetId: SPREADSHEET_ID,
       title: 'FE Ready',
+      sheet_title: 'FE Ready',
       forceUnique: false
     }, activeKey);
     console.log('[ensureFeReadySheetExists] addRes result:', JSON.stringify(addRes));
@@ -1917,10 +1947,6 @@ async function ensureFeReadySheetExists(customApiKey) {
 
 async function ensureClosedSheetExists(customApiKey) {
   if (closedSheetVerified) return true;
-  if (cache?.sheetNames && cache.sheetNames.some(s => s.toUpperCase() === 'CLOSED')) {
-    closedSheetVerified = true;
-    return true;
-  }
   const activeKey = customApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
   try {
     const testRes = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
@@ -1929,7 +1955,9 @@ async function ensureClosedSheetExists(customApiKey) {
       range: 'CLOSED!A1:I1'
     }, activeKey);
 
-    if (testRes?.data?.values && testRes.data.values.length > 0) {
+    const hasVals = (testRes?.data?.values && testRes.data.values.length > 0) || (testRes?.data?.results?.[0]?.response?.data?.values && testRes.data.results[0].response.data.values.length > 0);
+    if (hasVals) {
+      closedSheetVerified = true;
       return true;
     }
   } catch (err) {
@@ -1937,10 +1965,12 @@ async function ensureClosedSheetExists(customApiKey) {
   }
 
   try {
+    console.log('[ensureClosedSheetExists] Creating CLOSED worksheet in Google Sheets...');
     await executeComposioTool('GOOGLESHEETS_ADD_SHEET', {
       spreadsheet_id: SPREADSHEET_ID,
       spreadsheetId: SPREADSHEET_ID,
       title: 'CLOSED',
+      sheet_title: 'CLOSED',
       forceUnique: false
     }, activeKey);
   } catch (cErr) {
@@ -4749,8 +4779,9 @@ async function handleRequest(req, res) {
         let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
         let closedRows = sheetData[closedTab] || [];
         if (closedRows.length === 0 || (closedRows[0][0] !== '#' && closedRows[0][0] !== 'SNo')) {
-          await ensureClosedSheetExists();
+          await ensureClosedSheetExists(activeKey);
           closedRows.unshift(['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']);
+          sheetData[closedTab] = closedRows;
         }
 
         // Search and remove from ALL non-closed tabs to completely prevent ghost duplicates!
@@ -4905,22 +4936,42 @@ async function handleRequest(req, res) {
           values: normalizedClosedRows
         });
 
+        await ensureClosedSheetExists(activeKey);
         // 2. Batch update Google Sheets with activeKey
         console.log(`[Close Ticket] Sending batch update to Google Sheets (${updatePayload.length} ranges)...`);
-        const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        let updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
         }, activeKey);
 
-        const isUpdateOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
+        let isUpdateOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
           (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
 
         if (!isUpdateOk) {
-          const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed or returned empty response';
-          console.error(`❌ [Close Ticket] Google Sheets batch update failed:`, errMsg);
-          throw new Error(`Google Sheets update failed: ${errMsg}`);
+          console.warn(`[Close Ticket] Combined batch update failed or returned warning. Attempting per-range fallback...`);
+          let anySuccess = false;
+          for (const item of updatePayload) {
+            try {
+              const singleRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+                spreadsheet_id: SPREADSHEET_ID,
+                spreadsheetId: SPREADSHEET_ID,
+                valueInputOption: 'USER_ENTERED',
+                data: [item]
+              }, activeKey);
+              if (singleRes && !singleRes.error && !singleRes.isError && singleRes.successful !== false) {
+                anySuccess = true;
+              }
+            } catch (errRange) {
+              console.warn(`[Close Ticket] Range update failed for ${item.range}:`, errRange.message);
+            }
+          }
+          if (!anySuccess) {
+            const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed or returned empty response';
+            console.error(`❌ [Close Ticket] Google Sheets batch update failed:`, errMsg);
+            throw new Error(`Google Sheets update failed: ${errMsg}`);
+          }
         }
 
         // 3. Format status cells in CLOSED sheet
@@ -4982,9 +5033,11 @@ async function handleRequest(req, res) {
         const destTab = resolveActualTabName(toAssignee);
         console.log(`[Reopen Ticket] Moving ${ticketKey} from CLOSED to ${destTab}...`);
 
+        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+
         let working = getCachedOrLiveSheets();
         if (!working) {
-          working = await fetchAllSheetsFromGoogle();
+          working = await fetchAllSheetsFromGoogle(activeKey);
         }
         const { sheetNames, sheetData } = working;
         let closedTab = resolveActualTabName('CLOSED') || 'CLOSED';
@@ -5057,32 +5110,50 @@ async function handleRequest(req, res) {
 
         sheetData[destTab] = newToRows;
 
+        await ensureClosedSheetExists(activeKey);
         const updatePayload = [
           {
-            range: `${closedTab}!A1:${closedEndCol}${normalizedPaddedClosedRows.length}`,
+            range: `'${closedTab.replace(/'/g, "''")}'!A1:${closedEndCol}${normalizedPaddedClosedRows.length}`,
             majorDimension: 'ROWS',
             values: normalizedPaddedClosedRows
           },
           {
-            range: `${destTab}!A1:${destEndCol}${normalizedNewToRows.length}`,
+            range: `'${destTab.replace(/'/g, "''")}'!A1:${destEndCol}${normalizedNewToRows.length}`,
             majorDimension: 'ROWS',
             values: normalizedNewToRows
           }
         ];
 
-        const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+        let updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
           data: updatePayload
         }, activeKey);
 
-        const isReopenOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
+        let isReopenOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
           (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
         if (!isReopenOk) {
-          const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
-          console.error(`❌ [Reopen Ticket] Google Sheets batch update failed:`, errMsg);
-          throw new Error(`Google Sheets update failed: ${errMsg}`);
+          console.warn(`[Reopen Ticket] Combined batch update failed. Attempting per-range fallback...`);
+          let anySuccess = false;
+          for (const item of updatePayload) {
+            try {
+              const singleRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+                spreadsheet_id: SPREADSHEET_ID,
+                spreadsheetId: SPREADSHEET_ID,
+                valueInputOption: 'USER_ENTERED',
+                data: [item]
+              }, activeKey);
+              if (singleRes && !singleRes.error && !singleRes.isError && singleRes.successful !== false) anySuccess = true;
+            } catch (rErr) {
+              console.warn(`[Reopen Ticket] Range update failed for ${item.range}:`, rErr.message);
+            }
+          }
+          if (!anySuccess) {
+            const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
+            console.error(`❌ [Reopen Ticket] Google Sheets batch update failed:`, errMsg);
+            throw new Error(`Google Sheets update failed: ${errMsg}`);
+          }
         }
 
         // Format status cell in destTab (non-blocking)
@@ -5393,13 +5464,18 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     if (hasTabChanges) {
       const maxCols = isPulse ? 7 : 9;
       const endCol = isPulse ? 'G' : 'I';
+      const escapedTab = tab.replace(/'/g, "''");
       updateData.push({
-        range: tab.includes(' ') ? `'${tab}'!A2:${endCol}${rows.length}` : `${tab}!A2:${endCol}${rows.length}`,
+        range: `'${escapedTab}'!A2:${endCol}${rows.length}`,
         majorDimension: 'ROWS',
         values: rows.slice(1).map(r => {
           const rowVals = [];
           for (let c = 0; c < maxCols; c++) {
-            rowVals.push(r[c] !== undefined && r[c] !== null ? String(r[c]) : '');
+            let val = r[c] !== undefined && r[c] !== null ? String(r[c]) : '';
+            if (val.startsWith('=') || val.startsWith('==') || val.startsWith('+') || val.startsWith('-') || val.startsWith('@')) {
+              val = `'${val}`;
+            }
+            rowVals.push(val);
           }
           return rowVals;
         })
@@ -5410,14 +5486,41 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   // 5. Batch write to Master Google Sheet (Only single Master Sheet updated)
   if (updateData.length > 0) {
     console.log(`Writing batch updates to Master Google Sheet for ${updateData.length} tabs...`);
-    const updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+    let updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
       spreadsheet_id: SPREADSHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
       valueInputOption: 'USER_ENTERED',
       data: updateData
     }, syncApiKey);
-    if (updateRes && (updateRes.error || updateRes.isError || updateRes.successful === false || (updateRes.data && updateRes.data.results && updateRes.data.results.some(r => r.response && r.response.successful === false)))) {
-      const errMsg = updateRes.error || updateRes.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed';
-      console.error(`❌ [Bulk YouTrack Sync] Google Sheets update failed:`, errMsg);
+
+    const isBatchOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
+      (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
+
+    if (!isBatchOk) {
+      const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Batch write failed';
+      console.warn(`⚠️ [Bulk YouTrack Sync] Combined batch update failed (${errMsg}). Retrying tabs individually...`);
+      let successTabs = 0;
+      for (const item of updateData) {
+        try {
+          const singleRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+            spreadsheet_id: SPREADSHEET_ID,
+            spreadsheetId: SPREADSHEET_ID,
+            valueInputOption: 'USER_ENTERED',
+            data: [item]
+          }, syncApiKey);
+          if (singleRes && !singleRes.error && !singleRes.isError && singleRes.successful !== false) {
+            successTabs++;
+          } else {
+            console.warn(`[Bulk YouTrack Sync] Individual tab update failed for ${item.range}:`, singleRes?.error || singleRes?.data?.results?.[0]?.response?.error);
+          }
+        } catch (errTab) {
+          console.warn(`[Bulk YouTrack Sync] Individual tab exception for ${item.range}:`, errTab.message);
+        }
+        await new Promise(r => setTimeout(r, 80));
+      }
+      console.log(`[Bulk YouTrack Sync] Individual tab retry complete: ${successTabs}/${updateData.length} tabs updated successfully.`);
+    } else {
+      console.log(`✅ [Bulk YouTrack Sync] Combined batch update succeeded for ${updateData.length} tabs.`);
     }
   }
 
