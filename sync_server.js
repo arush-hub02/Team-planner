@@ -156,15 +156,16 @@ function saveComposioConfig(key) {
 let lastKnownActiveApiKey = loadComposioConfig();
 
 function getEffectiveComposioKey(customApiKey) {
-  const resolved = resolveApiKey(customApiKey);
-  if (resolved && typeof resolved === 'string' && resolved.startsWith('ck_')) return resolved.trim();
-  if (currentRequestApiKey && typeof currentRequestApiKey === 'string' && currentRequestApiKey.startsWith('ck_')) return currentRequestApiKey.trim();
-  if (lastKnownActiveApiKey && typeof lastKnownActiveApiKey === 'string' && lastKnownActiveApiKey.startsWith('ck_')) return lastKnownActiveApiKey.trim();
+  // Always prioritize master server configuration if valid
   const cfgKey = resolveApiKey(loadComposioConfig());
   if (cfgKey && typeof cfgKey === 'string' && cfgKey.startsWith('ck_')) {
     lastKnownActiveApiKey = cfgKey.trim();
     return lastKnownActiveApiKey;
   }
+  const resolved = resolveApiKey(customApiKey);
+  if (resolved && typeof resolved === 'string' && resolved.startsWith('ck_')) return resolved.trim();
+  if (currentRequestApiKey && typeof currentRequestApiKey === 'string' && currentRequestApiKey.startsWith('ck_')) return currentRequestApiKey.trim();
+  if (lastKnownActiveApiKey && typeof lastKnownActiveApiKey === 'string' && lastKnownActiveApiKey.startsWith('ck_')) return lastKnownActiveApiKey.trim();
   const defaultKey = resolveApiKey(COMPOSIO_KEY);
   if (defaultKey && typeof defaultKey === 'string' && defaultKey.startsWith('ck_')) return defaultKey.trim();
   return lastKnownActiveApiKey || cfgKey || defaultKey || '';
@@ -2310,9 +2311,8 @@ async function handleRequest(req, res) {
   const incomingKey = req.headers['x-composio-key'];
   const resolvedKey = resolveApiKey(incomingKey);
   currentRequestApiKey = resolvedKey || null;
-  if (resolvedKey && resolvedKey.startsWith('ck_')) {
+  if (resolvedKey && resolvedKey.startsWith('ck_') && !loadComposioConfig()) {
     lastKnownActiveApiKey = resolvedKey;
-    saveComposioConfig(resolvedKey);
   }
   const incomingUser = req.headers['x-user-name'];
   currentRequestUser = incomingUser ? incomingUser.trim().toLowerCase() : 'workspace';
@@ -2345,13 +2345,12 @@ async function handleRequest(req, res) {
     '/api/ticket/close',
     '/api/ticket/reopen',
     '/api/ticket/move-to-fe-ready',
-    '/api/youtrack/sync-all',
     '/api/add-ticket'
   ]);
 
   if (req.method === 'POST' && MUTATION_ROUTES.has(urlObj.pathname)) {
     const originalOn = req.on.bind(req);
-    const savedApiKey = resolvedKey || lastKnownActiveApiKey;
+    const savedApiKey = getEffectiveComposioKey(resolvedKey);
     const savedUser = incomingUser ? incomingUser.trim().toLowerCase() : 'workspace';
     const savedYtToken = incomingYtToken ? incomingYtToken.trim() : (activeYouTrackToken || loadYouTrackConfig().token);
 
@@ -2383,12 +2382,10 @@ async function handleRequest(req, res) {
   if (urlObj.pathname === '/' || urlObj.pathname === '/index.html') {
     const htmlPath = path.join(__dirname, 'index.html');
     if (fs.existsSync(htmlPath)) {
-      const cacheControl = (req.headers['cache-control'] || '').toLowerCase();
-      const pragma = (req.headers['pragma'] || '').toLowerCase();
-      const isHardRefresh = cacheControl.includes('no-cache') || pragma.includes('no-cache');
+      const isForcedHard = urlObj.searchParams.get('hard') === 'true' || (req.headers['x-forced-hard-refresh'] || '').toLowerCase() === 'true';
 
       let html = fs.readFileSync(htmlPath, 'utf8');
-      const injection = `<script>window.__IS_HARD_REFRESH__ = ${isHardRefresh};</script>`;
+      const injection = `<script>window.__IS_HARD_REFRESH__ = ${isForcedHard};</script>`;
       html = html.replace('</head>', `${injection}\n</head>`);
 
       res.writeHead(200, {
@@ -3038,7 +3035,7 @@ async function handleRequest(req, res) {
 
       // Cold start (no cache at all) OR explicit force refresh:
       try {
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const activeKey = getEffectiveComposioKey(req.headers['x-composio-key']);
         const fetched = await fetchAllSheetsFromGoogle(activeKey);
         sheetNames = fetched.sheetNames;
         sheetData = fetched.sheetData;
@@ -3213,7 +3210,7 @@ async function handleRequest(req, res) {
 
         console.log(`[Update Internal Status] Tab: ${tabName}, Row: ${targetRow} (${targetColLetter}), Status: ${internalStatus}`);
 
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const activeKey = getEffectiveComposioKey(req.headers['x-composio-key']);
 
         // 1. Update Column G (Internal Status in PLAN) or Column F (standard sheets) in Google Sheets
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
@@ -4174,7 +4171,7 @@ async function handleRequest(req, res) {
         const colLetter = isPulseTab ? 'C' : 'E';
         const colIdx = isPulseTab ? 2 : 4;
 
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const activeKey = getEffectiveComposioKey(req.headers['x-composio-key']);
 
         await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
@@ -4847,7 +4844,7 @@ async function handleRequest(req, res) {
           }
         }
 
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const activeKey = getEffectiveComposioKey(req.headers['x-composio-key']);
 
         // 1. Sheet data retrieval (from cache or live)
         let working = getCachedOrLiveSheets();
@@ -5012,10 +5009,22 @@ async function handleRequest(req, res) {
         await ensureClosedSheetExists(activeKey);
 
         const sanitizedClosedRows = normalizedClosedRows.map(r => r.map(sanitizeCellForSheets));
+        let targetRange = '';
+        let targetValues = [];
+        if (cleanClosedRows.length <= 1) {
+          // If sheet is empty or just created, write headers + first row
+          targetRange = `'${closedTab}'!A1:${closedEndCol}${sanitizedClosedRows.length}`;
+          targetValues = sanitizedClosedRows;
+        } else {
+          // Fast single-row append at exact target row
+          targetRange = `'${closedTab}'!A${targetClosedRowIdx}:${closedEndCol}${targetClosedRowIdx}`;
+          targetValues = [sanitizedClosedRows[sanitizedClosedRows.length - 1]];
+        }
+
         const closedUpdateItem = {
-          range: `'${closedTab}'!A1:${closedEndCol}${sanitizedClosedRows.length}`,
+          range: targetRange,
           majorDimension: 'ROWS',
-          values: sanitizedClosedRows
+          values: targetValues
         };
 
         const memberUpdateItems = updatePayload.map(item => ({
@@ -5026,7 +5035,7 @@ async function handleRequest(req, res) {
 
         // Two-Phase Atomic Write Pattern:
         // Phase 1: Write to CLOSED first to ensure data is permanently recorded
-        console.log(`[Close Ticket] Phase 1: Writing ${ticketKey} to ${closedTab} in Google Sheets...`);
+        console.log(`[Close Ticket] Phase 1: Appending ${ticketKey} to ${targetRange} in Google Sheets...`);
         let closedRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
@@ -5039,7 +5048,7 @@ async function handleRequest(req, res) {
 
         if (!isClosedOk) {
           // Retry Phase 1 once with 250ms pause
-          console.warn(`[Close Ticket] Phase 1 initial attempt failed, retrying write to ${closedTab}...`);
+          console.warn(`[Close Ticket] Phase 1 initial attempt failed, retrying write to ${targetRange}...`);
           await new Promise(r => setTimeout(r, 250));
           closedRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
             spreadsheet_id: SPREADSHEET_ID,
@@ -5147,7 +5156,7 @@ async function handleRequest(req, res) {
         const destTab = resolveActualTabName(toAssignee);
         console.log(`[Reopen Ticket] Moving ${ticketKey} from CLOSED to ${destTab}...`);
 
-        const activeKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const activeKey = getEffectiveComposioKey(req.headers['x-composio-key']);
 
         let working = getCachedOrLiveSheets();
         if (!working) {
@@ -5671,11 +5680,11 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   };
 }
 
-  // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets (Serialized via Mutation Queue)
+  // POST /api/youtrack/sync-all -> Batch sync all YouTrack tickets across all sheets (Non-blocking background sync)
   if (urlObj.pathname === '/api/youtrack/sync-all' && req.method === 'POST') {
-    runSerializedMutation(async () => {
+    (async () => {
       try {
-        const syncApiKey = resolveApiKey(req.headers['x-composio-key']) || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
+        const syncApiKey = getEffectiveComposioKey(req.headers['x-composio-key']);
         if (!syncApiKey || !syncApiKey.startsWith('ck_')) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Composio API Key is required for Google Sheets. Please sign in and configure your key in the dashboard.' }));
@@ -5703,7 +5712,7 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
       } finally {
         activeYouTrackSyncPromise = null;
       }
-    });
+    })();
     return;
   }
 

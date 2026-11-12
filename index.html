@@ -8647,7 +8647,7 @@
       }
       fetchLiveSheets();
 
-      // Background YouTrack sync ONLY on hard refresh, NOT on simple refresh
+      // Automatic background YouTrack sync scheduled after initial load, guarded by 15-minute cooldown
       const isHard = detectIfHardRefresh();
       if (isHard) {
         console.log('🔄 Hard refresh detected: triggering background YouTrack sync...');
@@ -8655,7 +8655,9 @@
           triggerBackgroundYouTrackSync(true);
         }, 1500);
       } else {
-        console.log('⚡ Simple refresh/load: skipping background YouTrack sync.');
+        setTimeout(() => {
+          triggerBackgroundYouTrackSync(false);
+        }, 3000);
       }
     }
 
@@ -10718,6 +10720,30 @@ Thanks!`;
 
     function renderRowsWithSprintGroups(tbody, items, isAllOverview, hasNotify, emptyColspan, sheetName) {
       if (items.length === 0) {
+        const isSheetClosed = isStatusSheet(sheetName);
+        if (activeFilterBuckets.has('DONE') && !isSheetClosed) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="${emptyColspan}" style="padding: 36px 20px; text-align: center;">
+                <div style="max-width: 520px; margin: 0 auto; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 24px;">
+                  <div style="font-size: 28px; margin-bottom: 8px;">📁</div>
+                  <div style="font-size: 15px; font-weight: 700; color: #34d399; margin-bottom: 6px;">Closed Tasks are Archived in the CLOSED Tab</div>
+                  <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+                    When tickets are marked as Closed/Resolved, they are safely moved to the master <strong>CLOSED</strong> sheet to keep your active sprint clean.
+                  </div>
+                  <button type="button" class="btn-primary" onclick="switchTab('closed')" style="background: #10b981; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; color: white;">
+                    📂 Open CLOSED Tab
+                  </button>
+                  <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 10px;">
+                    Reset Filters
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
         tbody.innerHTML = `<tr><td colspan="${emptyColspan}" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${sheetName || 'this view'}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
         return;
       }
@@ -12982,12 +13008,36 @@ Thanks!`;
           todo++;
         }
       });
+      // Check for archived closed tickets for this member if on an individual sheet
+      let archivedClosedCount = 0;
+      const isMemberTab = currentActiveTab && currentActiveTab !== 'all' && currentActiveTab !== 'closed' && currentActiveTab !== 'plan' && currentActiveTab !== 'pulse';
+      if (isMemberTab && sheetStore) {
+        const closedRows = (sheetStore['CLOSED'] || sheetStore['closed'] || []);
+        const memberUpper = currentActiveTab.toUpperCase();
+        for (let i = 1; i < closedRows.length; i++) {
+          const crow = closedRows[i];
+          if (!crow || !crow[1]) continue;
+          const notes = (crow[6] || '').toUpperCase();
+          const title = (crow[3] || '').toUpperCase();
+          if (notes.includes(memberUpper) || title.includes(memberUpper)) {
+            archivedClosedCount++;
+          }
+        }
+      }
+
       if (document.getElementById('kpi-in-prog')) document.getElementById('kpi-in-prog').innerText = inProg;
       if (document.getElementById('kpi-escl2')) document.getElementById('kpi-escl2').innerText = escl2;
       if (document.getElementById('kpi-escl3')) document.getElementById('kpi-escl3').innerText = escl3;
       if (document.getElementById('kpi-waiting')) document.getElementById('kpi-waiting').innerText = waiting;
       if (document.getElementById('kpi-verify')) document.getElementById('kpi-verify').innerText = verify;
-      if (document.getElementById('kpi-done')) document.getElementById('kpi-done').innerText = done;
+      if (document.getElementById('kpi-done')) {
+        document.getElementById('kpi-done').innerText = (done === 0 && archivedClosedCount > 0) ? `0 (${archivedClosedCount} archived)` : done;
+        if (archivedClosedCount > 0 && done === 0) {
+          document.getElementById('kpi-done').parentElement.setAttribute('title', `0 active in this tab (${archivedClosedCount} completed tickets archived in CLOSED tab). Click to filter or view CLOSED tab.`);
+        } else {
+          document.getElementById('kpi-done').parentElement.setAttribute('title', `Click to toggle, double-click for only Resolved / Closed`);
+        }
+      }
       if (document.getElementById('kpi-todo')) document.getElementById('kpi-todo').innerText = todo;
       if (document.getElementById('kpi-filter-all')) document.getElementById('kpi-filter-all').innerText = total;
 
@@ -14340,8 +14390,8 @@ Thanks!`;
         return;
       }
 
-      // 5-minute cooldown guard for automatic runs
-      const COOLDOWN_MS = 5 * 60 * 1000;
+      // 15-minute cooldown guard for automatic runs
+      const COOLDOWN_MS = 15 * 60 * 1000;
       const lastSyncTime = parseInt(sessionStorage.getItem('last_youtrack_auto_sync_time') || '0', 10);
       const now = Date.now();
 
