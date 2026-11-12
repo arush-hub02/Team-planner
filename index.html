@@ -11666,7 +11666,7 @@ Thanks!`;
       if (!isEditable) {
         return `
           <div class="task-title-wrap clickable-title" onclick="${openDetailsAction}" title="Click to view full title & description" style="cursor: pointer;">
-            <span class="task-title-text">${safeTitle || '-'}</span>
+            <span class="task-title-text" onclick="event.stopPropagation(); ${openDetailsAction}">${safeTitle || '-'}</span>
           </div>
         `;
       }
@@ -11679,7 +11679,7 @@ Thanks!`;
              data-col="${colIdx}" 
              data-title="${encTitle}">
           <div class="title-display-wrap clickable-title" onclick="${openDetailsAction}" title="Click to view task details & description">
-            <span class="task-title-text">${safeTitle || '<span class="empty-val">📄 View Details</span>'}</span>
+            <span class="task-title-text" onclick="event.stopPropagation(); ${openDetailsAction}">${safeTitle || '<span class="empty-val">📄 View Details</span>'}</span>
             <button type="button" class="btn-edit-title-trigger" onclick="event.stopPropagation(); startInlineEditTitle(this.closest('.editable-title-box'))" title="Edit Title">✏️</button>
           </div>
           <div class="title-editor-wrap" style="display: none;" onclick="event.stopPropagation()">
@@ -14884,114 +14884,138 @@ Thanks!`;
     let currentDetailIsPulse = false;
 
     function openTicketDetailsModal(ticket, sheet, rowNumber) {
-      if (!ticket) return;
-      currentDetailTicket = String(ticket).trim().toUpperCase();
-      currentDetailSheet = sheet || '';
-      currentDetailRowNumber = rowNumber || 2;
-      currentDetailIsPulse = (currentDetailSheet.toUpperCase() === 'PULSE');
+      try {
+        currentDetailTicket = String(ticket || '').trim().toUpperCase();
+        currentDetailSheet = sheet || '';
+        currentDetailRowNumber = rowNumber || 2;
+        currentDetailIsPulse = (currentDetailSheet.toUpperCase() === 'PULSE');
 
-      const modal = document.getElementById('ticketDetailsModal');
-      if (!modal) return;
+        const modal = document.getElementById('ticketDetailsModal');
+        if (!modal) {
+          console.error('[openTicketDetailsModal] #ticketDetailsModal element not found');
+          return;
+        }
 
-      const ticketBadge = document.getElementById('detailModalTicketBadge');
-      const assigneeBadge = document.getElementById('detailModalAssigneeBadge');
-      const statusBadge = document.getElementById('detailModalStatusBadge');
-      const tagBadge = document.getElementById('detailModalTagBadge');
-      const dueDateBadge = document.getElementById('detailModalDueDateBadge');
-      const sourceBadge = document.getElementById('detailModalSourceBadge');
-      const offlineBanner = document.getElementById('detailOfflineBanner');
-      const titleDisplay = document.getElementById('detailTaskTitle');
-      const descDisplay = document.getElementById('detailTaskDesc');
-      const descRaw = document.getElementById('detailTaskDescRaw');
+        const ticketBadge = document.getElementById('detailModalTicketBadge');
+        const assigneeBadge = document.getElementById('detailModalAssigneeBadge');
+        const statusBadge = document.getElementById('detailModalStatusBadge');
+        const tagBadge = document.getElementById('detailModalTagBadge');
+        const dueDateBadge = document.getElementById('detailModalDueDateBadge');
+        const sourceBadge = document.getElementById('detailModalSourceBadge');
+        const offlineBanner = document.getElementById('detailOfflineBanner');
+        const titleDisplay = document.getElementById('detailTaskTitle');
+        const descDisplay = document.getElementById('detailTaskDesc');
+        const descRaw = document.getElementById('detailTaskDescRaw');
 
-      if (ticketBadge) {
-        ticketBadge.innerText = `${currentDetailTicket} ↗`;
-        ticketBadge.href = `https://enveu.youtrack.cloud/issue/${currentDetailTicket}`;
-      }
-
-      // Find ticket info from sheetStore or table data
-      let foundTitle = '';
-      let foundStatus = 'To Do';
-      let foundTag = 'Product';
-      let foundDueDate = 'Not set';
-      let foundAssignee = currentDetailSheet || 'Unassigned';
-      let foundDesc = '';
-
-      if (sheetStore) {
-        const searchTabs = currentDetailSheet ? [currentDetailSheet, ...Object.keys(sheetStore).filter(k => k !== currentDetailSheet)] : Object.keys(sheetStore);
-        for (const tab of searchTabs) {
-          const rows = sheetStore[tab] || [];
-          if (!Array.isArray(rows) || rows.length <= 1) continue;
-          const isP = (tab.toUpperCase() === 'PULSE');
-          const header = rows[0] || [];
-          const descIdx = header.findIndex(h => /^(description|desc)$/i.test(String(h || '').trim()));
-          const row = rows.find((r, idx) => idx > 0 && String(isP ? r[0] : r[1] || '').trim().toUpperCase() === currentDetailTicket);
-          if (row) {
-            foundAssignee = isP ? (row[3] || 'PULSE') : tab;
-            foundTitle = isP ? (row[1] || '') : (row[3] || '');
-            foundStatus = isP ? (row[2] || 'To Do') : (row[4] || row[5] || 'To Do');
-            foundDueDate = isP ? 'Not set' : (row[7] || 'Not set');
-            foundTag = isP ? (row[4] || 'Product') : (row[8] || 'Product');
-            if (descIdx >= 0 && row[descIdx]) {
-              foundDesc = row[descIdx];
-            }
-            break;
+        if (ticketBadge) {
+          if (currentDetailTicket) {
+            ticketBadge.style.display = 'inline-flex';
+            ticketBadge.innerText = `${currentDetailTicket} ↗`;
+            ticketBadge.href = `https://enveu.youtrack.cloud/issue/${currentDetailTicket}`;
+          } else {
+            ticketBadge.style.display = 'none';
           }
         }
-      }
 
-      if (assigneeBadge) assigneeBadge.innerText = `👤 ${foundAssignee}`;
-      if (statusBadge) {
-        statusBadge.innerText = `${getStatusEmoji(foundStatus)} ${foundStatus}`;
-        statusBadge.className = 'status-badge ' + getStatusClass(foundStatus);
-      }
-      if (tagBadge) {
-        tagBadge.innerText = foundTag;
-        tagBadge.className = 'tag-pill ' + (foundTag.toLowerCase().includes('support') ? 'tag-support' : 'tag-product');
-      }
-      if (dueDateBadge) {
-        dueDateBadge.innerText = foundDueDate;
-        dueDateBadge.className = 'due-date-pill ' + (foundDueDate !== 'Not set' ? 'has-date' : '');
-      }
+        // Find ticket info from sheetStore or table data
+        let foundTitle = '';
+        let foundStatus = 'To Do';
+        let foundTag = 'Product';
+        let foundDueDate = 'Not set';
+        let foundAssignee = currentDetailSheet || 'Unassigned';
+        let foundDesc = '';
 
-      // Set Title (read-only)
-      if (titleDisplay) {
-        titleDisplay.innerText = foundTitle || `Task ${currentDetailTicket}`;
-      }
+        if (sheetStore) {
+          const searchTabs = currentDetailSheet ? [currentDetailSheet, ...Object.keys(sheetStore).filter(k => k !== currentDetailSheet)] : Object.keys(sheetStore);
+          for (const tab of searchTabs) {
+            const rows = sheetStore[tab] || [];
+            if (!Array.isArray(rows) || rows.length <= 1) continue;
+            const isP = (tab.toUpperCase() === 'PULSE');
+            const header = rows[0] || [];
+            const descIdx = header.findIndex(h => /^(description|desc)$/i.test(String(h || '').trim()));
 
-      // Check cache for description
-      const cached = window.ticketDescriptionCache[currentDetailTicket];
-      if (cached && cached.description) {
-        foundDesc = cached.description;
-        if (cached.title && !foundTitle) {
-          foundTitle = cached.title;
-          if (titleDisplay) titleDisplay.innerText = foundTitle;
+            let row = null;
+            if (currentDetailTicket) {
+              row = rows.find((r, idx) => idx > 0 && String(isP ? r[0] : r[1] || '').trim().toUpperCase() === currentDetailTicket);
+            } else if (tab === currentDetailSheet && currentDetailRowNumber && rows[currentDetailRowNumber - 1]) {
+              row = rows[currentDetailRowNumber - 1];
+            }
+
+            if (row) {
+              foundAssignee = isP ? (row[3] || 'PULSE') : tab;
+              foundTitle = isP ? (row[1] || '') : (row[3] || '');
+              foundStatus = isP ? (row[2] || 'To Do') : (row[4] || row[5] || 'To Do');
+              foundDueDate = isP ? 'Not set' : (row[7] || 'Not set');
+              foundTag = isP ? (row[4] || 'Product') : (row[8] || 'Product');
+              if (descIdx >= 0 && row[descIdx]) {
+                foundDesc = row[descIdx];
+              }
+              break;
+            }
+          }
         }
-      }
 
-      if (foundDesc) {
-        renderModalDescription(foundDesc, cached?.source || 'sheet');
-      } else {
-        if (descDisplay) {
-          descDisplay.innerHTML = `
-            <div class="desc-loading-state" style="padding: 32px; text-align: center; color: var(--text-muted);">
-              <span class="desc-spinner" style="font-size: 1.5rem; display: block; margin-bottom: 8px;">⏳</span>
-              <span>Loading description from YouTrack / Google Sheets...</span>
-            </div>
-          `;
+        if (assigneeBadge) assigneeBadge.innerText = `👤 ${foundAssignee}`;
+        if (statusBadge) {
+          const emoji = (typeof getStatusEmoji === 'function') ? getStatusEmoji(foundStatus) : '🎯';
+          const badgeCls = (typeof getBadgeClass === 'function') ? getBadgeClass(foundStatus) : 'badge-blue';
+          statusBadge.innerText = `${emoji} ${foundStatus}`;
+          statusBadge.className = 'status-badge ' + badgeCls;
         }
-        if (descRaw) descRaw.value = '';
-        if (sourceBadge) {
-          sourceBadge.innerText = '⚡ Loading...';
-          sourceBadge.className = 'source-pill';
+        if (tagBadge) {
+          tagBadge.innerText = foundTag;
+          tagBadge.className = 'tag-badge ' + (foundTag.toLowerCase().includes('support') ? 'tag-support' : 'tag-product');
         }
-        if (offlineBanner) offlineBanner.style.display = 'none';
+        if (dueDateBadge) {
+          dueDateBadge.innerText = foundDueDate;
+          dueDateBadge.className = 'due-date-badge ' + (foundDueDate !== 'Not set' ? 'has-date' : '');
+        }
+
+        // Set Title (read-only)
+        if (titleDisplay) {
+          titleDisplay.innerText = foundTitle || (currentDetailTicket ? `Task ${currentDetailTicket}` : 'Task Details');
+        }
+
+        // Check cache for description
+        if (currentDetailTicket && window.ticketDescriptionCache) {
+          const cached = window.ticketDescriptionCache[currentDetailTicket];
+          if (cached && cached.description) {
+            foundDesc = cached.description;
+            if (cached.title && !foundTitle) {
+              foundTitle = cached.title;
+              if (titleDisplay) titleDisplay.innerText = foundTitle;
+            }
+          }
+        }
+
+        if (foundDesc) {
+          renderModalDescription(foundDesc, 'sheet');
+        } else {
+          if (descDisplay) {
+            descDisplay.innerHTML = `
+              <div class="detail-loading-state">
+                <span class="empty-icon" style="display: block; font-size: 28px; margin-bottom: 8px;">⏳</span>
+                <span>Loading description from YouTrack / Google Sheets...</span>
+              </div>
+            `;
+          }
+          if (descRaw) descRaw.value = '';
+          if (sourceBadge) {
+            sourceBadge.innerText = '⚡ Loading...';
+            sourceBadge.className = 'source-pill ready';
+          }
+          if (offlineBanner) offlineBanner.style.display = 'none';
+        }
+
+        modal.style.display = 'flex';
+
+        // Always fetch latest description in background to ensure fresh data
+        if (currentDetailTicket) {
+          fetchTicketDescription(currentDetailTicket, false);
+        }
+      } catch (err) {
+        console.error('Error in openTicketDetailsModal:', err);
       }
-
-      modal.style.display = 'flex';
-
-      // Always fetch latest description in background to ensure fresh data
-      fetchTicketDescription(currentDetailTicket, false);
     }
 
     function closeTicketDetailsModal() {
@@ -15001,47 +15025,51 @@ Thanks!`;
     }
 
     function renderModalDescription(rawDesc, source) {
-      const descDisplay = document.getElementById('detailTaskDesc');
-      const descRaw = document.getElementById('detailTaskDescRaw');
-      const sourceBadge = document.getElementById('detailModalSourceBadge');
-      const offlineBanner = document.getElementById('detailOfflineBanner');
-      const footerDot = document.getElementById('detailFooterDot');
-      const footerSyncText = document.getElementById('detailFooterSyncText');
+      try {
+        const descDisplay = document.getElementById('detailTaskDesc');
+        const descRaw = document.getElementById('detailTaskDescRaw');
+        const sourceBadge = document.getElementById('detailModalSourceBadge');
+        const offlineBanner = document.getElementById('detailOfflineBanner');
+        const footerDot = document.getElementById('detailFooterDot');
+        const footerSyncText = document.getElementById('detailFooterSyncText');
 
-      if (descRaw) descRaw.value = rawDesc || '';
+        if (descRaw) descRaw.value = rawDesc || '';
 
-      if (rawDesc && rawDesc.trim()) {
-        const formattedHtml = (typeof renderCommentMarkdown === 'function')
-          ? renderCommentMarkdown(rawDesc.trim())
-          : escapeHtml(rawDesc.trim());
-        if (descDisplay) descDisplay.innerHTML = formattedHtml;
-      } else {
-        if (descDisplay) {
-          descDisplay.innerHTML = `
-            <div class="desc-empty-state" style="padding: 36px 16px; text-align: center; color: var(--text-muted);">
-              <span style="font-size: 2.2rem; opacity: 0.4; display: block; margin-bottom: 8px;">📄</span>
-              <p style="margin: 0; font-size: 0.95rem;">No description provided for this ticket in YouTrack.</p>
-            </div>
-          `;
+        if (rawDesc && rawDesc.trim()) {
+          const formattedHtml = (typeof renderCommentMarkdown === 'function')
+            ? renderCommentMarkdown(rawDesc.trim())
+            : escapeHtml(rawDesc.trim());
+          if (descDisplay) descDisplay.innerHTML = formattedHtml;
+        } else {
+          if (descDisplay) {
+            descDisplay.innerHTML = `
+              <div class="detail-empty-state">
+                <span class="empty-icon">📄</span>
+                <p style="margin: 0; font-size: 0.95rem;">No description provided for this ticket in YouTrack.</p>
+              </div>
+            `;
+          }
         }
-      }
 
-      if (source === 'youtrack') {
-        if (sourceBadge) {
-          sourceBadge.innerText = '🟢 YouTrack Live';
-          sourceBadge.className = 'source-pill source-pill-live';
+        if (source === 'youtrack') {
+          if (sourceBadge) {
+            sourceBadge.innerText = '🟢 YouTrack Live';
+            sourceBadge.className = 'source-pill live';
+          }
+          if (offlineBanner) offlineBanner.style.display = 'none';
+          if (footerDot) footerDot.className = 'sync-dot-live';
+          if (footerSyncText) footerSyncText.innerText = 'Synced live with YouTrack & Google Sheet Column';
+        } else {
+          if (sourceBadge) {
+            sourceBadge.innerText = '⚡ Sheet Cache';
+            sourceBadge.className = 'source-pill cached';
+          }
+          if (offlineBanner) offlineBanner.style.display = 'none';
+          if (footerDot) footerDot.className = 'sync-dot-offline';
+          if (footerSyncText) footerSyncText.innerText = 'Loaded from Google Sheets & Local Disk Cache';
         }
-        if (offlineBanner) offlineBanner.style.display = 'none';
-        if (footerDot) footerDot.className = 'sync-dot-live';
-        if (footerSyncText) footerSyncText.innerText = 'Synced live with YouTrack & Google Sheet Column';
-      } else {
-        if (sourceBadge) {
-          sourceBadge.innerText = '⚡ Sheet Cache';
-          sourceBadge.className = 'source-pill source-pill-offline';
-        }
-        if (offlineBanner) offlineBanner.style.display = 'none';
-        if (footerDot) footerDot.className = 'sync-dot-offline';
-        if (footerSyncText) footerSyncText.innerText = 'Loaded from Google Sheets & Local Disk Cache';
+      } catch (err) {
+        console.error('Error in renderModalDescription:', err);
       }
     }
 
@@ -15079,7 +15107,7 @@ Thanks!`;
         if (currentDetailTicket === ticketKey) {
           const banner = document.getElementById('detailOfflineBanner');
           if (banner) banner.style.display = 'block';
-          const cached = window.ticketDescriptionCache[ticketKey];
+          const cached = window.ticketDescriptionCache ? window.ticketDescriptionCache[ticketKey] : null;
           if (cached && cached.description) {
             renderModalDescription(cached.description, 'cache');
           }
@@ -15092,7 +15120,7 @@ Thanks!`;
       const sourceBadge = document.getElementById('detailModalSourceBadge');
       if (sourceBadge) {
         sourceBadge.innerText = '🔄 Refreshing...';
-        sourceBadge.className = 'source-pill';
+        sourceBadge.className = 'source-pill ready';
       }
       fetchTicketDescription(currentDetailTicket, true);
       showToast(`🔄 Refreshing ${currentDetailTicket} description from YouTrack...`);
@@ -15126,6 +15154,15 @@ Thanks!`;
         openCommentModal(ticket, sheet, rowNum, isP, title);
       }
     }
+
+    // Export to global window scope
+    window.openTicketDetailsModal = openTicketDetailsModal;
+    window.closeTicketDetailsModal = closeTicketDetailsModal;
+    window.renderModalDescription = renderModalDescription;
+    window.fetchTicketDescription = fetchTicketDescription;
+    window.refreshCurrentTicketDescription = refreshCurrentTicketDescription;
+    window.copyDetailText = copyDetailText;
+    window.openCommentsFromDetailsModal = openCommentsFromDetailsModal;
 
     // ==========================================
     // 💬 Comment System Client State & Handlers
@@ -17289,9 +17326,9 @@ Thanks!`;
             <a id="detailModalTicketBadge" href="#" target="_blank" rel="noopener noreferrer" class="comment-ticket-link" title="Open in YouTrack">TICKET-000 ↗</a>
             <span id="detailModalAssigneeBadge" class="member-pill">Assignee</span>
             <span id="detailModalStatusBadge" class="status-badge">Status</span>
-            <span id="detailModalTagBadge" class="tag-pill">Tag</span>
-            <span id="detailModalDueDateBadge" class="due-date-pill">Due Date</span>
-            <span id="detailModalSourceBadge" class="source-pill">🟢 Live</span>
+            <span id="detailModalTagBadge" class="tag-badge">Tag</span>
+            <span id="detailModalDueDateBadge" class="due-date-badge">Due Date</span>
+            <span id="detailModalSourceBadge" class="source-pill ready">🟢 Live</span>
           </div>
           <h3 class="comment-modal-title" style="margin-top: 4px; font-size: 1.15rem; font-weight: 700; color: var(--text-main);">
             📄 Task Details &amp; Description
@@ -17311,12 +17348,12 @@ Thanks!`;
       </div>
 
       <!-- Modal Body -->
-      <div class="ticket-details-modal-body">
+      <div class="detail-modal-body">
         <!-- Title Section (Read-Only) -->
         <div class="detail-card-section">
           <div class="detail-section-header">
             <span class="detail-section-label">🏷️ Title (Read-Only)</span>
-            <button type="button" class="btn-copy-detail" onclick="copyDetailText('detailTaskTitle', 'Title copied!')" title="Copy title to clipboard">
+            <button type="button" class="btn-detail-copy" onclick="copyDetailText('detailTaskTitle', 'Title copied!')" title="Copy title to clipboard">
               📋 Copy Title
             </button>
           </div>
@@ -17330,7 +17367,7 @@ Thanks!`;
           <div class="detail-section-header">
             <span class="detail-section-label">📝 Description (Read-Only)</span>
             <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn-copy-detail" onclick="copyDetailText('detailTaskDescRaw', 'Description copied!')" title="Copy description markdown to clipboard">
+              <button type="button" class="btn-detail-copy" onclick="copyDetailText('detailTaskDescRaw', 'Description copied!')" title="Copy description markdown to clipboard">
                 📋 Copy Text
               </button>
             </div>
@@ -17343,16 +17380,16 @@ Thanks!`;
       </div>
 
       <!-- Modal Footer -->
-      <div class="ticket-details-modal-footer">
+      <div class="detail-modal-footer">
         <div class="detail-footer-left">
           <span class="sync-dot-live" id="detailFooterDot"></span>
           <span id="detailFooterSyncText">Synced with YouTrack &amp; Google Sheet Column</span>
         </div>
-        <div class="detail-footer-right">
-          <button type="button" class="btn btn-secondary" onclick="openCommentsFromDetailsModal()" title="Open discussion comments for this ticket">
+        <div class="detail-footer-actions">
+          <button type="button" class="btn-detail-comments" onclick="openCommentsFromDetailsModal()" title="Open discussion comments for this ticket">
             💬 Open Comments
           </button>
-          <button type="button" class="btn btn-primary" onclick="closeTicketDetailsModal()">
+          <button type="button" class="btn-detail-close" onclick="closeTicketDetailsModal()">
             Done
           </button>
         </div>
