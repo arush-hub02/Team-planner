@@ -103,8 +103,28 @@ function unsealApiKey(sealedToken) {
 }
 
 const COMPOSIO_CONFIG_PATH = path.join(os.tmpdir(), 'task_sync_composio_config.json');
+const LOCAL_COMPOSIO_CONFIG_PATH = path.join(__dirname, 'data', 'composio_config.json');
+
+function sanitizeCellForSheets(cellVal) {
+  if (cellVal === undefined || cellVal === null) return '';
+  const str = String(cellVal);
+  if (str.startsWith('=') || str.startsWith('==') || str.startsWith('+') || str.startsWith('-') || str.startsWith('@')) {
+    return `'${str}`;
+  }
+  return str;
+}
 
 function loadComposioConfig() {
+  try {
+    if (fs.existsSync(LOCAL_COMPOSIO_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(LOCAL_COMPOSIO_CONFIG_PATH, 'utf8'));
+      if (parsed && parsed.apiKey) {
+        return parsed.apiKey;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read data/composio_config.json:', e.message);
+  }
   try {
     if (fs.existsSync(COMPOSIO_CONFIG_PATH)) {
       const parsed = JSON.parse(fs.readFileSync(COMPOSIO_CONFIG_PATH, 'utf8'));
@@ -121,6 +141,9 @@ function loadComposioConfig() {
 function saveComposioConfig(key) {
   try {
     if (key && (key.startsWith('ck_') || key.startsWith('sealed_v1:'))) {
+      const dataDir = path.join(__dirname, 'data');
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(LOCAL_COMPOSIO_CONFIG_PATH, JSON.stringify({ apiKey: key, lastUpdated: new Date().toISOString() }, null, 2), 'utf8');
       fs.writeFileSync(COMPOSIO_CONFIG_PATH, JSON.stringify({ apiKey: key, lastUpdated: new Date().toISOString() }, null, 2), 'utf8');
       return true;
     }
@@ -175,8 +198,33 @@ function resolveApiKey(rawKey) {
 // ==========================================
 const YOUTRACK_BASE_URL = process.env.YOUTRACK_BASE_URL || 'https://enveu.youtrack.cloud';
 const YOUTRACK_CONFIG_PATH = path.join(os.tmpdir(), 'task_sync_youtrack_config.json');
+const LOCAL_YOUTRACK_CONFIG_PATH = path.join(__dirname, 'data', 'youtrack_config.json');
 
 function loadYouTrackConfig() {
+  try {
+    if (fs.existsSync(LOCAL_YOUTRACK_CONFIG_PATH)) {
+      const raw = fs.readFileSync(LOCAL_YOUTRACK_CONFIG_PATH, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return {
+          baseUrl: YOUTRACK_BASE_URL,
+          token: parsed.trim(),
+          stateField: 'State',
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      if (parsed && (parsed.token || parsed.baseUrl)) {
+        return {
+          baseUrl: parsed?.baseUrl || YOUTRACK_BASE_URL,
+          token: parsed?.token || (typeof parsed === 'string' ? parsed : '') || process.env.YOUTRACK_TOKEN || '',
+          stateField: parsed?.stateField || 'State',
+          lastUpdated: parsed?.lastUpdated || null
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read data/youtrack_config.json:', e.message);
+  }
   try {
     if (fs.existsSync(YOUTRACK_CONFIG_PATH)) {
       const raw = fs.readFileSync(YOUTRACK_CONFIG_PATH, 'utf8');
@@ -227,6 +275,9 @@ function saveYouTrackConfig(cfg) {
     } else {
       return false;
     }
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(LOCAL_YOUTRACK_CONFIG_PATH, JSON.stringify(toSave, null, 2), 'utf8');
     fs.writeFileSync(YOUTRACK_CONFIG_PATH, JSON.stringify(toSave, null, 2), 'utf8');
     return true;
   } catch (e) {
@@ -2116,9 +2167,19 @@ async function discoverSheetNames(customApiKey) {
 // Fast access to cached master sheet data (avoids redundant 15-20s Google Sheets API batch queries)
 function getCachedOrLiveSheets() {
   if (cache && cache.data && cache.sheetNames && Object.keys(cache.data).length > 0) {
+    const baseTabs = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'];
+    const DEFAULT_HEADER = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag'];
+    const PLAN_HEADER = ['S.No.', 'Epic', 'Task', 'Region', 'Effort', 'Dependency / Remarks', 'Internal Status', 'Due Date', 'Tag'];
+    const clonedData = JSON.parse(JSON.stringify(cache.data));
+    for (const tab of baseTabs) {
+      if (!clonedData[tab] || !Array.isArray(clonedData[tab]) || clonedData[tab].length === 0) {
+        clonedData[tab] = tab.toUpperCase() === 'PLAN' ? [PLAN_HEADER] : [DEFAULT_HEADER];
+      }
+    }
+    const guaranteedSheetNames = Array.from(new Set([...baseTabs, ...cache.sheetNames]));
     return {
-      sheetNames: [...cache.sheetNames],
-      sheetData: JSON.parse(JSON.stringify(cache.data))
+      sheetNames: guaranteedSheetNames,
+      sheetData: clonedData
     };
   }
   return null;
@@ -2130,6 +2191,8 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   const baseTabs = [
     'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'
   ];
+  const DEFAULT_HEADER = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag'];
+  const PLAN_HEADER = ['S.No.', 'Epic', 'Task', 'Region', 'Effort', 'Dependency / Remarks', 'Internal Status', 'Due Date', 'Tag'];
 
   const activeKey = passedApiKey || currentRequestApiKey || lastKnownActiveApiKey || COMPOSIO_KEY;
 
@@ -2168,10 +2231,27 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
     await new Promise(r => setTimeout(r, 100));
   }
 
+  // Guarantee that every single baseTab exists with at least its header row
+  for (const tab of baseTabs) {
+    if (!sheetData[tab] || !Array.isArray(sheetData[tab]) || sheetData[tab].length === 0) {
+      if (cache?.data?.[tab] && Array.isArray(cache.data[tab]) && cache.data[tab].length > 0) {
+        sheetData[tab] = cache.data[tab];
+      } else {
+        sheetData[tab] = (tab.toUpperCase() === 'PLAN') ? [PLAN_HEADER] : [DEFAULT_HEADER];
+      }
+    }
+  }
+
   // Sanitize each tab in sheetData to strip out ghost rows
   for (const tab of Object.keys(sheetData)) {
     sheetData[tab] = sanitizeSheetRows(tab, sheetData[tab]);
   }
+
+  // Ensure ALL baseTabs exist in sheetNames and are never filtered out
+  const finalSheetNames = Array.from(new Set([
+    ...baseTabs,
+    ...sheetNames.filter(tab => sheetData[tab] !== undefined)
+  ]));
 
   // Calculate total tickets after merge
   let totalTicketsAfterMerge = 0;
@@ -2184,17 +2264,17 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   if (totalTicketsAfterMerge > 0) {
     cache = {
       data: sheetData,
-      sheetNames: sheetNames.filter(tab => sheetData[tab] !== undefined),
+      sheetNames: finalSheetNames,
       timestamp: Date.now()
     };
     saveDiskCache(cache);
     console.log(`[fetchAllSheetsFromGoogle] Cache updated with ${totalTicketsAfterMerge} tickets across ${Object.keys(sheetData).length} sheets.`);
   } else if (cache && cache.data && Object.keys(cache.data).length > 0) {
     console.warn('[fetchAllSheetsFromGoogle] Live fetch yielded 0 tickets; preserving existing cache to prevent data loss.');
-    return { sheetNames: cache.sheetNames, sheetData: cache.data };
+    return { sheetNames: cache.sheetNames || finalSheetNames, sheetData: cache.data };
   }
 
-  return { sheetNames: cache.sheetNames || sheetNames, sheetData: cache.data || sheetData };
+  return { sheetNames: cache.sheetNames || finalSheetNames, sheetData: cache.data || sheetData };
 }
 
 // Master Sheet Only: Individual external sheet duplication decommissioned
@@ -4929,48 +5009,81 @@ async function handleRequest(req, res) {
           return copy.slice(0, maxClosedCols);
         });
 
-        sheetData[closedTab] = cleanClosedRows;
-        updatePayload.push({
-          range: `'${closedTab}'!A1:${closedEndCol}${normalizedClosedRows.length}`,
-          majorDimension: 'ROWS',
-          values: normalizedClosedRows
-        });
-
         await ensureClosedSheetExists(activeKey);
-        // 2. Batch update Google Sheets with activeKey
-        console.log(`[Close Ticket] Sending batch update to Google Sheets (${updatePayload.length} ranges)...`);
-        let updateRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+
+        const sanitizedClosedRows = normalizedClosedRows.map(r => r.map(sanitizeCellForSheets));
+        const closedUpdateItem = {
+          range: `'${closedTab}'!A1:${closedEndCol}${sanitizedClosedRows.length}`,
+          majorDimension: 'ROWS',
+          values: sanitizedClosedRows
+        };
+
+        const memberUpdateItems = updatePayload.map(item => ({
+          range: item.range,
+          majorDimension: 'ROWS',
+          values: item.values.map(r => r.map(sanitizeCellForSheets))
+        }));
+
+        // Two-Phase Atomic Write Pattern:
+        // Phase 1: Write to CLOSED first to ensure data is permanently recorded
+        console.log(`[Close Ticket] Phase 1: Writing ${ticketKey} to ${closedTab} in Google Sheets...`);
+        let closedRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
           spreadsheet_id: SPREADSHEET_ID,
           spreadsheetId: SPREADSHEET_ID,
           valueInputOption: 'USER_ENTERED',
-          data: updatePayload
+          data: [closedUpdateItem]
         }, activeKey);
 
-        let isUpdateOk = updateRes && !updateRes.error && !updateRes.isError && updateRes.successful !== false &&
-          (!updateRes.data?.results || !updateRes.data.results.some(r => r.response && r.response.successful === false));
+        let isClosedOk = closedRes && !closedRes.error && !closedRes.isError && closedRes.successful !== false &&
+          (!closedRes.data?.results || !closedRes.data.results.some(r => r.response && r.response.successful === false));
 
-        if (!isUpdateOk) {
-          console.warn(`[Close Ticket] Combined batch update failed or returned warning. Attempting per-range fallback...`);
-          let anySuccess = false;
-          for (const item of updatePayload) {
-            try {
-              const singleRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
-                spreadsheet_id: SPREADSHEET_ID,
-                spreadsheetId: SPREADSHEET_ID,
-                valueInputOption: 'USER_ENTERED',
-                data: [item]
-              }, activeKey);
-              if (singleRes && !singleRes.error && !singleRes.isError && singleRes.successful !== false) {
-                anySuccess = true;
+        if (!isClosedOk) {
+          // Retry Phase 1 once with 250ms pause
+          console.warn(`[Close Ticket] Phase 1 initial attempt failed, retrying write to ${closedTab}...`);
+          await new Promise(r => setTimeout(r, 250));
+          closedRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+            spreadsheet_id: SPREADSHEET_ID,
+            spreadsheetId: SPREADSHEET_ID,
+            valueInputOption: 'USER_ENTERED',
+            data: [closedUpdateItem]
+          }, activeKey);
+          isClosedOk = closedRes && !closedRes.error && !closedRes.isError && closedRes.successful !== false &&
+            (!closedRes.data?.results || !closedRes.data.results.some(r => r.response && r.response.successful === false));
+        }
+
+        if (!isClosedOk) {
+          const errMsg = closedRes?.error || closedRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Failed to update CLOSED worksheet';
+          console.error(`❌ [Close Ticket] Critical: Could not write ticket to CLOSED sheet:`, errMsg);
+          throw new Error(`Failed to record ticket in CLOSED worksheet: ${errMsg}. Source sheet was NOT modified to prevent task loss.`);
+        }
+
+        // Phase 2: Now that ticket is guaranteed written to CLOSED, clear from source sheet(s)
+        if (memberUpdateItems.length > 0) {
+          console.log(`[Close Ticket] Phase 2: Clearing ${ticketKey} from ${memberUpdateItems.length} member sheet(s)...`);
+          let memberRes = await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+            spreadsheet_id: SPREADSHEET_ID,
+            spreadsheetId: SPREADSHEET_ID,
+            valueInputOption: 'USER_ENTERED',
+            data: memberUpdateItems
+          }, activeKey);
+
+          let isMemberOk = memberRes && !memberRes.error && !memberRes.isError && memberRes.successful !== false &&
+            (!memberRes.data?.results || !memberRes.data.results.some(r => r.response && r.response.successful === false));
+
+          if (!isMemberOk) {
+            console.warn(`[Close Ticket] Combined member clear failed, attempting per-sheet clear fallback...`);
+            for (const item of memberUpdateItems) {
+              try {
+                await executeComposioTool('GOOGLESHEETS_UPDATE_VALUES_BATCH', {
+                  spreadsheet_id: SPREADSHEET_ID,
+                  spreadsheetId: SPREADSHEET_ID,
+                  valueInputOption: 'USER_ENTERED',
+                  data: [item]
+                }, activeKey);
+              } catch (errMember) {
+                console.warn(`[Close Ticket] Could not clear range ${item.range}:`, errMember.message);
               }
-            } catch (errRange) {
-              console.warn(`[Close Ticket] Range update failed for ${item.range}:`, errRange.message);
             }
-          }
-          if (!anySuccess) {
-            const errMsg = updateRes?.error || updateRes?.data?.results?.find(r => r.response?.error)?.response?.error || 'Google Sheets update failed or returned empty response';
-            console.error(`❌ [Close Ticket] Google Sheets batch update failed:`, errMsg);
-            throw new Error(`Google Sheets update failed: ${errMsg}`);
           }
         }
 
@@ -4992,7 +5105,8 @@ async function handleRequest(req, res) {
           }
         ], activeKey).catch(e => console.warn('[Close Ticket] Format note:', e.message));
 
-        // 4. Update server cache & persist to disk
+        // 4. Update server cache & persist to disk now that writes succeeded
+        sheetData[closedTab] = cleanClosedRows;
         cache = {
           sheetNames,
           data: sheetData,
@@ -5524,10 +5638,24 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     }
   }
 
-  // 7. Update cache immediately & persist to disk
+  // 7. Guarantee all baseTabs exist in sheetData & sheetNames
+  const baseTabs = [
+    'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'
+  ];
+  const DEFAULT_HEADER = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag'];
+  const PLAN_HEADER = ['S.No.', 'Epic', 'Task', 'Region', 'Effort', 'Dependency / Remarks', 'Internal Status', 'Due Date', 'Tag'];
+
+  for (const tab of baseTabs) {
+    if (!sheetData[tab] || !Array.isArray(sheetData[tab]) || sheetData[tab].length === 0) {
+      sheetData[tab] = tab.toUpperCase() === 'PLAN' ? [PLAN_HEADER] : [DEFAULT_HEADER];
+    }
+  }
+  const finalSheetNames = Array.from(new Set([...baseTabs, ...(sheetNames || [])]));
+
+  // Update cache immediately & persist to disk
   cache = {
     data: sheetData,
-    sheetNames,
+    sheetNames: finalSheetNames,
     timestamp: Date.now()
   };
   saveDiskCache(cache);
@@ -5537,7 +5665,7 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     success: true,
     source: 'youtrack',
     count: updatedCount,
-    sheetNames,
+    sheetNames: finalSheetNames,
     data: sheetData,
     commentsBatch
   };

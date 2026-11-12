@@ -9997,6 +9997,19 @@ Thanks!`;
 
     // Person-Specific Private Google Sheets (powered by IMPORTRANGE)
     // State is 100% dynamically fetched from Google Sheets via sync server API
+    const DEFAULT_MEMBERS = ['ARUSH', 'CHETNA', 'KRISHNA', 'MANISH', 'RAHUL', 'SONU'];
+    const DEFAULT_BASE_TABS = ['ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'];
+
+    function guaranteeBaseTabsInStore() {
+      DEFAULT_BASE_TABS.forEach(b => {
+        if (!sheetStore[b] || !Array.isArray(sheetStore[b]) || sheetStore[b].length === 0) {
+          sheetStore[b] = (b.toUpperCase() === 'PLAN')
+            ? [['S.No.', 'Epic', 'Task', 'Region', 'Effort', 'Dependency / Remarks', 'Internal Status', 'Due Date', 'Tag']]
+            : [['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag']];
+        }
+      });
+    }
+
     let sheetStore = {};
     try {
       const savedStore = localStorage.getItem('team_task_sync_sheetStore');
@@ -10013,6 +10026,7 @@ Thanks!`;
         }
       }
     } catch (_) {}
+    guaranteeBaseTabsInStore();
     let currentActiveTab = 'all';
     let currentTabStore = {};
     let searchQuery = '';
@@ -10996,8 +11010,9 @@ Thanks!`;
     }
 
     function getTeamMembers() {
-      const keys = Object.keys(sheetStore).length > 0 ? Object.keys(sheetStore) : ['ARUSH', 'CHETNA', 'KRISHNA', 'MANISH', 'RAHUL', 'SONU'];
-      return keys.filter(k => !isNonPersonSheet(k));
+      const currentKeys = Object.keys(sheetStore);
+      const combined = Array.from(new Set([...DEFAULT_MEMBERS, ...currentKeys]));
+      return combined.filter(k => !isNonPersonSheet(k));
     }
 
     function colIndexToLetter(colIdx) {
@@ -11699,7 +11714,8 @@ Thanks!`;
     }
 
     function renderDynamicTabsAndPanes() {
-      const sheetKeys = Object.keys(sheetStore).sort();
+      guaranteeBaseTabsInStore();
+      const sheetKeys = Array.from(new Set([...DEFAULT_BASE_TABS, ...Object.keys(sheetStore)])).sort();
       const tabsNav = document.getElementById('dynamicTabsNav');
       const panesContainer = document.getElementById('dynamicPanesContainer');
       const assigneeSelect = document.getElementById('assigneeInput');
@@ -11796,9 +11812,21 @@ Thanks!`;
       `;
 
       const planKeys = sheetKeys.filter(k => isPlanSheet(k));
+      if (!planKeys.some(k => k.toUpperCase() === 'PLAN')) planKeys.push('PLAN');
+
       const memberKeys = sheetKeys.filter(k => !isStatusSheet(k) && !isProjectSheet(k) && !isStageSheet(k) && !isPlanSheet(k) && k.toUpperCase() !== 'PULSE');
+      DEFAULT_MEMBERS.forEach(m => {
+        if (!memberKeys.some(k => k.toUpperCase() === m.toUpperCase())) {
+          memberKeys.push(m);
+        }
+      });
+
       const statusKeys = sheetKeys.filter(k => isStatusSheet(k));
+      if (!statusKeys.some(s => s.toUpperCase() === 'CLOSED')) statusKeys.push('CLOSED');
+
       const stageKeys = sheetKeys.filter(k => isStageSheet(k));
+      if (!stageKeys.some(s => s.toUpperCase() === 'FE READY')) stageKeys.push('FE Ready');
+
       const projectKeys = sheetKeys.filter(k => isProjectSheet(k) && (sheetStore[k] || []).length > 0);
 
       statusKeys.forEach(name => {
@@ -12782,6 +12810,11 @@ Thanks!`;
         // Push to master list for Overview & KPI calculation
         parsedItems.forEach(item => allRows.push(item));
 
+        const isSheetClosed = isStatusSheet(name);
+        const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
+        const isSheetStage = isStageSheet(name);
+        const isPlan = isPlanSheet(name);
+
         // Filter items
         const filtered = parsedItems.filter(item => {
           const extraMatch = Object.values(item.extraCols || {}).some(ec => (ec.value || '').toLowerCase().includes(q));
@@ -12797,19 +12830,19 @@ Thanks!`;
             extraMatch;
 
           if (!matchQuery) return false;
-          if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
-          if (!matchesStatusFilter(item.jiraStatus)) return false;
-          return matchesDeliveryHorizon(item);
+          // In the CLOSED archive sheet, never hide rows due to non-matching active sprint status filters or delivery horizon
+          if (!isSheetClosed) {
+            if (activeEpicFilter && item.epic !== activeEpicFilter) return false;
+            if (!matchesStatusFilter(item.jiraStatus)) return false;
+            if (!matchesDeliveryHorizon(item)) return false;
+          }
+          return true;
         });
 
         // Sort items
         const sorted = sortItemList(filtered, false);
         totalVisibleCountAllSheets += sorted.length;
 
-        const isSheetClosed = isStatusSheet(name);
-        const isSheetUpcoming = (name || '').trim().toUpperCase() === 'UPCOMING';
-        const isSheetStage = isStageSheet(name);
-        const isPlan = isPlanSheet(name);
         const hasSheetNotify = !!(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming && !isSheetStage);
         const emptyColspan = (hasSheetNotify ? 11 : 10) + schema.dynamicCols.length - (isPlan ? 1 : 0);
 
@@ -13022,6 +13055,7 @@ Thanks!`;
           showToast(`✅ ${ticket} reassigned to ${toAssignee}!`);
           if (json.data) {
             sheetStore = json.data;
+            guaranteeBaseTabsInStore();
             renderDynamicTabsAndPanes();
           }
         } else {
@@ -14355,6 +14389,7 @@ Thanks!`;
 
           if (json.data && !isInlineNoteActive) {
             sheetStore = json.data;
+            guaranteeBaseTabsInStore();
             renderDynamicTabsAndPanes();
           }
 
@@ -14441,9 +14476,10 @@ Thanks!`;
           // Only overwrite local store if valid tickets are returned, or if store was empty
           if (totalRows > 0 || Object.keys(sheetStore).length === 0) {
             sheetStore = json.data;
+            guaranteeBaseTabsInStore();
             if (totalRows > 0) {
               try {
-                localStorage.setItem('team_task_sync_sheetStore', JSON.stringify(json.data));
+                localStorage.setItem('team_task_sync_sheetStore', JSON.stringify(sheetStore));
               } catch (_) {}
             }
           }
