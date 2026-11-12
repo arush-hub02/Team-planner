@@ -4605,14 +4605,16 @@
       padding-right: 6px;
       user-select: text;
     }
-    .detail-desc-display h1, .detail-desc-display h2, .detail-desc-display h3 {
-      color: #f8fafc;
-      margin: 14px 0 8px 0;
+    .detail-desc-display h1, .detail-desc-display h2, .detail-desc-display h3, .detail-desc-display h4, .detail-desc-display h5, .detail-desc-display h6 {
+      color: #38bdf8;
+      margin: 18px 0 10px 0;
       font-weight: 700;
+      line-height: 1.35;
     }
-    .detail-desc-display h1 { font-size: 18px; }
-    .detail-desc-display h2 { font-size: 16px; }
-    .detail-desc-display h3 { font-size: 15px; }
+    .detail-desc-display h1 { font-size: 19px; border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding-bottom: 6px; }
+    .detail-desc-display h2 { font-size: 16.5px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 5px; color: #67e8f9; }
+    .detail-desc-display h3 { font-size: 15px; color: #a5f3fc; }
+    .detail-desc-display h4 { font-size: 14px; color: #e0f2fe; }
     .detail-desc-display p { margin: 8px 0; }
     .detail-desc-display ul, .detail-desc-display ol {
       margin: 8px 0 8px 20px;
@@ -4620,6 +4622,35 @@
     }
     .detail-desc-display li {
       margin: 4px 0;
+      line-height: 1.6;
+    }
+    .md-list-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin: 5px 0;
+      line-height: 1.6;
+    }
+    .md-list-num {
+      font-weight: 700;
+      color: #38bdf8;
+      min-width: 20px;
+    }
+    .md-list-bullet {
+      color: #38bdf8;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .md-list-content {
+      flex: 1;
+    }
+    .md-para-gap {
+      height: 10px;
+    }
+    .md-hr {
+      border: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 16px 0;
     }
     .detail-empty-state {
       padding: 36px 20px;
@@ -6522,8 +6553,17 @@
     }
     [data-theme="light"] .detail-desc-display h1,
     [data-theme="light"] .detail-desc-display h2,
-    [data-theme="light"] .detail-desc-display h3 {
-      color: #0f172a !important;
+    [data-theme="light"] .detail-desc-display h3,
+    [data-theme="light"] .detail-desc-display h4 {
+      color: #0369a1 !important;
+      border-color: #e2e8f0 !important;
+    }
+    [data-theme="light"] .md-list-num,
+    [data-theme="light"] .md-list-bullet {
+      color: #0284c7 !important;
+    }
+    [data-theme="light"] .md-hr {
+      border-color: #e2e8f0 !important;
     }
     [data-theme="light"] .btn-modal-refresh {
       background: #f8fafc !important;
@@ -14902,7 +14942,6 @@ Thanks!`;
         const tagBadge = document.getElementById('detailModalTagBadge');
         const dueDateBadge = document.getElementById('detailModalDueDateBadge');
         const sourceBadge = document.getElementById('detailModalSourceBadge');
-        const offlineBanner = document.getElementById('detailOfflineBanner');
         const titleDisplay = document.getElementById('detailTaskTitle');
         const descDisplay = document.getElementById('detailTaskDesc');
         const descRaw = document.getElementById('detailTaskDescRaw');
@@ -15004,7 +15043,6 @@ Thanks!`;
             sourceBadge.innerText = '⚡ Loading...';
             sourceBadge.className = 'source-pill ready';
           }
-          if (offlineBanner) offlineBanner.style.display = 'none';
         }
 
         modal.style.display = 'flex';
@@ -15029,7 +15067,6 @@ Thanks!`;
         const descDisplay = document.getElementById('detailTaskDesc');
         const descRaw = document.getElementById('detailTaskDescRaw');
         const sourceBadge = document.getElementById('detailModalSourceBadge');
-        const offlineBanner = document.getElementById('detailOfflineBanner');
         const footerDot = document.getElementById('detailFooterDot');
         const footerSyncText = document.getElementById('detailFooterSyncText');
 
@@ -15056,17 +15093,15 @@ Thanks!`;
             sourceBadge.innerText = '🟢 YouTrack Live';
             sourceBadge.className = 'source-pill live';
           }
-          if (offlineBanner) offlineBanner.style.display = 'none';
           if (footerDot) footerDot.className = 'sync-dot-live';
           if (footerSyncText) footerSyncText.innerText = 'Synced live with YouTrack & Google Sheet Column';
         } else {
           if (sourceBadge) {
-            sourceBadge.innerText = '⚡ Sheet Cache';
-            sourceBadge.className = 'source-pill cached';
+            sourceBadge.innerText = '🟢 Synced';
+            sourceBadge.className = 'source-pill live';
           }
-          if (offlineBanner) offlineBanner.style.display = 'none';
-          if (footerDot) footerDot.className = 'sync-dot-offline';
-          if (footerSyncText) footerSyncText.innerText = 'Loaded from Google Sheets & Local Disk Cache';
+          if (footerDot) footerDot.className = 'sync-dot-live';
+          if (footerSyncText) footerSyncText.innerText = 'Synced with YouTrack & Google Sheets';
         }
       } catch (err) {
         console.error('Error in renderModalDescription:', err);
@@ -15096,17 +15131,11 @@ Thanks!`;
               if (titleDisplay) titleDisplay.innerText = json.title;
             }
             renderModalDescription(json.description, json.source);
-            if (json.isYouTrackDown || json.source === 'cache') {
-              const banner = document.getElementById('detailOfflineBanner');
-              if (banner) banner.style.display = 'block';
-            }
           }
         }
       } catch (err) {
         console.warn(`[fetchTicketDescription] Failed for ${ticketKey}:`, err.message);
         if (currentDetailTicket === ticketKey) {
-          const banner = document.getElementById('detailOfflineBanner');
-          if (banner) banner.style.display = 'block';
           const cached = window.ticketDescriptionCache ? window.ticketDescriptionCache[ticketKey] : null;
           if (cached && cached.description) {
             renderModalDescription(cached.description, 'cache');
@@ -15509,14 +15538,38 @@ Thanks!`;
       // Bold
       str = str.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
 
-      // Italic
-      str = str.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
+      // Clean isolated/stray empty hashes on a line (e.g. "##", "## ", "#")
+      str = str.replace(/(?:^|\n)#{1,6}\s*(?=\n|$)/g, '\n');
+
+      // Headings (# h1 through ###### h6) - require non-whitespace text
+      str = str.replace(/(?:^|\n)######\s+(\S.*?)(?=\n|$)/g, '\n<h6>$1</h6>');
+      str = str.replace(/(?:^|\n)#####\s+(\S.*?)(?=\n|$)/g, '\n<h5>$1</h5>');
+      str = str.replace(/(?:^|\n)####\s+(\S.*?)(?=\n|$)/g, '\n<h4>$1</h4>');
+      str = str.replace(/(?:^|\n)###\s+(\S.*?)(?=\n|$)/g, '\n<h3>$1</h3>');
+      str = str.replace(/(?:^|\n)##\s+(\S.*?)(?=\n|$)/g, '\n<h2>$1</h2>');
+      str = str.replace(/(?:^|\n)#\s+(\S.*?)(?=\n|$)/g, '\n<h1>$1</h1>');
+
+      // Horizontal rules (--- or *** or ___)
+      str = str.replace(/(?:^|\n)(?:---|\*\*\*|___)\s*(?=\n|$)/g, '\n<hr class="md-hr">');
+
+      // Lists (numbered e.g. "1. Item" or "5. Item", and bullet "- Item", "* Item") - BEFORE italic!
+      str = str.replace(/(?:^|\n)(\d+)\.\s+(\S.*?)(?=\n|$)/g, '\n<div class="md-list-item md-num-item"><span class="md-list-num">$1.</span><span class="md-list-content">$2</span></div>');
+      str = str.replace(/(?:^|\n)[-*]\s+(\S.*?)(?=\n|$)/g, '\n<div class="md-list-item md-bullet-item"><span class="md-list-bullet">•</span><span class="md-list-content">$1</span></div>');
+
+      // Bold (**text**)
+      str = str.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+
+      // Italic (*text*) - must not match list bullets or asterisks followed by spaces
+      str = str.replace(/\*(\S(?:[^*]*?\S)?)\*/g, '<em>$1</em>');
 
       // Strikethrough
       str = str.replace(/~~([^~]+)~~/g, '<s>$1</s>');
 
       // Blockquotes
       str = str.replace(/(?:^|\n)&gt;\s?(.*?)(?=\n|$)/g, '<blockquote class="comment-blockquote">$1</blockquote>');
+
+      // Clean empty heading tags if any remain
+      str = str.replace(/<h[1-6]>\s*<\/h[1-6]>/gi, '');
 
       // Mentions Processing:
       // 1. Clean any duplicated @domain.com@domain.com artifacts in text
@@ -15574,7 +15627,10 @@ Thanks!`;
         return `${prefix}<span class="mention-pill">@${escapeHtml(displayName)}</span>${trailingPunct}`;
       });
 
-      // Line breaks
+      // Clean extra newlines around block elements and convert to clean layout
+      str = str.replace(/<\/(h[1-6]|blockquote|div|hr)>\n+/gi, '</$1>');
+      str = str.replace(/\n+<(h[1-6]|blockquote|div|hr)/gi, '<$1');
+      str = str.replace(/\n\n+/g, '<div class="md-para-gap"></div>');
       str = str.replace(/\n/g, '<br>');
 
       return str;
@@ -15700,6 +15756,9 @@ Thanks!`;
         modal.style.display = 'flex';
         loadMentionUsers();
 
+        // Default to active discussion tab
+        switchCommentModalTab('active');
+
         // Load comments from API
         await reloadCurrentTicketComments();
       } catch (err) {
@@ -15738,11 +15797,116 @@ Thanks!`;
       currentCommentsActiveTab = tab;
       const tabActive = document.getElementById('tabCommentActive');
       const tabTrash = document.getElementById('tabCommentTrash');
+      const tabDesc = document.getElementById('tabCommentDesc');
+      const threadContainer = document.getElementById('commentThreadContainer');
+      const descContainer = document.getElementById('commentModalDescContainer');
+      const editorSection = document.querySelector('.comment-editor-section');
+
       if (tabActive) tabActive.classList.toggle('active', tab === 'active');
       if (tabTrash) tabTrash.classList.toggle('active', tab === 'trash');
-      renderTicketCommentsThread();
+      if (tabDesc) tabDesc.classList.toggle('active', tab === 'desc');
+
+      if (tab === 'desc') {
+        if (threadContainer) threadContainer.style.display = 'none';
+        if (editorSection) editorSection.style.display = 'none';
+        if (descContainer) descContainer.style.display = 'flex';
+        loadCommentsModalDescription();
+      } else {
+        if (threadContainer) threadContainer.style.display = '';
+        if (editorSection) editorSection.style.display = '';
+        if (descContainer) descContainer.style.display = 'none';
+        renderTicketCommentsThread();
+      }
     }
     window.switchCommentModalTab = switchCommentModalTab;
+
+    async function loadCommentsModalDescription() {
+      const displayEl = document.getElementById('commentModalDescDisplay');
+      const rawEl = document.getElementById('commentModalDescRaw');
+      if (!displayEl) return;
+
+      const ticketKey = currentCommentTicket;
+      if (!ticketKey) {
+        displayEl.innerHTML = '<div class="detail-empty-state"><span class="empty-icon">📄</span><p>No ticket selected.</p></div>';
+        return;
+      }
+
+      // Check cache first
+      let cachedDesc = '';
+      if (window.ticketDescriptionCache && window.ticketDescriptionCache[ticketKey]) {
+        cachedDesc = window.ticketDescriptionCache[ticketKey].description || '';
+      }
+
+      // Check sheetStore if not in memory cache
+      if (!cachedDesc && sheetStore) {
+        for (const sName of Object.keys(sheetStore)) {
+          const rows = sheetStore[sName];
+          if (!Array.isArray(rows) || rows.length <= 1) continue;
+          const isP = sName.toUpperCase() === 'PULSE';
+          const header = rows[0] || [];
+          const descIdx = header.findIndex(h => /^(description|desc)$/i.test(String(h || '').trim()));
+          if (descIdx < 0) continue;
+          const foundRow = rows.find((r, idx) => idx > 0 && String(isP ? r[0] : r[1] || '').trim().toUpperCase() === ticketKey.toUpperCase());
+          if (foundRow && foundRow[descIdx]) {
+            cachedDesc = foundRow[descIdx];
+            break;
+          }
+        }
+      }
+
+      if (cachedDesc && cachedDesc.trim()) {
+        if (rawEl) rawEl.value = cachedDesc;
+        displayEl.innerHTML = (typeof renderCommentMarkdown === 'function')
+          ? renderCommentMarkdown(cachedDesc.trim())
+          : escapeHtml(cachedDesc.trim());
+        return;
+      }
+
+      // Show loading and fetch from API
+      displayEl.innerHTML = `
+        <div class="detail-loading-state" style="padding: 24px; text-align: center;">
+          <span style="display: block; font-size: 28px; margin-bottom: 8px;">⏳</span>
+          <span style="color: #94a3b8; font-size: 13px;">Loading description from YouTrack & Google Sheets...</span>
+        </div>
+      `;
+
+      try {
+        const res = await fetch(`/api/ticket/description?ticket=${encodeURIComponent(ticketKey)}`, {
+          headers: getApiHeaders()
+        });
+        const json = await res.json();
+        if (json.success && json.description && json.description.trim()) {
+          if (!window.ticketDescriptionCache) window.ticketDescriptionCache = {};
+          window.ticketDescriptionCache[ticketKey] = {
+            title: json.title || '',
+            description: json.description,
+            source: json.source || 'youtrack',
+            lastUpdated: new Date().toISOString()
+          };
+          if (rawEl) rawEl.value = json.description;
+          displayEl.innerHTML = (typeof renderCommentMarkdown === 'function')
+            ? renderCommentMarkdown(json.description.trim())
+            : escapeHtml(json.description.trim());
+        } else {
+          displayEl.innerHTML = `
+            <div class="detail-empty-state" style="padding: 24px; text-align: center;">
+              <span class="empty-icon" style="font-size: 32px; display: block; margin-bottom: 8px;">📄</span>
+              <p style="margin: 0; color: #94a3b8; font-size: 13px;">No description provided for ${escapeHtml(ticketKey)}.</p>
+            </div>
+          `;
+          if (rawEl) rawEl.value = '';
+        }
+      } catch (err) {
+        console.warn(`[loadCommentsModalDescription] Error:`, err);
+        displayEl.innerHTML = `
+          <div class="detail-empty-state" style="padding: 24px; text-align: center;">
+            <span class="empty-icon" style="font-size: 32px; display: block; margin-bottom: 8px;">📄</span>
+            <p style="margin: 0; color: #94a3b8; font-size: 13px;">Description not available at this moment.</p>
+          </div>
+        `;
+      }
+    }
+    window.loadCommentsModalDescription = loadCommentsModalDescription;
 
     async function reloadCurrentTicketComments() {
       if (!currentCommentTicket) return;
@@ -15817,6 +15981,10 @@ Thanks!`;
         const tabActive = document.getElementById('tabCommentActive');
         if (tabActive) tabActive.classList.add('active');
         if (trashTab) trashTab.classList.remove('active');
+      }
+
+      if (currentCommentsActiveTab === 'desc') {
+        return;
       }
 
       if (currentCommentsActiveTab === 'trash') {
@@ -17328,7 +17496,7 @@ Thanks!`;
             <span id="detailModalStatusBadge" class="status-badge">Status</span>
             <span id="detailModalTagBadge" class="tag-badge">Tag</span>
             <span id="detailModalDueDateBadge" class="due-date-badge">Due Date</span>
-            <span id="detailModalSourceBadge" class="source-pill ready">🟢 Live</span>
+            <span id="detailModalSourceBadge" class="source-pill live">🟢 Synced</span>
           </div>
           <h3 class="comment-modal-title" style="margin-top: 4px; font-size: 1.15rem; font-weight: 700; color: var(--text-main);">
             📄 Task Details &amp; Description
@@ -17340,11 +17508,6 @@ Thanks!`;
           </button>
           <button type="button" class="modal-close" onclick="closeTicketDetailsModal()" title="Close (Esc)">✕</button>
         </div>
-      </div>
-
-      <!-- Offline / Sync Warning Banner (Hidden unless offline / YouTrack down) -->
-      <div id="detailOfflineBanner" class="detail-offline-banner" style="display: none;">
-        <span>⚡ <strong>Offline Mode:</strong> Loaded title &amp; description from local/Google Sheets cache. YouTrack is unreachable or sync is working offline.</span>
       </div>
 
       <!-- Modal Body -->
@@ -17419,10 +17582,13 @@ Thanks!`;
         </div>
       </div>
 
-      <!-- Tabs: Discussion vs Trash -->
+      <!-- Tabs: Discussion vs Description vs Trash -->
       <div id="commentModalTabsRow" class="comment-tabs-row">
         <button type="button" id="tabCommentActive" class="comment-tab-pill active" onclick="switchCommentModalTab('active')">
           💬 Discussion (<span id="activeCommentCountBadge">0</span>)
+        </button>
+        <button type="button" id="tabCommentDesc" class="comment-tab-pill desc-tab" onclick="switchCommentModalTab('desc')">
+          📄 Description
         </button>
         <button type="button" id="tabCommentTrash" class="comment-tab-pill trash-tab" style="display: none;" onclick="switchCommentModalTab('trash')">
           🗑️ Trash (<span id="trashCommentCountBadge">0</span>)
@@ -17432,6 +17598,20 @@ Thanks!`;
       <!-- Scrollable Comment Thread -->
       <div id="commentThreadContainer" class="comment-thread-container">
         <!-- Dynamically rendered comments -->
+      </div>
+
+      <!-- Description View inside Comments Modal -->
+      <div id="commentModalDescContainer" class="comment-desc-container" style="display: none; flex: 1; overflow-y: auto; padding: 18px 22px;">
+        <div class="detail-card-section" style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 16px 18px;">
+          <div class="detail-section-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 12px;">
+            <span class="detail-section-label" style="font-size: 12px; font-weight: 800; color: #38bdf8; letter-spacing: 0.06em;">📝 Task Description</span>
+            <button type="button" class="btn-detail-copy" onclick="copyDetailText('commentModalDescRaw', 'Description copied!')">📋 Copy Text</button>
+          </div>
+          <div id="commentModalDescDisplay" class="detail-desc-display" style="user-select: text; max-height: 480px; overflow-y: auto;">
+            <!-- Formatted description rendered here -->
+          </div>
+          <textarea id="commentModalDescRaw" style="display: none;"></textarea>
+        </div>
       </div>
 
       <!-- Rich Text Editor Section -->
