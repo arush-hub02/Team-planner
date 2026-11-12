@@ -412,7 +412,7 @@ async function fetchYouTrackIssue(issueKey, customToken) {
 
   const cleanBaseUrl = (cfg.baseUrl || YOUTRACK_BASE_URL).replace(/\/+$/, '');
   const cleanKey = issueKey.trim().toUpperCase();
-  const url = `${cleanBaseUrl}/api/issues/${encodeURIComponent(cleanKey)}?fields=idReadable,summary,resolved,customFields(name,value(name,presentation,text,minutes)),comments(id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType))`;
+  const url = `${cleanBaseUrl}/api/issues/${encodeURIComponent(cleanKey)}?fields=idReadable,summary,description,resolved,customFields(name,value(name,presentation,text,minutes)),comments(id,text,created,author(name,login,avatarUrl),attachments(name,url,mimeType))`;
 
   const resp = await fetch(url, {
     method: 'GET',
@@ -442,6 +442,7 @@ async function fetchYouTrackIssue(issueKey, customToken) {
 
   const issue = await resp.json();
   const title = issue.summary || '';
+  const description = issue.description || '';
   let youTrackStatus = 'To Do';
   let dueDate = 'Not set';
 
@@ -483,9 +484,22 @@ async function fetchYouTrackIssue(issueKey, customToken) {
     };
   }) : [];
 
+  if (description) {
+    try {
+      const descStore = loadLocalDescriptions();
+      descStore[cleanKey] = {
+        title,
+        description,
+        lastUpdated: new Date().toISOString()
+      };
+      saveLocalDescriptions(descStore);
+    } catch (_) {}
+  }
+
   return {
     ticket: issue.idReadable || cleanKey,
     title,
+    description,
     youTrackStatus,
     jiraStatus: youTrackStatus, // backward compatible
     status: youTrackStatus,
@@ -523,6 +537,34 @@ function saveLocalComments(commentsMap) {
     fs.writeFileSync(COMMENTS_STORE_PATH, JSON.stringify(commentsMap, null, 2), 'utf8');
   } catch (e) {
     console.warn('[saveLocalComments] Error writing comments.json:', e.message);
+  }
+}
+
+// ==========================================
+// 📄 Ticket Descriptions Storage Engine (Offline Resilient)
+// ==========================================
+const DESCRIPTIONS_STORE_PATH = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'ticket_descriptions.json')
+  : path.join(__dirname, 'data', 'ticket_descriptions.json');
+
+function loadLocalDescriptions() {
+  try {
+    if (fs.existsSync(DESCRIPTIONS_STORE_PATH)) {
+      return JSON.parse(fs.readFileSync(DESCRIPTIONS_STORE_PATH, 'utf8'));
+    }
+  } catch (e) {
+    console.warn('[loadLocalDescriptions] Error reading ticket_descriptions.json:', e.message);
+  }
+  return {};
+}
+
+function saveLocalDescriptions(descMap) {
+  try {
+    const dir = path.dirname(DESCRIPTIONS_STORE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DESCRIPTIONS_STORE_PATH, JSON.stringify(descMap, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[saveLocalDescriptions] Error writing ticket_descriptions.json:', e.message);
   }
 }
 
@@ -4992,6 +5034,13 @@ async function handleRequest(req, res) {
         const closedRow = [...movedTicketData];
         while (closedRow.length < maxClosedCols) closedRow.push('');
         closedRow[5] = 'Closed'; // Internal Status = Closed
+        const originatingMember = (fromAssignee || affectedMemberTabs[0] || '').trim().toUpperCase();
+        if (originatingMember && originatingMember !== 'CLOSED') {
+          const curNotes = (closedRow[6] || '').trim();
+          if (!curNotes.toUpperCase().includes(originatingMember)) {
+            closedRow[6] = curNotes ? `[${originatingMember}] ${curNotes}` : `[${originatingMember}] Closed`;
+          }
+        }
         cleanClosedRows.push(closedRow);
 
         cleanClosedRows.forEach((r, idx) => {
@@ -5518,6 +5567,25 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   });
   saveLocalComments(localCommentsStore);
 
+  // 3.6. Update descriptions store with latest descriptions from YouTrack & construct descriptionsBatch
+  const localDescStore = loadLocalDescriptions();
+  const descriptionsBatch = {};
+
+  Object.keys(youTrackMap).forEach(key => {
+    const item = youTrackMap[key];
+    if (item && item.description) {
+      localDescStore[key] = {
+        title: item.title || '',
+        description: item.description,
+        lastUpdated: new Date().toISOString()
+      };
+      descriptionsBatch[key] = item.description;
+    } else if (localDescStore[key]) {
+      descriptionsBatch[key] = localDescStore[key].description || '';
+    }
+  });
+  saveLocalDescriptions(localDescStore);
+
   // 4. Update rows for each sheet tab and prepare batch writes
   const updateData = [];
   const updatedMemberTabs = [];
@@ -5531,11 +5599,20 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     let hasTabChanges = false;
     const isPulse = tab === 'PULSE';
 
+    // Ensure 'Description' column exists in header row 0
+    let descColIdx = rows[0].findIndex(h => /^(description|desc)$/i.test(String(h || '').trim()));
+    if (descColIdx < 0) {
+      descColIdx = isPulse ? 7 : 9;
+      while (rows[0].length < descColIdx) rows[0].push('');
+      rows[0][descColIdx] = 'Description';
+      hasTabChanges = true;
+    }
+
     rows.forEach((row, rIdx) => {
       if (rIdx === 0) return;
 
       if (isPulse) {
-        // PULSE layout: [Ticket Number, Title, Status, Assignee, Type, Link, Remarks]
+        // PULSE layout: [Ticket Number, Title, Status, Assignee, Type, Link, Remarks, Description]
         const ticketCell = String(row[0] || '').trim();
         const matches = ticketCell.match(/\b[A-Z][A-Z0-9]+-\d+\b/g);
         if (matches && matches.length > 0) {
@@ -5553,12 +5630,17 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
               row[6] = '';
             }
 
+            // Sync Description to Column H (index 7)
+            if (item.description !== undefined && item.description !== null) {
+              row[descColIdx] = item.description;
+            }
+
             hasTabChanges = true;
             updatedCount++;
           }
         }
       } else {
-        // Standard Member Sheet layout: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date, Tag]
+        // Standard Member Sheet layout: [#, Ticket ID, Ticket Link, Title, Jira Status, Internal Status, Action/Notes, Due Date, Tag, Description]
         const ticketKey = String(row[1] || '').trim().toUpperCase();
         if (youTrackMap[ticketKey]) {
           const item = youTrackMap[ticketKey];
@@ -5578,6 +5660,11 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
             row[6] = '';
           }
 
+          // Sync Description to Column J (index 9)
+          if (item.description !== undefined && item.description !== null) {
+            row[descColIdx] = item.description;
+          }
+
           hasTabChanges = true;
           updatedCount++;
         }
@@ -5585,13 +5672,13 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     });
 
     if (hasTabChanges) {
-      const maxCols = isPulse ? 7 : 9;
-      const endCol = isPulse ? 'G' : 'I';
+      const maxCols = Math.max(...rows.map(r => r ? r.length : 0), isPulse ? 8 : 10);
+      const endCol = colIndexToLetter(maxCols - 1);
       const escapedTab = tab.replace(/'/g, "''");
       updateData.push({
-        range: `'${escapedTab}'!A2:${endCol}${rows.length}`,
+        range: `'${escapedTab}'!A1:${endCol}${rows.length}`,
         majorDimension: 'ROWS',
-        values: rows.slice(1).map(r => {
+        values: rows.map(r => {
           const rowVals = [];
           for (let c = 0; c < maxCols; c++) {
             let val = r[c] !== undefined && r[c] !== null ? String(r[c]) : '';
@@ -5651,7 +5738,7 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   const baseTabs = [
     'ARUSH', 'MANISH', 'KRISHNA', 'CHETNA', 'SONU', 'RAHUL', 'UPCOMING', 'CLOSED', 'FE Ready', 'PLAN'
   ];
-  const DEFAULT_HEADER = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag'];
+  const DEFAULT_HEADER = ['#', 'Ticket ID', 'Ticket Link', 'Title', 'YouTrack Status', 'Internal Status', 'Action / Notes', 'Due Date', 'Tag', 'Description'];
   const PLAN_HEADER = ['S.No.', 'Epic', 'Task', 'Region', 'Effort', 'Dependency / Remarks', 'Internal Status', 'Due Date', 'Tag'];
 
   for (const tab of baseTabs) {
@@ -5676,7 +5763,8 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
     count: updatedCount,
     sheetNames: finalSheetNames,
     data: sheetData,
-    commentsBatch
+    commentsBatch,
+    descriptionsBatch
   };
 }
 
@@ -5711,6 +5799,103 @@ async function executeYouTrackBulkSync(syncApiKey, ytToken) {
         res.end(JSON.stringify({ success: false, error: err.message, isAuthError: !!err.isAuthError }));
       } finally {
         activeYouTrackSyncPromise = null;
+      }
+    })();
+    return;
+  }
+
+  // GET /api/ticket/description -> Fetch title and description from cache or live YouTrack (Offline-first resilient)
+  if (urlObj.pathname === '/api/ticket/description' && req.method === 'GET') {
+    (async () => {
+      try {
+        const ticketKey = (urlObj.searchParams.get('ticket') || '').trim().toUpperCase();
+        const shouldRefresh = urlObj.searchParams.get('refresh') === 'true';
+
+        if (!ticketKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ticket parameter is required' }));
+          return;
+        }
+
+        const localDescStore = loadLocalDescriptions();
+        let cached = localDescStore[ticketKey] || null;
+
+        // Search active sheet data (from memory/disk cache) if not in descriptions store
+        if (!cached || !cached.description) {
+          const working = getCachedOrLiveSheets();
+          if (working && working.sheetData) {
+            for (const [tab, rows] of Object.entries(working.sheetData)) {
+              if (!Array.isArray(rows) || rows.length <= 1) continue;
+              const isPulse = tab.toUpperCase() === 'PULSE';
+              const header = rows[0] || [];
+              const descIdx = header.findIndex(h => /^(description|desc)$/i.test(String(h || '').trim()));
+              if (descIdx >= 0) {
+                const foundRow = rows.find((r, idx) => idx > 0 && String(isPulse ? r[0] : r[1] || '').trim().toUpperCase() === ticketKey);
+                if (foundRow && foundRow[descIdx]) {
+                  cached = {
+                    title: isPulse ? foundRow[1] : foundRow[3] || '',
+                    description: foundRow[descIdx] || '',
+                    lastUpdated: new Date().toISOString()
+                  };
+                  localDescStore[ticketKey] = cached;
+                  saveLocalDescriptions(localDescStore);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // If live refresh requested, or no cached description yet, attempt fetch from YouTrack
+        if (shouldRefresh || !cached || !cached.description) {
+          try {
+            const ytToken = currentRequestYouTrackToken || activeYouTrackToken || loadYouTrackConfig().token;
+            if (ytToken) {
+              const ytIssue = await fetchYouTrackIssue(ticketKey, ytToken);
+              if (ytIssue) {
+                cached = {
+                  title: ytIssue.title || (cached ? cached.title : ''),
+                  description: ytIssue.description || (cached ? cached.description : ''),
+                  youTrackStatus: ytIssue.youTrackStatus || '',
+                  url: ytIssue.url || '',
+                  lastUpdated: new Date().toISOString()
+                };
+                localDescStore[ticketKey] = cached;
+                saveLocalDescriptions(localDescStore);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  success: true,
+                  ticket: ticketKey,
+                  title: cached.title,
+                  description: cached.description,
+                  url: cached.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`,
+                  source: 'youtrack',
+                  isYouTrackDown: false
+                }));
+                return;
+              }
+            }
+          } catch (ytErr) {
+            console.warn(`[ticket/description] Live YouTrack fetch failed for ${ticketKey} (${ytErr.message}). Serving offline cache.`);
+          }
+        }
+
+        // Return cached description (Offline-safe fallback)
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          ticket: ticketKey,
+          title: cached?.title || '',
+          description: cached?.description || '',
+          url: cached?.url || `https://enveu.youtrack.cloud/issue/${ticketKey}`,
+          source: cached?.description ? 'cache' : 'empty',
+          isYouTrackDown: false
+        }));
+      } catch (err) {
+        console.error('Error in ticket/description:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
       }
     })();
     return;
