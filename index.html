@@ -8914,18 +8914,10 @@
       }
       fetchLiveSheets();
 
-      // Automatic background YouTrack sync scheduled after initial load, guarded by 15-minute cooldown
-      const isHard = detectIfHardRefresh();
-      if (isHard) {
-        console.log('🔄 Hard refresh detected: triggering background YouTrack sync...');
-        setTimeout(() => {
-          triggerBackgroundYouTrackSync(true);
-        }, 1500);
-      } else {
-        setTimeout(() => {
-          triggerBackgroundYouTrackSync(false);
-        }, 3000);
-      }
+      // Automatic background YouTrack sync scheduled after initial load, strictly guarded by 15-minute cooldown
+      setTimeout(() => {
+        triggerBackgroundYouTrackSync(false);
+      }, 5000);
     }
 
     function updateMcpConnectionCards(conn) {
@@ -12853,9 +12845,7 @@ Thanks!`;
       sheetKeys.forEach(name => {
         const lower = name.toLowerCase();
         const tbody = document.getElementById(`tbody-${lower}`);
-        if (!tbody) return;
-        tbody.innerHTML = '';
-
+        const isCurrentTab = (lower === currentActiveTab.toLowerCase());
         const rows = sheetStore[name] || [];
 
         // Special handling for PULSE project sheet (native 7-column format)
@@ -12863,7 +12853,7 @@ Thanks!`;
           const pDataRows = rows.length > 0 && (rows[0][0] === '#' || rows[0][0] === 'Ticket Number') ? rows.slice(1) : rows;
           totalCountAllSheets += pDataRows.length;
 
-          if (pDataRows.length === 0) {
+          if (isCurrentTab && tbody && pDataRows.length === 0) {
             tbody.innerHTML = `<tr><td colspan="8" style="padding: 36px; text-align: center; color: var(--text-muted);">No records found in ${name}.</td></tr>`;
             return;
           }
@@ -12911,56 +12901,59 @@ Thanks!`;
           const sortedPulse = sortItemList(filteredPulse, true);
           totalVisibleCountAllSheets += sortedPulse.length;
 
-          if (sortedPulse.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${name}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
-            return;
-          }
+          if (isCurrentTab && tbody) {
+            tbody.innerHTML = '';
+            if (sortedPulse.length === 0) {
+              tbody.innerHTML = `<tr><td colspan="8" style="padding: 32px; text-align: center; color: var(--text-muted);">No tickets matching the active filters in ${name}. <button type="button" class="btn-clear-filters" onclick="resetAllFiltersAndSort()" style="margin-left: 8px;">Reset Filters</button></td></tr>`;
+              return;
+            }
 
-          sortedPulse.forEach(item => {
-            const keys = (item.ticket || '').split(',').map(k => k.trim()).filter(Boolean);
-            let ticketBadgesHtml = '';
-            keys.forEach(k => {
-              const u = `https://enveu.youtrack.cloud/issue/${k}`;
-              ticketBadgesHtml += `
-                <a href="${u}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="margin: 2px 0; display: inline-flex; align-items: center; gap: 4px;" title="Open ${k} in YouTrack">
-                  <span>${k}</span>
-                  <span class="ext-arrow">↗</span>
-                </a>
+            sortedPulse.forEach(item => {
+              const keys = (item.ticket || '').split(',').map(k => k.trim()).filter(Boolean);
+              let ticketBadgesHtml = '';
+              keys.forEach(k => {
+                const u = `https://enveu.youtrack.cloud/issue/${k}`;
+                ticketBadgesHtml += `
+                  <a href="${u}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="margin: 2px 0; display: inline-flex; align-items: center; gap: 4px;" title="Open ${k} in YouTrack">
+                    <span>${k}</span>
+                    <span class="ext-arrow">↗</span>
+                  </a>
+                `;
+              });
+
+              const statusClass = getBadgeClass(item.status);
+              const isBug = (item.type || '').toLowerCase().includes('bug');
+              const typeBadgeHtml = isBug
+                ? `<span class="type-badge type-bug">🐛 Bug</span>`
+                : `<span class="type-badge type-task">📋 Task</span>`;
+
+              const linkUrl = (item.link && item.link.trim().startsWith('http') && !item.link.includes('atlassian.net')) 
+                ? item.link.trim() 
+                : (keys.length > 0 ? `https://enveu.youtrack.cloud/issue/${keys[0]}` : '');
+              const linkHtml = linkUrl
+                ? `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="Open YouTrack Link"><span>YouTrack Link</span><span class="ext-arrow">↗</span></a>`
+                : `<span style="color: var(--text-muted); font-size: 12px;">-</span>`;
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>
+                <td><div style="display: flex; flex-direction: column; gap: 2px;">${ticketBadgesHtml || item.ticket || ''}</div></td>
+                <td class="task-title-cell" style="vertical-align: middle; text-align: left;">${renderTitleCell('PULSE', item.ticket, item.title, item.originalIndex + 1, 1, canUserEditTask('PULSE'))}</td>
+                <td style="text-align: center;">
+                  ${createPulseStateSelectHtml(item.ticket, item.status, item.originalIndex + 1, canUserEditTask('PULSE'))}
+                </td>
+                <td style="text-align: center;">
+                  <span class="member-pill" style="font-size: 11.5px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
+                    👤 ${item.assignee || 'Unassigned'}
+                  </span>
+                </td>
+                <td style="text-align: center;">${typeBadgeHtml}</td>
+                <td style="text-align: center;">${linkHtml}</td>
+                <td class="notes-cell">${renderNotesCell('PULSE', item.ticket, item.remarks || '', item.originalIndex + 1, true, item.title)}</td>
               `;
+              tbody.appendChild(tr);
             });
-
-            const statusClass = getBadgeClass(item.status);
-            const isBug = (item.type || '').toLowerCase().includes('bug');
-            const typeBadgeHtml = isBug
-              ? `<span class="type-badge type-bug">🐛 Bug</span>`
-              : `<span class="type-badge type-task">📋 Task</span>`;
-
-            const linkUrl = (item.link && item.link.trim().startsWith('http') && !item.link.includes('atlassian.net')) 
-              ? item.link.trim() 
-              : (keys.length > 0 ? `https://enveu.youtrack.cloud/issue/${keys[0]}` : '');
-            const linkHtml = linkUrl
-              ? `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="ticket-link" style="font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="Open YouTrack Link"><span>YouTrack Link</span><span class="ext-arrow">↗</span></a>`
-              : `<span style="color: var(--text-muted); font-size: 12px;">-</span>`;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td style="color: var(--text-muted); font-weight: 600; text-align: center;">${item.originalIndex}</td>
-              <td><div style="display: flex; flex-direction: column; gap: 2px;">${ticketBadgesHtml || item.ticket || ''}</div></td>
-              <td class="task-title-cell" style="vertical-align: middle; text-align: left;">${renderTitleCell('PULSE', item.ticket, item.title, item.originalIndex + 1, 1, canUserEditTask('PULSE'))}</td>
-              <td style="text-align: center;">
-                ${createPulseStateSelectHtml(item.ticket, item.status, item.originalIndex + 1, canUserEditTask('PULSE'))}
-              </td>
-              <td style="text-align: center;">
-                <span class="member-pill" style="font-size: 11.5px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.25);">
-                  👤 ${item.assignee || 'Unassigned'}
-                </span>
-              </td>
-              <td style="text-align: center;">${typeBadgeHtml}</td>
-              <td style="text-align: center;">${linkHtml}</td>
-              <td class="notes-cell">${renderNotesCell('PULSE', item.ticket, item.remarks || '', item.originalIndex + 1, true, item.title)}</td>
-            `;
-            tbody.appendChild(tr);
-          });
+          }
           return;
         }
 
@@ -13126,8 +13119,10 @@ Thanks!`;
         currentTabStore[name.toLowerCase()] = parsedItems;
 
         if (parsedItems.length === 0) {
-          const emptyColspan0 = 10 + (schema.dynamicCols ? schema.dynamicCols.length : 0);
-          tbody.innerHTML = `<tr><td colspan="${emptyColspan0}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tasks found. Use the form above to add a task!</td></tr>`;
+          if (isCurrentTab && tbody) {
+            const emptyColspan0 = 10 + (schema.dynamicCols ? schema.dynamicCols.length : 0);
+            tbody.innerHTML = `<tr><td colspan="${emptyColspan0}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tasks found. Use the form above to add a task!</td></tr>`;
+          }
           return;
         }
 
@@ -13170,17 +13165,20 @@ Thanks!`;
         const hasSheetNotify = !!(teamsSelectMode && currentUser && currentUser.role === 'ADMIN' && !isSheetClosed && !isSheetUpcoming && !isSheetStage);
         const emptyColspan = (hasSheetNotify ? 11 : 10) + schema.dynamicCols.length - (isPlan ? 1 : 0);
 
-        renderRowsWithSprintGroups(tbody, sorted, false, hasSheetNotify, emptyColspan, name);
+        if (isCurrentTab && tbody) {
+          tbody.innerHTML = '';
+          renderRowsWithSprintGroups(tbody, sorted, false, hasSheetNotify, emptyColspan, name);
+        }
       });
 
       // Render All Overview (Unified cards for shared tickets with sorting & filtering applied)
       const allTbody = document.getElementById('tbody-all');
+      const isAllActive = (currentActiveTab.toLowerCase() === 'all');
       if (allTbody) {
-        allTbody.innerHTML = '';
         const allDynCols = getAllDynamicColumnsAcrossSheets();
         const emptyColspanAll = ((teamsSelectMode && currentUser && currentUser.role === 'ADMIN') ? 10 : 9) + allDynCols.length;
         if (allRows.length === 0) {
-          allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
+          if (isAllActive) allTbody.innerHTML = `<tr><td colspan="${emptyColspanAll}" style="padding: 36px; text-align: center; color: var(--text-muted);">No tickets found.</td></tr>`;
           currentTabStore['all'] = [];
         } else {
           const renderedTicketsInAll = new Set();
@@ -13224,7 +13222,10 @@ Thanks!`;
           const badgeAllEl = document.getElementById('badge-all');
           if (badgeAllEl) badgeAllEl.innerText = uniqueAllItems.length;
 
-          renderRowsWithSprintGroups(allTbody, sortedAll, true, (teamsSelectMode && currentUser && currentUser.role === 'ADMIN'), emptyColspanAll, 'All Overview');
+          if (isAllActive) {
+            allTbody.innerHTML = '';
+            renderRowsWithSprintGroups(allTbody, sortedAll, true, (teamsSelectMode && currentUser && currentUser.role === 'ADMIN'), emptyColspanAll, 'All Overview');
+          }
         }
       }
 
@@ -13348,9 +13349,13 @@ Thanks!`;
       if (document.getElementById('kpi-discuss')) document.getElementById('kpi-discuss').innerText = escl3 + waiting;
     }
 
+    let searchDebounceTimer = null;
     function handleSearch() {
-      searchQuery = document.getElementById('searchInput').value.trim();
-      populateTableData();
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        searchQuery = document.getElementById('searchInput').value.trim();
+        populateTableData();
+      }, 150);
     }
 
     // Editable Internal Assignee -> Moves ticket in Google Sheets
@@ -17369,6 +17374,7 @@ Thanks!`;
 
       // Update KPIs and Timeline statistics for the active tab
       updateDashboardKpisForActiveTab();
+      populateTableData();
     }
 
     function copyTable(tableId) {

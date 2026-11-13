@@ -2249,29 +2249,31 @@ async function fetchAllSheetsFromGoogle(passedApiKey) {
   }
 
   const sheetData = {};
-  console.log(`[fetchAllSheetsFromGoogle] Fetching all ${sheetNames.length} sheets sequentially with GOOGLESHEETS_VALUES_GET...`);
+  console.log(`[fetchAllSheetsFromGoogle] Fetching all ${sheetNames.length} sheets concurrently in batches with GOOGLESHEETS_VALUES_GET...`);
 
-  for (const tab of sheetNames) {
-    try {
-      const res = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
-        spreadsheet_id: SPREADSHEET_ID,
-        range: `'${tab}'!A1:I150`
-      }, activeKey);
+  const BATCH_SIZE = 4;
+  for (let i = 0; i < sheetNames.length; i += BATCH_SIZE) {
+    const chunk = sheetNames.slice(i, i + BATCH_SIZE);
+    await Promise.all(chunk.map(async tab => {
+      try {
+        const res = await executeComposioTool('GOOGLESHEETS_VALUES_GET', {
+          spreadsheet_id: SPREADSHEET_ID,
+          range: `'${tab}'!A1:I150`
+        }, activeKey);
 
-      const vals = res?.data?.values || (res?.data?.results?.[0]?.response?.data?.values);
-      if (Array.isArray(vals) && vals.length > 0) {
-        sheetData[tab] = vals;
-      } else if (cache?.data?.[tab] && cache.data[tab].length > 0) {
-        sheetData[tab] = cache.data[tab];
+        const vals = res?.data?.values || (res?.data?.results?.[0]?.response?.data?.values);
+        if (Array.isArray(vals) && vals.length > 0) {
+          sheetData[tab] = vals;
+        } else if (cache?.data?.[tab] && cache.data[tab].length > 0) {
+          sheetData[tab] = cache.data[tab];
+        }
+      } catch (err) {
+        console.warn(`[fetchAllSheetsFromGoogle] Error fetching tab "${tab}":`, err.message);
+        if (cache?.data?.[tab] && cache.data[tab].length > 0) {
+          sheetData[tab] = cache.data[tab];
+        }
       }
-    } catch (err) {
-      console.warn(`[fetchAllSheetsFromGoogle] Error fetching tab "${tab}":`, err.message);
-      if (cache?.data?.[tab] && cache.data[tab].length > 0) {
-        sheetData[tab] = cache.data[tab];
-      }
-    }
-    // Breather pause between requests to respect rate limits
-    await new Promise(r => setTimeout(r, 100));
+    }));
   }
 
   // Guarantee that every single baseTab exists with at least its header row
@@ -5498,8 +5500,18 @@ let activeYouTrackSyncPromise = null;
 async function executeYouTrackBulkSync(syncApiKey, ytToken) {
   console.log('⚡ Starting Bulk YouTrack Sync for All Sheets...');
   
-  // 1. Fetch live sheets
-  const { sheetNames, sheetData } = await fetchAllSheetsFromGoogle(syncApiKey);
+  // 1. Fetch live sheets (use warm cache if available to prevent redundant 20s Google Sheets fetch)
+  let sheetNames, sheetData;
+  const working = getCachedOrLiveSheets();
+  if (working && working.sheetData && working.sheetNames && Object.keys(working.sheetData).length >= 8) {
+    sheetNames = working.sheetNames;
+    sheetData = working.sheetData;
+    console.log(`[Bulk YouTrack Sync] Using warm sheets cache (${sheetNames.length} sheets), skipping redundant Google Sheets fetch.`);
+  } else {
+    const fetched = await fetchAllSheetsFromGoogle(syncApiKey);
+    sheetNames = fetched.sheetNames;
+    sheetData = fetched.sheetData;
+  }
   
   // 2. Collect unique tickets
   const allTicketKeys = new Set();
